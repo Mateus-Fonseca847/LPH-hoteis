@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Hotel {
+  id               String         @id @default(cuid())
+  name             String
+  slug             String         @unique
+  shortDescription String
+  fullDescription  String         @db.Text
+  city             String
+  state            String
+  address          String
+  phone            String
+  email            String
+  whatsapp         String
+  coverImageUrl    String
+  checkInTime      String
+  checkOutTime     String
+  latitude         Decimal?       @db.Decimal(10, 7)
+  longitude        Decimal?       @db.Decimal(10, 7)
+  isPublished      Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  images           HotelImage[]
+  amenities        HotelAmenity[]
+  policies         HotelPolicy[]
+  permissions      HotelPermission[]
+  auditLogs        HotelAuditLog[]
+
+  @@index([slug])
+  @@index([city])
+  @@index([state])
+  @@index([city, state])
+  @@index([isPublished])
+}
+
+model HotelImage {
+  id        String   @id @default(cuid())
+  hotelId   String
+  url       String
+  alt       String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  hotel     Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, position])
+}
+
+model HotelAmenity {
+  id        String   @id @default(cuid())
+  hotelId   String
+  label     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  hotel     Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, position])
+}
+
+model HotelPolicy {
+  id          String   @id @default(cuid())
+  hotelId     String
+  title       String
+  description String   @db.Text
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  hotel       Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, position])
+}
+
+model User {
+  id               String            @id @default(cuid())
+  name             String
+  email            String            @unique
+  passwordHash     String
+  globalRole       GlobalRole        @default(user)
+  twoFactorEnabled Boolean           @default(false)
+  twoFactorSecret  String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  hotelPermissions HotelPermission[]
+  auditLogs        HotelAuditLog[]
+
+  @@index([globalRole])
+  @@index([createdAt])
+}
+
+model HotelPermission {
+  id        String          @id @default(cuid())
+  userId    String
+  hotelId   String
+  role      HotelRole
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hotel     Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hotelId])
+  @@index([userId])
+  @@index([hotelId])
+  @@index([hotelId, role])
+}
+
+model HotelAuditLog {
+  id            String   @id @default(cuid())
+  userId        String
+  hotelId       String
+  action        String
+  changedFields Json?
+  previousValue Json?
+  newValue      Json?
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  hotel         Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([hotelId])
+  @@index([createdAt])
+  @@index([hotelId, createdAt])
+  @@index([userId, createdAt])
+}
+
+enum GlobalRole {
+  super_admin
+  hotel_admin
+  user
+}
+
+enum HotelRole {
+  owner
+  admin
+  editor
+}

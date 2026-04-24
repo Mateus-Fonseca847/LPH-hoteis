@@ -1,0 +1,15 @@
+node_modules
+node_modules/.cache
+.next
+.turbo
+out
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+coverage
+dist
+tsconfig.tsbuildinfo
+.next-dev.log
+.next-dev.err.log
