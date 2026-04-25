@@ -1,0 +1,23 @@
+
+> lph-hoteis@1.0.0 dev
+> next dev
+
+   ▲ Next.js 15.5.15
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.20:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2s
+ ○ Compiling /api/auth/login ...
+ ✓ Compiled /api/auth/login in 919ms (461 modules)
+[auth/login] Admin login without active 2FA. { userId: 'cmoeu3rk10000sjjcllekxkk6', email: 'qa.no2fa@local.test' }
+ POST /api/auth/login 200 in 1605ms
+ ○ Compiling /admin/hoteis ...
+ ✓ Compiled /admin/hoteis in 1132ms (785 modules)
+ GET /admin/hoteis 200 in 1680ms
+ ○ Compiling /admin/hoteis/[id] ...
+ ✓ Compiled /admin/hoteis/[id] in 756ms (1238 modules)
+ GET /admin/hoteis/cmod4utmv001csjzk3vcjdb0z 500 in 2507ms
+ GET /admin/hoteis/id-inexistente 404 in 102ms
+ ✓ Compiled in 145ms (319 modules)

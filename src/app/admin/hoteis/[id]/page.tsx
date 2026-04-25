@@ -7,6 +7,7 @@ import { AuthorizationError, requireHotelEditAccess } from "@/lib/auth/authoriza
 import { prisma } from "@/lib/prisma";
 
 import { HotelEditorForm } from "./HotelEditorForm";
+import { HotelAvailabilitySection } from "./HotelAvailabilitySection";
 import { HotelRatesSection } from "./HotelRatesSection";
 import { HotelRoomsSection } from "./HotelRoomsSection";
 import { updateHotelProfileAction } from "./actions";
@@ -141,6 +142,13 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
         }))}
       />
       <HotelRatesSection
+        hotelId={hotel.id}
+        rooms={hotel.rooms.map((room) => ({
+          id: room.id,
+          name: room.name,
+        }))}
+      />
+      <HotelAvailabilitySection
         hotelId={hotel.id}
         rooms={hotel.rooms.map((room) => ({
           id: room.id,

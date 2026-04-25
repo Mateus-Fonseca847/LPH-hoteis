@@ -1469,11 +1469,25 @@ button {
   display: grid;
 }
 
+.admin-availability-section,
+.admin-availability-toolbar,
+.admin-availability-list {
+  display: grid;
+}
+
 .admin-rates-section {
   gap: 18px;
 }
 
+.admin-availability-section {
+  gap: 18px;
+}
+
 .admin-rate-toolbar {
+  grid-template-columns: minmax(0, 360px);
+}
+
+.admin-availability-toolbar {
   grid-template-columns: minmax(0, 360px);
 }
 
@@ -1490,13 +1504,25 @@ button {
   gap: 16px;
 }
 
+.admin-availability-list {
+  gap: 16px;
+}
+
 .admin-rate-card {
+  grid-template-columns: 1fr;
+}
+
+.admin-availability-card {
   grid-template-columns: 1fr;
 }
 
 .admin-rate-meta-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.admin-availability-meta-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .admin-rate-meta-grid span {
@@ -1520,6 +1546,23 @@ button {
   color: var(--brand);
   font-size: 0.92rem;
   font-weight: 700;
+}
+
+.admin-toggle-field--boxed {
+  min-height: 54px;
+  padding: 0 16px;
+  border: 1px solid rgba(30, 30, 30, 0.1);
+  border-radius: 18px;
+  background: #f7f5f1;
+}
+
+.admin-availability-note {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(6, 41, 79, 0.04);
+  color: var(--muted);
+  line-height: 1.55;
 }
 
 .admin-secondary-button {

@@ -100,7 +100,15 @@ export async function getAuthSession() {
     });
 
     return payload as unknown as AuthSessionPayload;
-  } catch {
+  } catch (error) {
+    console.warn("[auth/session] Invalid session cookie discarded.", error);
+
+    try {
+      await clearAuthSessionCookie();
+    } catch (clearError) {
+      console.warn("[auth/session] Unable to clear invalid cookie in current context.", clearError);
+    }
+
     return null;
   }
 }

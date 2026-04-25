@@ -13,9 +13,14 @@ import {
   recordFailedLoginAttempt,
 } from "@/lib/auth/login-rate-limit";
 import { verifyPassword } from "@/lib/auth/password";
-import { setAuthSessionCookie, setPendingTwoFactorSessionCookie } from "@/lib/auth/session";
+import {
+  clearAuthSessionCookie,
+  setAuthSessionCookie,
+  setPendingTwoFactorSessionCookie,
+} from "@/lib/auth/session";
+import { getTwoFactorLoginState } from "@/lib/auth/two-factor";
 import { findUserByEmail } from "@/lib/auth/user";
-import { createApiSuccessResponse } from "@/lib/errors/app-error";
+import { InternalServerError, createApiSuccessResponse } from "@/lib/errors/app-error";
 
 export async function POST(request: Request) {
   try {
@@ -49,6 +54,7 @@ export async function POST(request: Request) {
     const user = await findUserByEmail(email);
 
     if (!user) {
+      console.warn("[auth/login] User not found.", { email, ip });
       recordFailedLoginAttempt({ email, ip });
 
       return NextResponse.json(
@@ -64,6 +70,7 @@ export async function POST(request: Request) {
     const isValidPassword = await verifyPassword(password, user.passwordHash);
 
     if (!isValidPassword) {
+      console.warn("[auth/login] Invalid password.", { email, userId: user.id, ip });
       recordFailedLoginAttempt({ email, ip });
 
       return NextResponse.json(
@@ -79,18 +86,57 @@ export async function POST(request: Request) {
     clearFailedLoginAttempts({ email, ip });
 
     if (isAdminUser(user.globalRole)) {
-      await setPendingTwoFactorSessionCookie({
+      const twoFactorState = getTwoFactorLoginState(user);
+
+      if (twoFactorState.mode === "error") {
+        await clearAuthSessionCookie();
+        throw twoFactorState.error;
+      }
+
+      if (twoFactorState.mode === "verify") {
+        console.info("[auth/login] Pending 2FA verification required.", {
+          userId: user.id,
+          email: user.email,
+        });
+
+        await setPendingTwoFactorSessionCookie({
+          sub: user.id,
+          globalRole: user.globalRole,
+          twoFactorSetupRequired: false,
+        });
+
+        return createApiSuccessResponse({
+          requiresTwoFactor: true,
+          requiresTwoFactorSetup: false,
+        });
+      }
+
+      console.info("[auth/login] Admin login without active 2FA.", {
+        userId: user.id,
+        email: user.email,
+      });
+
+      await clearAuthSessionCookie();
+      await setAuthSessionCookie({
         sub: user.id,
         globalRole: user.globalRole,
-        twoFactorSetupRequired: !user.twoFactorEnabled,
+        twoFactorVerified: true,
+        twoFactorSetupRequired: false,
       });
 
       return createApiSuccessResponse({
-        requiresTwoFactor: user.twoFactorEnabled,
-        requiresTwoFactorSetup: !user.twoFactorEnabled,
+        requiresTwoFactor: false,
+        requiresTwoFactorSetup: false,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          globalRole: user.globalRole,
+        },
       });
     }
 
+    await clearAuthSessionCookie();
     await setAuthSessionCookie({
       sub: user.id,
       globalRole: user.globalRole,
@@ -107,6 +153,15 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    console.error("[auth/login] Failed to complete login.", error);
+
+    if (error instanceof Error && error.name === "PrismaClientInitializationError") {
+      return createAuthApiErrorResponse(
+        new InternalServerError("Database configuration error."),
+        "Não foi possível concluir o login."
+      );
+    }
+
     return createAuthApiErrorResponse(error, "Não foi possível concluir o login.");
   }
 }

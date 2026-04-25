@@ -61,6 +61,7 @@ model HotelRoom {
   updatedAt        DateTime   @updatedAt
   hotel            Hotel      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   rates            RoomRate[]
+  availability     RoomAvailability[]
 
   @@index([hotelId])
   @@index([hotelId, isActive])
@@ -91,6 +92,24 @@ model RoomRate {
   @@index([endDate])
   @@index([roomId, isActive])
   @@index([roomId, startDate, endDate])
+}
+
+model RoomAvailability {
+  id             String    @id @default(cuid())
+  roomId         String
+  date           DateTime
+  totalUnits     Int
+  availableUnits Int
+  closed         Boolean   @default(false)
+  note           String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  room           HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, date])
+  @@index([roomId])
+  @@index([date])
+  @@index([closed])
 }
 
 model HotelImage {

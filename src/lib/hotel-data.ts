@@ -48,6 +48,7 @@ type HotelRoomRow = {
   lowestActiveRateCents: number | null;
   isAvailable: boolean;
   isActive: boolean;
+  publicAvailabilityStatus: "available" | "unavailable" | "unknown";
 };
 
 export type HotelNearbyPlace = {
@@ -267,6 +268,21 @@ function mapFallbackHotel(hotel: FallbackHotel): HotelPageData {
   };
 }
 
+function getPublicAvailabilityStatus(
+  availability: Array<{
+    closed: boolean;
+    availableUnits: number;
+  }>
+): HotelRoomRow["publicAvailabilityStatus"] {
+  if (availability.length === 0) {
+    return "unknown";
+  }
+
+  return availability.some((entry) => !entry.closed && entry.availableUnits > 0)
+    ? "available"
+    : "unavailable";
+}
+
 export async function getPublishedHotels(): Promise<PublishedHotelCard[]> {
   if (!(await hasCompatibleHotelSchema())) {
     return getFallbackPublishedHotels();
@@ -358,6 +374,21 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
                 priceCents: true,
               },
             },
+            availability: {
+              where: {
+                date: {
+                  gte: now,
+                },
+              },
+              orderBy: {
+                date: "asc",
+              },
+              take: 30,
+              select: {
+                closed: true,
+                availableUnits: true,
+              },
+            },
           },
         },
         amenities: {
@@ -391,12 +422,61 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
             lowestActiveRateCents: room.rates[0]?.priceCents ?? null,
             isAvailable: room.isAvailable,
             isActive: room.isActive,
+            publicAvailabilityStatus: getPublicAvailabilityStatus(room.availability),
           })),
           nearbyPlaces: getNearbyPlaces(hotel.slug),
         }
       : null;
   } catch (error) {
-    warnDatabaseFallback(error);
-    return getFallbackHotelPageData(slug);
+    const message = error instanceof Error ? error.message : "";
+    const canRetryWithoutRooms =
+      message.includes("HotelRoom") ||
+      message.includes("RoomRate") ||
+      message.includes("public.HotelRoom") ||
+      message.includes("public.RoomRate");
+
+    if (!canRetryWithoutRooms) {
+      warnDatabaseFallback(error);
+      return getFallbackHotelPageData(slug);
+    }
+
+    console.warn(`[hotel-data] Retrying hotel detail without rooms for slug "${slug}": ${message}`);
+
+    try {
+      const hotel = await prisma.hotel.findFirst({
+        where: {
+          slug,
+          isPublished: true,
+        },
+        include: {
+          images: {
+            orderBy: {
+              position: "asc",
+            },
+          },
+          amenities: {
+            orderBy: {
+              position: "asc",
+            },
+          },
+          policies: {
+            orderBy: {
+              position: "asc",
+            },
+          },
+        },
+      });
+
+      return hotel
+        ? {
+            ...hotel,
+            rooms: [],
+            nearbyPlaces: getNearbyPlaces(hotel.slug),
+          }
+        : getFallbackHotelPageData(slug);
+    } catch (retryError) {
+      warnDatabaseFallback(retryError);
+      return getFallbackHotelPageData(slug);
+    }
   }
 }

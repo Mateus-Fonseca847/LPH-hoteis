@@ -60,34 +60,38 @@ const dateField = (label: string) =>
       message: `${label} inválida.`,
     });
 
-const roomRateBaseSchema = z
-  .object({
-    roomId: routeIdSchema,
-    name: textField("Nome", 3, 120),
-    description: multilineField("Descrição", 10, 2000),
-    priceCents: positiveIntField("Preço", 1, 100000000),
-    currency: z
-      .string()
-      .trim()
-      .transform((value) => value.toUpperCase())
-      .pipe(z.literal("BRL", "Moeda inválida.")),
-    startDate: dateField("Data inicial"),
-    endDate: dateField("Data final"),
-    minNights: positiveIntField("Mínimo de noites", 1, 365),
-    maxGuests: positiveIntField("Máximo de hóspedes", 1, 20),
-    refundable: z.boolean(),
-    breakfastIncluded: z.boolean(),
-    isActive: z.boolean(),
-  })
-  .strict()
-  .refine((value) => new Date(value.endDate).getTime() >= new Date(value.startDate).getTime(), {
+const roomRateShape = {
+  roomId: routeIdSchema,
+  name: textField("Nome", 3, 120),
+  description: multilineField("Descrição", 10, 2000),
+  priceCents: positiveIntField("Preço", 1, 100000000),
+  currency: z
+    .string()
+    .trim()
+    .transform((value) => value.toUpperCase())
+    .pipe(z.literal("BRL", "Moeda inválida.")),
+  startDate: dateField("Data inicial"),
+  endDate: dateField("Data final"),
+  minNights: positiveIntField("Mínimo de noites", 1, 365),
+  maxGuests: positiveIntField("Máximo de hóspedes", 1, 20),
+  refundable: z.boolean(),
+  breakfastIncluded: z.boolean(),
+  isActive: z.boolean(),
+} satisfies z.ZodRawShape;
+
+const roomRateObjectSchema = z.object(roomRateShape).strict();
+
+const roomRateBaseSchema = roomRateObjectSchema.refine(
+  (value) => new Date(value.endDate).getTime() >= new Date(value.startDate).getTime(),
+  {
     message: "A data final não pode ser anterior à data inicial.",
     path: ["endDate"],
-  });
+  }
+);
 
 export const createRoomRatePayloadSchema = roomRateBaseSchema;
 
-export const updateRoomRatePayloadSchema = roomRateBaseSchema
+export const updateRoomRatePayloadSchema = roomRateObjectSchema
   .partial()
   .strict()
   .refine((value) => Object.keys(value).length > 0, {

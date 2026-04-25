@@ -170,6 +170,18 @@ function formatRoomStartingPrice(priceCents: number | null) {
   }).format(priceCents / 100)}`;
 }
 
+function getRoomAvailabilityLabel(room: HotelPageRoom) {
+  if (room.publicAvailabilityStatus === "available") {
+    return "Disponível para consulta";
+  }
+
+  if (room.publicAvailabilityStatus === "unavailable") {
+    return "Indisponível no momento";
+  }
+
+  return "Consultar disponibilidade";
+}
+
 export default async function HotelPage({ params }: HotelPageProps) {
   const { slug } = await params;
   const hotel = await getHotelPageData(slug);
@@ -331,7 +343,15 @@ export default async function HotelPage({ params }: HotelPageProps) {
                     <div className="hotel-room-body">
                       <div className="hotel-room-header">
                         <h3>{room.name}</h3>
-                        <span className="hotel-room-badge is-available">Ativo</span>
+                        <span
+                          className={`hotel-room-badge ${
+                            room.publicAvailabilityStatus === "available"
+                              ? "is-available"
+                              : "is-unavailable"
+                          }`}
+                        >
+                          {getRoomAvailabilityLabel(room)}
+                        </span>
                       </div>
                       <p>{room.description}</p>
                       <div className="hotel-room-meta">
@@ -340,7 +360,10 @@ export default async function HotelPage({ params }: HotelPageProps) {
                         <span>{room.sizeM2 ? `${room.sizeM2} m²` : room.size}</span>
                       </div>
                       <div className="hotel-room-footer">
-                        <strong>{formatRoomStartingPrice(room.lowestActiveRateCents)}</strong>
+                        <div>
+                          <strong>{formatRoomStartingPrice(room.lowestActiveRateCents)}</strong>
+                          <p className="hotel-room-status">{getRoomAvailabilityLabel(room)}</p>
+                        </div>
                         <button type="button" className="hotel-room-cta">
                           Consultar disponibilidade
                         </button>
