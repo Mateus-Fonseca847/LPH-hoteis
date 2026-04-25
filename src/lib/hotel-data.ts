@@ -45,6 +45,7 @@ type HotelRoomRow = {
   sizeM2: number | null;
   size: string;
   priceFrom: { toString(): string };
+  lowestActiveRateCents: number | null;
   isAvailable: boolean;
   isActive: boolean;
 };
@@ -319,6 +320,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
   }
 
   try {
+    const now = new Date();
     const hotel = await prisma.hotel.findFirst({
       where: {
         slug,
@@ -337,6 +339,26 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
           orderBy: {
             createdAt: "asc",
           },
+          include: {
+            rates: {
+              where: {
+                isActive: true,
+                startDate: {
+                  lte: now,
+                },
+                endDate: {
+                  gte: now,
+                },
+              },
+              orderBy: {
+                priceCents: "asc",
+              },
+              take: 1,
+              select: {
+                priceCents: true,
+              },
+            },
+          },
         },
         amenities: {
           orderBy: {
@@ -354,6 +376,22 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
     return hotel
       ? {
           ...hotel,
+          rooms: hotel.rooms.map((room) => ({
+            id: room.id,
+            name: room.name,
+            description: room.description,
+            imageUrl: room.imageUrl,
+            capacityAdults: room.capacityAdults,
+            capacityChildren: room.capacityChildren,
+            capacity: room.capacity,
+            beds: room.beds,
+            sizeM2: room.sizeM2,
+            size: room.size,
+            priceFrom: room.priceFrom,
+            lowestActiveRateCents: room.rates[0]?.priceCents ?? null,
+            isAvailable: room.isAvailable,
+            isActive: room.isActive,
+          })),
           nearbyPlaces: getNearbyPlaces(hotel.slug),
         }
       : null;

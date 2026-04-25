@@ -8,11 +8,11 @@ datasource db {
 }
 
 model Hotel {
-  id               String         @id @default(cuid())
+  id               String            @id @default(cuid())
   name             String
-  slug             String         @unique
+  slug             String            @unique
   shortDescription String
-  fullDescription  String         @db.Text
+  fullDescription  String            @db.Text
   city             String
   state            String
   address          String
@@ -22,11 +22,11 @@ model Hotel {
   coverImageUrl    String
   checkInTime      String
   checkOutTime     String
-  latitude         Decimal?       @db.Decimal(10, 7)
-  longitude        Decimal?       @db.Decimal(10, 7)
-  isPublished      Boolean        @default(true)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  latitude         Decimal?          @db.Decimal(10, 7)
+  longitude        Decimal?          @db.Decimal(10, 7)
+  isPublished      Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   images           HotelImage[]
   rooms            HotelRoom[]
   amenities        HotelAmenity[]
@@ -42,28 +42,55 @@ model Hotel {
 }
 
 model HotelRoom {
-  id               String   @id @default(cuid())
+  id               String     @id @default(cuid())
   hotelId          String
   name             String
-  description      String   @db.Text
+  description      String     @db.Text
   imageUrl         String
   capacity         Int
-  capacityAdults   Int      @default(1)
-  capacityChildren Int      @default(0)
+  capacityAdults   Int        @default(1)
+  capacityChildren Int        @default(0)
   beds             String
   size             String
   sizeM2           Int?
-  amenities        String[] @default([])
-  priceFrom        Decimal  @db.Decimal(10, 2)
-  isAvailable      Boolean  @default(true)
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  hotel            Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  amenities        String[]   @default([])
+  priceFrom        Decimal    @db.Decimal(10, 2)
+  isAvailable      Boolean    @default(true)
+  isActive         Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  hotel            Hotel      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  rates            RoomRate[]
 
   @@index([hotelId])
   @@index([hotelId, isActive])
   @@index([hotelId, isAvailable])
+}
+
+model RoomRate {
+  id                String    @id @default(cuid())
+  roomId            String
+  name              String
+  description       String    @db.Text
+  priceCents        Int
+  currency          String    @default("BRL")
+  startDate         DateTime
+  endDate           DateTime
+  minNights         Int       @default(1)
+  maxGuests         Int
+  refundable        Boolean   @default(false)
+  breakfastIncluded Boolean   @default(false)
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  room              HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([isActive])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([roomId, isActive])
+  @@index([roomId, startDate, endDate])
 }
 
 model HotelImage {
@@ -119,14 +146,14 @@ model User {
 }
 
 model HotelPermission {
-  id        String          @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   hotelId   String
   role      HotelRole
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  hotel     Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hotel     Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
   @@unique([userId, hotelId])
   @@index([userId])

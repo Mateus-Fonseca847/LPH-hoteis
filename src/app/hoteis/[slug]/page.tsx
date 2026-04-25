@@ -159,6 +159,17 @@ function formatRoomCapacity(room: HotelPageRoom) {
   return parts.join(" + ");
 }
 
+function formatRoomStartingPrice(priceCents: number | null) {
+  if (priceCents === null) {
+    return "Consultar valores";
+  }
+
+  return `A partir de ${new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(priceCents / 100)}`;
+}
+
 export default async function HotelPage({ params }: HotelPageProps) {
   const { slug } = await params;
   const hotel = await getHotelPageData(slug);
@@ -329,7 +340,7 @@ export default async function HotelPage({ params }: HotelPageProps) {
                         <span>{room.sizeM2 ? `${room.sizeM2} m²` : room.size}</span>
                       </div>
                       <div className="hotel-room-footer">
-                        <strong>{hotel.name}</strong>
+                        <strong>{formatRoomStartingPrice(room.lowestActiveRateCents)}</strong>
                         <button type="button" className="hotel-room-cta">
                           Consultar disponibilidade
                         </button>

@@ -34,6 +34,14 @@ const hotelRoomRouteParamsSchema = z
   })
   .strict();
 
+const hotelRoomRateRouteParamsSchema = z
+  .object({
+    hotelId: routeIdSchema,
+    roomId: routeIdSchema,
+    rateId: routeIdSchema,
+  })
+  .strict();
+
 export function parseHotelRouteParams(input: { hotelId: string }) {
   return hotelRouteParamsSchema.safeParse(input);
 }
@@ -44,6 +52,14 @@ export function parseHotelImageRouteParams(input: { hotelId: string; imageId: st
 
 export function parseHotelRoomRouteParams(input: { hotelId: string; roomId: string }) {
   return hotelRoomRouteParamsSchema.safeParse(input);
+}
+
+export function parseHotelRoomRateRouteParams(input: {
+  hotelId: string;
+  roomId: string;
+  rateId: string;
+}) {
+  return hotelRoomRateRouteParamsSchema.safeParse(input);
 }
 
 export async function requireAuthorizedHotelWrite(hotelId: string) {

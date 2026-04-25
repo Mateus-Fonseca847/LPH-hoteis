@@ -1273,7 +1273,8 @@ button {
 }
 
 .admin-form-field input,
-.admin-form-field textarea {
+.admin-form-field textarea,
+.admin-form-field select {
   width: 100%;
   min-height: 54px;
   padding: 14px 16px;
@@ -1293,7 +1294,8 @@ button {
 }
 
 .admin-form-field input:focus,
-.admin-form-field textarea:focus {
+.admin-form-field textarea:focus,
+.admin-form-field select:focus {
   border-color: rgba(6, 41, 79, 0.28);
   box-shadow: 0 0 0 4px rgba(6, 41, 79, 0.08);
 }
@@ -1457,6 +1459,67 @@ button {
   grid-template-columns: repeat(auto-fit, minmax(140px, max-content));
   gap: 12px;
   align-items: center;
+}
+
+.admin-rates-section,
+.admin-rates-list,
+.admin-rate-toggles,
+.admin-rate-meta-grid,
+.admin-rate-toolbar {
+  display: grid;
+}
+
+.admin-rates-section {
+  gap: 18px;
+}
+
+.admin-rate-toolbar {
+  grid-template-columns: minmax(0, 360px);
+}
+
+.admin-rate-room-select {
+  max-width: 360px;
+}
+
+.admin-rate-toggles {
+  grid-template-columns: repeat(auto-fit, minmax(160px, max-content));
+  gap: 14px;
+}
+
+.admin-rates-list {
+  gap: 16px;
+}
+
+.admin-rate-card {
+  grid-template-columns: 1fr;
+}
+
+.admin-rate-meta-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-rate-meta-grid span {
+  display: grid;
+  gap: 6px;
+  min-height: 58px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(6, 41, 79, 0.05);
+}
+
+.admin-rate-meta-grid strong {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.admin-rate-meta-grid small {
+  color: var(--brand);
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 .admin-secondary-button {
@@ -2512,6 +2575,7 @@ button {
   .admin-rooms-header,
   .admin-room-card,
   .admin-room-meta-grid,
+  .admin-rate-meta-grid,
   .admin-image-grid,
   .admin-form-grid--two,
   .admin-form-grid--three,
