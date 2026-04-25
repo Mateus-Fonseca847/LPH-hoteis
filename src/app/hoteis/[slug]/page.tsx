@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { HotelAmenitiesSection } from "@/components/HotelAmenitiesSection";
+import { HotelGallery } from "@/components/HotelGallery";
+import { HotelPageActions } from "@/components/HotelPageActions";
+import { HotelRegionDetailsSection } from "@/components/HotelRegionDetailsSection";
 import { getHotelPageData, getHotelSlugs } from "@/lib/hotel-data";
 
 type HotelPageProps = {
@@ -10,6 +14,125 @@ type HotelPageProps = {
     slug: string;
   }>;
 };
+
+function buildAccessibility(hotel: Awaited<ReturnType<typeof getHotelPageData>>) {
+  if (!hotel) {
+    return [];
+  }
+
+  const matched = hotel.amenities
+    .filter((item) => /(acess|elevador|rampa|adaptad|transfer|concierge)/i.test(item.label))
+    .map((item) => item.label);
+
+  return matched.length
+    ? matched
+    : [
+        "Equipe disponível para orientar necessidades específicas antes da chegada.",
+        "Solicitações de acessibilidade podem ser alinhadas pelo WhatsApp do hotel.",
+      ];
+}
+
+function buildFaq(hotel: Awaited<ReturnType<typeof getHotelPageData>>) {
+  if (!hotel) {
+    return [];
+  }
+
+  const cancelPolicy =
+    hotel.policies.find((policy) => /cancel/i.test(policy.title) || /cancel/i.test(policy.description)) ??
+    hotel.policies[0];
+
+  return [
+    {
+      question: "Quais são os horários da hospedagem?",
+      answer: `O check-in acontece a partir de ${hotel.checkInTime} e o check-out vai até ${hotel.checkOutTime}.`,
+    },
+    {
+      question: "Como funciona a política principal da reserva?",
+      answer: cancelPolicy
+        ? `${cancelPolicy.title}: ${cancelPolicy.description}`
+        : "As condições da reserva são informadas no momento da consulta de disponibilidade.",
+    },
+    {
+      question: "Como falar com a equipe do hotel?",
+      answer: `Você pode entrar em contato pelo telefone ${hotel.phone}, pelo e-mail ${hotel.email} ou pelo WhatsApp ${hotel.whatsapp}.`,
+    },
+  ];
+}
+
+function findPolicyText(hotel: Awaited<ReturnType<typeof getHotelPageData>>, patterns: RegExp[], fallback: string) {
+  if (!hotel) {
+    return fallback;
+  }
+
+  const matched = hotel.policies.find(
+    (policy) => patterns.some((pattern) => pattern.test(policy.title) || pattern.test(policy.description))
+  );
+
+  return matched ? `${matched.title}: ${matched.description}` : fallback;
+}
+
+function buildPolicySections(hotel: Awaited<ReturnType<typeof getHotelPageData>>) {
+  if (!hotel) {
+    return [];
+  }
+
+  return [
+    {
+      title: "Políticas da propriedade",
+      description:
+        hotel.policies[0]
+          ? `${hotel.policies[0].title}: ${hotel.policies[0].description}`
+          : "As condições gerais da hospedagem são apresentadas durante a consulta de disponibilidade.",
+    },
+    {
+      title: "Check-in e check-out",
+      description: `Check-in a partir de ${hotel.checkInTime} e check-out até ${hotel.checkOutTime}. Alterações antecipadas dependem da disponibilidade do dia.`,
+    },
+    {
+      title: "Crianças e camas extras",
+      description: findPolicyText(
+        hotel,
+        [/crianc/i, /famil/i, /extra/i, /berco/i],
+        "Configurações para crianças e necessidades extras podem ser alinhadas com a equipe antes da chegada."
+      ),
+    },
+    {
+      title: "Animais de estimação",
+      description: findPolicyText(
+        hotel,
+        [/pet/i, /animai/i],
+        "A aceitação de animais depende da categoria reservada e de confirmação prévia com a equipe."
+      ),
+    },
+    {
+      title: "Internet",
+      description: hotel.amenities.some((item) => /wi-?fi/i.test(item.label))
+        ? "A propriedade oferece internet sem fio nas áreas comuns e acomodações compatíveis com o perfil do hotel."
+        : "A disponibilidade de internet pode variar conforme a categoria e deve ser confirmada na consulta.",
+    },
+    {
+      title: "Estacionamento",
+      description: findPolicyText(
+        hotel,
+        [/estacion/i, /garag/i, /valet/i],
+        "As condições de estacionamento são informadas na confirmação da reserva, conforme a operação local."
+      ),
+    },
+    {
+      title: "Acessibilidade",
+      description: buildAccessibility(hotel).join(" "),
+    },
+    {
+      title: "Outras informações",
+      description: hotel.policies.length > 1
+        ? hotel.policies
+            .slice(1, 3)
+            .map((policy) => `${policy.title}: ${policy.description}`)
+            .join(" ")
+        : "A equipe pode orientar detalhes operacionais, horários e serviços complementares durante a consulta.",
+    },
+  ];
+}
 
 export async function generateStaticParams() {
   const slugs = await getHotelSlugs();
@@ -30,8 +153,9 @@ export default async function HotelPage({ params }: HotelPageProps) {
   const gallery = hotel.images.length
     ? hotel.images
     : [{ url: hotel.coverImageUrl, alt: hotel.name, position: 0 }];
-
-  const hasCoordinates = hotel.latitude && hotel.longitude;
+  const accessibility = buildAccessibility(hotel);
+  const faq = buildFaq(hotel);
+  const policySections = buildPolicySections(hotel);
 
   return (
     <div className="page-shell">
@@ -39,6 +163,13 @@ export default async function HotelPage({ params }: HotelPageProps) {
 
       <main className="hotel-page">
         <section className="section hotel-hero-section reveal is-visible">
+          <div className="hotel-topbar">
+            <Link href="/#journey" className="hotel-page-back">
+              Voltar à lista de hotéis
+            </Link>
+            <HotelPageActions hotelName={hotel.name} slug={hotel.slug} />
+          </div>
+
           <div className="hotel-hero-layout">
             <div className="hotel-hero-copy">
               <span className="hotel-page-eyebrow">
@@ -48,9 +179,23 @@ export default async function HotelPage({ params }: HotelPageProps) {
               <p className="hotel-lead">{hotel.shortDescription}</p>
               <p className="hotel-description">{hotel.fullDescription}</p>
 
+              <div className="hotel-rating-strip">
+                <div className="hotel-rating-stars" aria-label="Estrutura visual de avaliação">
+                  <span>★</span>
+                  <span>★</span>
+                  <span>★</span>
+                  <span>★</span>
+                  <span>★</span>
+                </div>
+                <div className="hotel-rating-copy">
+                  <strong>Avaliações em breve</strong>
+                  <span>Perfil público recém-atualizado na coleção LPH.</span>
+                </div>
+              </div>
+
               <div className="hotel-quick-info">
                 <div className="hotel-info-card">
-                  <span>Endereço</span>
+                  <span>Localização</span>
                   <strong>{hotel.address}</strong>
                 </div>
                 <div className="hotel-info-card">
@@ -65,9 +210,6 @@ export default async function HotelPage({ params }: HotelPageProps) {
                 <button type="button" className="card-cta-button hotel-page-cta">
                   Consultar disponibilidade
                 </button>
-                <Link href="/#journey" className="hotel-page-back">
-                  Voltar aos hotéis
-                </Link>
               </div>
             </div>
 
@@ -79,38 +221,24 @@ export default async function HotelPage({ params }: HotelPageProps) {
 
         <section className="section hotel-gallery-section reveal is-visible">
           <div className="section-heading hotel-section-heading">
-            <h2>Galeria</h2>
+            <h2>Galeria de imagens</h2>
           </div>
 
-          <div className="hotel-gallery-grid">
-            {gallery.map((image, index) => (
-              <article
-                key={`${hotel.slug}-gallery-${image.position}-${index}`}
-                className={`hotel-gallery-card ${index === 0 ? "hotel-gallery-card--featured" : ""}`}
-              >
-                <img src={image.url} alt={image.alt || `${hotel.name} - imagem ${index + 1}`} />
-              </article>
-            ))}
-          </div>
+          <HotelGallery hotelName={hotel.name} images={gallery} />
         </section>
 
-        <section className="section hotel-content-grid reveal is-visible">
-          <article className="hotel-content-card">
-            <div className="section-heading hotel-section-heading">
-              <h2>Comodidades</h2>
-            </div>
-            <ul className="hotel-list">
-              {hotel.amenities.map((amenity) => (
-                <li key={amenity.id}>{amenity.label}</li>
-              ))}
-            </ul>
-          </article>
-
+        <section className="section reveal is-visible">
           <article className="hotel-content-card hotel-content-card--dark">
             <div className="section-heading hotel-section-heading">
-              <h2>Contatos</h2>
+              <h2>Contato e localização</h2>
             </div>
             <div className="hotel-contact-list">
+              <p>
+                <span>Cidade</span>
+                <strong>
+                  {hotel.city}, {hotel.state}
+                </strong>
+              </p>
               <p>
                 <span>Telefone</span>
                 <strong>{hotel.phone}</strong>
@@ -127,46 +255,143 @@ export default async function HotelPage({ params }: HotelPageProps) {
           </article>
         </section>
 
-        <section className="section hotel-content-grid reveal is-visible">
+        <section className="section hotel-local-overview reveal is-visible">
+          <div className="hotel-local-overview__main">
+            <HotelRegionDetailsSection
+              address={hotel.address}
+              city={hotel.city}
+              state={hotel.state}
+              latitude={hotel.latitude?.toString() ?? null}
+              longitude={hotel.longitude?.toString() ?? null}
+              nearbyPlaces={hotel.nearbyPlaces}
+            />
+          </div>
+
+          <div className="hotel-local-overview__side">
+            <HotelAmenitiesSection amenities={hotel.amenities} />
+          </div>
+        </section>
+
+        <section className="section reveal is-visible">
           <article className="hotel-content-card">
             <div className="section-heading hotel-section-heading">
-              <h2>Políticas da hospedagem</h2>
+              <h2>Acessibilidade</h2>
             </div>
-            <div className="hotel-policies-grid">
-              {hotel.policies.map((policy) => (
-                <article key={policy.id} className="hotel-policy-card">
-                  <h3>{policy.title}</h3>
-                  <p>{policy.description}</p>
+            <div className="hotel-policy-info-list">
+              {accessibility.map((item) => (
+                <article key={item} className="hotel-policy-info-item">
+                  <h3>Suporte durante a estadia</h3>
+                  <p>{item}</p>
                 </article>
               ))}
             </div>
           </article>
+        </section>
+
+        <section className="section hotel-content-grid reveal is-visible">
+          <article className="hotel-content-card">
+            <div className="section-heading hotel-section-heading">
+              <h2>Opções de quarto</h2>
+            </div>
+            {hotel.rooms.length ? (
+              <div className="hotel-rooms-grid">
+                {hotel.rooms.map((room) => (
+                  <article key={room.id} className="hotel-room-card">
+                    <div className="hotel-room-media">
+                      <img src={room.imageUrl} alt={`Quarto ${room.name}`} />
+                    </div>
+                    <div className="hotel-room-body">
+                      <div className="hotel-room-header">
+                        <h3>{room.name}</h3>
+                        <span className={`hotel-room-badge ${room.isAvailable ? "is-available" : "is-unavailable"}`}>
+                          {room.isAvailable ? "Disponível" : "Indisponível"}
+                        </span>
+                      </div>
+                      <p>{room.description}</p>
+                      <div className="hotel-room-meta">
+                        <span>{room.capacity} hóspedes</span>
+                        <span>{room.beds}</span>
+                        <span>{room.size}</span>
+                      </div>
+                      <div className="hotel-room-footer">
+                        <strong>A partir de R$ {room.priceFrom.toString()}</strong>
+                        {room.isAvailable ? (
+                          <button type="button" className="hotel-room-cta">
+                            Selecionar quarto
+                          </button>
+                        ) : (
+                          <span className="hotel-room-status">Indisponível</span>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="hotel-empty-state">
+                <strong>Opções detalhadas em breve</strong>
+                <p>Use o botão de consulta para receber as categorias de acomodação disponíveis para as datas desejadas.</p>
+              </div>
+            )}
+          </article>
 
           <article className="hotel-content-card">
             <div className="section-heading hotel-section-heading">
-              <h2>Informações da região</h2>
+              <h2>Avaliações</h2>
             </div>
-            <div className="hotel-contact-list">
-              <p>
-                <span>Localização</span>
-                <strong>
-                  {hotel.city}, {hotel.state}
-                </strong>
-              </p>
-              <p>
-                <span>Endereço</span>
-                <strong>{hotel.address}</strong>
-              </p>
-              {hasCoordinates ? (
-                <p>
-                  <span>Coordenadas</span>
-                  <strong>
-                    {hotel.latitude?.toString()}, {hotel.longitude?.toString()}
-                  </strong>
-                </p>
-              ) : null}
+            <div className="hotel-empty-state">
+              <strong>Sem avaliações públicas por enquanto</strong>
+              <p>Este perfil já está ativo e novas avaliações poderão aparecer aqui conforme a operação evoluir.</p>
             </div>
           </article>
+        </section>
+
+        <section className="section reveal is-visible">
+          <div className="section-heading hotel-section-heading">
+            <h2>Taxas e políticas</h2>
+          </div>
+          {policySections.length ? (
+            <div className="hotel-policies-grid hotel-policies-grid--wide">
+              {policySections.map((section) => (
+                <article key={section.title} className="hotel-policy-card">
+                  <h3>{section.title}</h3>
+                  <p>{section.description}</p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="hotel-empty-state">
+              <strong>Políticas em atualização</strong>
+              <p>As condições da hospedagem serão detalhadas nesta área assim que estiverem disponíveis.</p>
+            </div>
+          )}
+        </section>
+
+        <section className="section reveal is-visible">
+          <div className="section-heading hotel-section-heading">
+            <h2>Perguntas frequentes</h2>
+          </div>
+          <div className="hotel-faq-grid">
+            {faq.map((item) => (
+              <article key={item.question} className="hotel-faq-card">
+                <h3>{item.question}</h3>
+                <p>{item.answer}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="section hotel-cta-panel reveal is-visible">
+          <div>
+            <span className="hotel-page-eyebrow">Reserva</span>
+            <h2>Pronto para consultar sua estadia?</h2>
+            <p className="hotel-description hotel-description--compact">
+              Fale com a equipe do {hotel.name} para verificar disponibilidade, categorias e condições para as suas datas.
+            </p>
+          </div>
+          <button type="button" className="card-cta-button hotel-page-cta">
+            Consultar disponibilidade
+          </button>
         </section>
       </main>
 

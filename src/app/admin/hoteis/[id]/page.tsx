@@ -44,6 +44,23 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
     throw error;
   }
 
+  if (user.globalRole !== "super_admin") {
+    try {
+      await requireHotelEditAccess(user.id, id);
+    } catch (error) {
+      if (error instanceof AuthorizationError) {
+        return (
+          <AdminAccessDenied
+            title="Hotel indisponível para edição"
+            description="Sua sessão está válida, mas este hotel não está vinculado ao seu escopo de edição."
+          />
+        );
+      }
+
+      throw error;
+    }
+  }
+
   const hotel = await prisma.hotel.findUnique({
     where: {
       id,
@@ -83,21 +100,6 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
 
   if (!hotel) {
     notFound();
-  }
-
-  try {
-    await requireHotelEditAccess(user.id, hotel.id);
-  } catch (error) {
-    if (error instanceof AuthorizationError) {
-      return (
-        <AdminAccessDenied
-          title="Hotel indisponível para edição"
-          description="Sua sessão está válida, mas este hotel não está vinculado ao seu escopo de edição."
-        />
-      );
-    }
-
-    throw error;
   }
 
   const saveAction = updateHotelProfileAction.bind(null, hotel.id);

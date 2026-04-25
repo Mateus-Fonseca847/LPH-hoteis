@@ -1,12 +1,19 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 
 import type { HotelEditorState } from "./actions";
 
 const initialState: HotelEditorState = {
   status: "idle",
   message: "",
+};
+
+type ImageItem = {
+  id: string;
+  url: string;
+  alt: string;
+  preview?: boolean;
 };
 
 type HotelEditorFormProps = {
@@ -47,15 +54,20 @@ type HotelEditorFormProps = {
 export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [coverImageUrl, setCoverImageUrl] = useState(hotel.coverImageUrl);
-  const [galleryValue, setGalleryValue] = useState(
-    hotel.images.map((image) => `${image.url} | ${image.alt}`).join("\n")
-  );
+  const [galleryImages, setGalleryImages] = useState<ImageItem[]>(hotel.images);
+  const [coverUploadFile, setCoverUploadFile] = useState<File | null>(null);
+  const [galleryUploadFiles, setGalleryUploadFiles] = useState<File[]>([]);
   const [uploadAlt, setUploadAlt] = useState("");
-  const [setAsCover, setSetAsCover] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadFeedback, setUploadFeedback] = useState("");
   const [uploadFeedbackType, setUploadFeedbackType] = useState<"success" | "error">("success");
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+  const [removingImageId, setRemovingImageId] = useState<string | null>(null);
+
+  const galleryValue = useMemo(
+    () => galleryImages.map((image) => `${image.url} | ${image.alt}`).join("\n"),
+    [galleryImages]
+  );
 
   const amenitiesValue = useMemo(
     () => hotel.amenities.map((amenity) => amenity.label).join("\n"),
@@ -67,21 +79,44 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
     [hotel.policies]
   );
 
-  async function handleImageUpload() {
-    if (!uploadFile) {
+  const coverPreviewUrl = useMemo(() => (coverUploadFile ? URL.createObjectURL(coverUploadFile) : null), [coverUploadFile]);
+  const galleryPreviewUrls = useMemo(
+    () =>
+      galleryUploadFiles.map((file, index) => ({
+        id: `preview-${index}-${file.name}`,
+        url: URL.createObjectURL(file),
+        alt: file.name,
+      })),
+    [galleryUploadFiles]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (coverPreviewUrl) {
+        URL.revokeObjectURL(coverPreviewUrl);
+      }
+
+      galleryPreviewUrls.forEach((image) => {
+        URL.revokeObjectURL(image.url);
+      });
+    };
+  }, [coverPreviewUrl, galleryPreviewUrls]);
+
+  async function handleCoverUpload() {
+    if (!coverUploadFile) {
       setUploadFeedbackType("error");
-      setUploadFeedback("Selecione uma imagem antes de enviar.");
+      setUploadFeedback("Selecione a imagem de capa.");
       return;
     }
 
-    setIsUploading(true);
+    setIsUploadingCover(true);
     setUploadFeedback("");
 
     try {
       const payload = new FormData();
-      payload.set("file", uploadFile);
+      payload.set("file", coverUploadFile);
       payload.set("alt", uploadAlt);
-      payload.set("setAsCover", String(setAsCover));
+      payload.set("setAsCover", "true");
 
       const response = await fetch(`/api/admin/hoteis/${hotel.id}/upload`, {
         method: "POST",
@@ -89,39 +124,112 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
       });
 
       const result = (await response.json()) as {
-        ok?: boolean;
         error?: string;
-        image?: {
-          url: string;
-          alt: string;
-          setAsCover?: boolean;
-        };
+        images?: Array<{ id: string; url: string; alt: string; setAsCover?: boolean }>;
       };
 
-      if (!response.ok || !result.image) {
-        throw new Error(result.error || "Não foi possível concluir o upload.");
+      if (!response.ok || !result.images?.length) {
+        throw new Error(result.error || "Não foi possível concluir o upload da capa.");
       }
 
-      setGalleryValue((current) =>
-        current.trim()
-          ? `${current}\n${result.image?.url} | ${result.image?.alt}`
-          : `${result.image?.url} | ${result.image?.alt}`
-      );
+      const uploadedImage = result.images[0];
+      setCoverImageUrl(uploadedImage.url);
+      setGalleryImages((current) => [...current.filter((image) => image.url !== uploadedImage.url), uploadedImage]);
+      setCoverUploadFile(null);
+      setUploadAlt("");
+      setUploadFeedbackType("success");
+      setUploadFeedback("Imagem de capa enviada com sucesso.");
+    } catch (error) {
+      setUploadFeedbackType("error");
+      setUploadFeedback(error instanceof Error ? error.message : "Não foi possível concluir o upload da capa.");
+    } finally {
+      setIsUploadingCover(false);
+    }
+  }
 
-      if (result.image.setAsCover) {
-        setCoverImageUrl(result.image.url);
+  async function handleGalleryUpload() {
+    if (galleryUploadFiles.length === 0) {
+      setUploadFeedbackType("error");
+      setUploadFeedback("Selecione ao menos uma imagem para a galeria.");
+      return;
+    }
+
+    setIsUploadingGallery(true);
+    setUploadFeedback("");
+
+    try {
+      const payload = new FormData();
+      galleryUploadFiles.forEach((file) => payload.append("files", file));
+      payload.set("alt", uploadAlt);
+
+      const response = await fetch(`/api/admin/hoteis/${hotel.id}/upload`, {
+        method: "POST",
+        body: payload,
+      });
+
+      const result = (await response.json()) as {
+        error?: string;
+        images?: Array<{ id: string; url: string; alt: string }>;
+      };
+
+      if (!response.ok || !result.images?.length) {
+        throw new Error(result.error || "Não foi possível concluir o upload da galeria.");
+      }
+
+      const uploadedImages = result.images ?? [];
+
+      setGalleryImages((current) => [...current, ...uploadedImages]);
+      setGalleryUploadFiles([]);
+      setUploadAlt("");
+      setUploadFeedbackType("success");
+      setUploadFeedback("Imagens da galeria enviadas com sucesso.");
+    } catch (error) {
+      setUploadFeedbackType("error");
+      setUploadFeedback(error instanceof Error ? error.message : "Não foi possível concluir o upload da galeria.");
+    } finally {
+      setIsUploadingGallery(false);
+    }
+  }
+
+  async function handleRemoveImage(image: ImageItem) {
+    if (!image.id || image.preview) {
+      return;
+    }
+
+    if (!window.confirm("Deseja remover esta imagem?")) {
+      return;
+    }
+
+    setRemovingImageId(image.id);
+    setUploadFeedback("");
+
+    try {
+      const response = await fetch(`/api/admin/hoteis/${hotel.id}/images/${image.id}`, {
+        method: "DELETE",
+      });
+
+      const result = (await response.json()) as {
+        error?: string;
+        removedImageId?: string;
+        nextCoverImageUrl?: string;
+      };
+
+      if (!response.ok || !result.removedImageId) {
+        throw new Error(result.error || "Não foi possível remover a imagem.");
+      }
+
+      setGalleryImages((current) => current.filter((item) => item.id !== result.removedImageId));
+      if (result.nextCoverImageUrl) {
+        setCoverImageUrl(result.nextCoverImageUrl);
       }
 
       setUploadFeedbackType("success");
-      setUploadFeedback("Imagem enviada com sucesso.");
-      setUploadAlt("");
-      setSetAsCover(false);
-      setUploadFile(null);
+      setUploadFeedback("Imagem removida com sucesso.");
     } catch (error) {
       setUploadFeedbackType("error");
-      setUploadFeedback(error instanceof Error ? error.message : "Não foi possível concluir o upload.");
+      setUploadFeedback(error instanceof Error ? error.message : "Não foi possível remover a imagem.");
     } finally {
-      setIsUploading(false);
+      setRemovingImageId(null);
     }
   }
 
@@ -135,6 +243,12 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
       {state.message ? (
         <p className={`admin-editor-feedback ${state.status === "success" ? "is-success" : "is-error"}`}>
           {state.message}
+        </p>
+      ) : null}
+
+      {uploadFeedback ? (
+        <p className={`admin-editor-feedback ${uploadFeedbackType === "success" ? "is-success" : "is-error"}`}>
+          {uploadFeedback}
         </p>
       ) : null}
 
@@ -214,6 +328,7 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
         <div className="section-heading admin-subsection-heading">
           <h2>Galeria</h2>
         </div>
+
         <div className="admin-form-grid">
           <label className="admin-form-field">
             <span>Imagem de capa</span>
@@ -225,14 +340,19 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
             />
           </label>
 
+          <div className="admin-image-preview-card">
+            <span className="admin-image-preview-label">Preview da capa</span>
+            <img src={coverPreviewUrl || coverImageUrl} alt={`Capa de ${hotel.name}`} className="admin-cover-preview-image" />
+          </div>
+
           <div className="admin-upload-panel">
             <div className="admin-form-grid admin-form-grid--two">
               <label className="admin-form-field">
-                <span>Arquivo de imagem</span>
+                <span>Upload de capa</span>
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                  onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
+                  onChange={(event) => setCoverUploadFile(event.target.files?.[0] ?? null)}
                 />
               </label>
 
@@ -242,39 +362,82 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
               </label>
             </div>
 
-            <label className="admin-toggle-field">
-              <input type="checkbox" checked={setAsCover} onChange={(event) => setSetAsCover(event.target.checked)} />
-              <span>Definir como capa ao enviar</span>
-            </label>
-
             <div className="admin-upload-actions">
-              <button
-                type="button"
-                className="card-cta-button admin-edit-button"
-                onClick={handleImageUpload}
-                disabled={isUploading}
-              >
-                {isUploading ? "Enviando..." : "Enviar imagem"}
+              <button type="button" className="card-cta-button admin-edit-button" onClick={handleCoverUpload} disabled={isUploadingCover}>
+                {isUploadingCover ? "Enviando capa..." : "Enviar capa"}
               </button>
             </div>
+          </div>
 
-            {uploadFeedback ? (
-              <p className={`admin-editor-feedback ${uploadFeedbackType === "success" ? "is-success" : "is-error"}`}>
-                {uploadFeedback}
-              </p>
+          <div className="admin-upload-panel">
+            <div className="admin-form-grid admin-form-grid--two">
+              <label className="admin-form-field">
+                <span>Upload da galeria</span>
+                <input
+                  type="file"
+                  multiple
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                  onChange={(event) => setGalleryUploadFiles(Array.from(event.target.files ?? []))}
+                />
+              </label>
+
+              <label className="admin-form-field">
+                <span>Texto alternativo base</span>
+                <input value={uploadAlt} onChange={(event) => setUploadAlt(event.target.value)} />
+              </label>
+            </div>
+
+            {galleryPreviewUrls.length > 0 ? (
+              <div className="admin-preview-grid">
+                {galleryPreviewUrls.map((image) => (
+                  <figure key={image.id} className="admin-preview-item">
+                    <img src={image.url} alt={image.alt} />
+                  </figure>
+                ))}
+              </div>
             ) : null}
+
+            <div className="admin-upload-actions">
+              <button type="button" className="card-cta-button admin-edit-button" onClick={handleGalleryUpload} disabled={isUploadingGallery}>
+                {isUploadingGallery ? "Enviando galeria..." : "Enviar galeria"}
+              </button>
+            </div>
+          </div>
+
+          <div className="admin-managed-gallery">
+            <span className="admin-image-preview-label">Imagens atuais</span>
+            {galleryImages.length === 0 ? (
+              <div className="hotel-empty-state admin-history-empty">
+                <strong>Nenhuma imagem cadastrada.</strong>
+                <p>Envie imagens para exibir na galeria pública do hotel.</p>
+              </div>
+            ) : (
+              <div className="admin-preview-grid">
+                {galleryImages.map((image) => (
+                  <article key={image.id} className="admin-preview-card">
+                    <img src={image.url} alt={image.alt} />
+                    <div className="admin-preview-card-body">
+                      <strong>{image.url === coverImageUrl ? "Capa atual" : "Galeria"}</strong>
+                      <p>{image.alt}</p>
+                      <button
+                        type="button"
+                        className="admin-remove-image-button"
+                        onClick={() => handleRemoveImage(image)}
+                        disabled={removingImageId === image.id}
+                      >
+                        {removingImageId === image.id ? "Removendo..." : "Remover"}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
 
           <label className="admin-form-field">
             <span>Galeria</span>
-            <textarea
-              name="gallery"
-              value={galleryValue}
-              onChange={(event) => setGalleryValue(event.target.value)}
-              rows={6}
-              placeholder="https://... | Alt da imagem"
-            />
-            <small>Uma imagem por linha: URL | texto alternativo.</small>
+            <textarea name="gallery" value={galleryValue} onChange={() => undefined} rows={6} readOnly />
+            <small>Atualizada automaticamente pelos uploads e remoções.</small>
           </label>
         </div>
       </section>

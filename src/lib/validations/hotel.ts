@@ -20,12 +20,15 @@ const allowedHotelFormKeys = new Set([
   "isPublished",
 ]);
 
+const allowedHotelUploadFormKeys = new Set(["file", "files", "alt", "setAsCover"]);
+
 function sanitizeText(value: string) {
-  return value.trim().replace(/\s+/g, " ");
+  return value.replace(/[\u0000-\u001F\u007F]+/g, " ").trim().replace(/\s+/g, " ");
 }
 
 function sanitizeMultilineText(value: string) {
   return value
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]+/g, " ")
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
@@ -77,24 +80,33 @@ const timeSchema = z
   .trim()
   .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Horário inválido. Use HH:MM.");
 
-const urlSchema = z.url("URL inválida.").max(500, "URL muito longa.");
+const urlSchema = z
+  .string()
+  .trim()
+  .pipe(z.url("URL inválida.").max(500, "URL muito longa."));
 
-const hotelAmenitySchema = z.object({
-  label: textField("Comodidade", 2, 80),
-  position: z.number().int().min(0).max(200),
-});
+const hotelAmenitySchema = z
+  .object({
+    label: textField("Comodidade", 2, 80),
+    position: z.number().int().min(0).max(200),
+  })
+  .strict();
 
-const hotelPolicySchema = z.object({
-  title: textField("Título da política", 2, 80),
-  description: multilineField("Descrição da política", 3, 600),
-  position: z.number().int().min(0).max(200),
-});
+const hotelPolicySchema = z
+  .object({
+    title: textField("Título da política", 2, 80),
+    description: multilineField("Descrição da política", 3, 600),
+    position: z.number().int().min(0).max(200),
+  })
+  .strict();
 
-const hotelImageSchema = z.object({
-  url: urlSchema,
-  alt: textField("Texto alternativo da imagem", 2, 140),
-  position: z.number().int().min(0).max(200),
-});
+const hotelImageSchema = z
+  .object({
+    url: urlSchema,
+    alt: textField("Texto alternativo da imagem", 2, 140),
+    position: z.number().int().min(0).max(200),
+  })
+  .strict();
 
 export const hotelPayloadSchema = z
   .object({
@@ -106,7 +118,10 @@ export const hotelPayloadSchema = z
     state: stateSchema,
     address: multilineField("Endereço", 8, 180),
     phone: phoneSchema,
-    email: z.email("E-mail inválido.").max(160, "E-mail muito longo.").transform((value) => value.trim().toLowerCase()),
+    email: z
+      .email("E-mail inválido.")
+      .max(160, "E-mail muito longo.")
+      .transform((value) => value.trim().toLowerCase()),
     whatsapp: phoneSchema,
     coverImageUrl: urlSchema,
     images: z.array(hotelImageSchema).min(1, "Adicione pelo menos uma imagem.").max(20, "Máximo de 20 imagens."),
@@ -116,9 +131,46 @@ export const hotelPayloadSchema = z
     checkOutTime: timeSchema,
     isPublished: z.boolean(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    const imageUrls = new Set<string>();
+    const imagePositions = new Set<number>();
+
+    value.images.forEach((image, index) => {
+      if (imageUrls.has(image.url)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["images", index, "url"],
+          message: "Não repita a mesma URL de imagem.",
+        });
+      }
+
+      if (imagePositions.has(image.position)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["images", index, "position"],
+          message: "As imagens precisam ter posições únicas.",
+        });
+      }
+
+      imageUrls.add(image.url);
+      imagePositions.add(image.position);
+    });
+  });
 
 export type HotelPayload = z.infer<typeof hotelPayloadSchema>;
+
+const uploadAltSchema = z
+  .string()
+  .transform(sanitizeText)
+  .pipe(z.string().max(140, "Texto alternativo muito longo."));
+
+const uploadFlagsSchema = z
+  .object({
+    alt: uploadAltSchema,
+    setAsCover: z.boolean(),
+  })
+  .strict();
 
 export function parseHotelFormData(formData: FormData) {
   const receivedKeys = new Set<string>();
@@ -206,5 +258,69 @@ export function parseHotelFormData(formData: FormData) {
   return {
     success: true as const,
     data: result.data,
+  };
+}
+
+export function parseHotelUploadFormData(formData: FormData) {
+  const receivedKeys = new Set<string>();
+
+  for (const key of formData.keys()) {
+    receivedKeys.add(key);
+  }
+
+  const unexpectedKeys = [...receivedKeys].filter((key) => !allowedHotelUploadFormKeys.has(key));
+
+  if (unexpectedKeys.length > 0) {
+    return {
+      success: false as const,
+      error: `Campos inesperados: ${unexpectedKeys.join(", ")}.`,
+    };
+  }
+
+  const files = formData.getAll("files").filter((item): item is File => item instanceof File && item.size > 0);
+  const singleFile = formData.get("file");
+  const normalizedFiles =
+    files.length > 0 ? files : singleFile instanceof File && singleFile.size > 0 ? [singleFile] : [];
+
+  if (normalizedFiles.length === 0) {
+    return {
+      success: false as const,
+      error: "Nenhuma imagem válida foi enviada.",
+    };
+  }
+
+  if (normalizedFiles.length > 10) {
+    return {
+      success: false as const,
+      error: "Envie no máximo 10 imagens por vez.",
+    };
+  }
+
+  const parsedFlags = uploadFlagsSchema.safeParse({
+    alt: String(formData.get("alt") ?? ""),
+    setAsCover: String(formData.get("setAsCover") ?? "") === "true",
+  });
+
+  if (!parsedFlags.success) {
+    return {
+      success: false as const,
+      error: parsedFlags.error.issues[0]?.message || "Payload inválido.",
+    };
+  }
+
+  if (parsedFlags.data.setAsCover && normalizedFiles.length > 1) {
+    return {
+      success: false as const,
+      error: "Defina apenas uma imagem para a capa por vez.",
+    };
+  }
+
+  return {
+    success: true as const,
+    data: {
+      files: normalizedFiles,
+      alt: parsedFlags.data.alt,
+      setAsCover: parsedFlags.data.setAsCover,
+    },
   };
 }

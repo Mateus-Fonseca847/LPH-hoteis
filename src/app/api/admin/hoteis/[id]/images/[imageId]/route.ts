@@ -7,12 +7,12 @@ import { validateAdminTwoFactor } from "@/lib/auth/admin-security";
 import { createHotelAuditLog, type HotelAuditSnapshot } from "@/lib/audit/hotel-audit";
 import { AuthorizationError, requireHotelEditAccess } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/prisma";
-import { storeHotelImageFile } from "@/lib/uploads/hotel-images";
-import { parseHotelUploadFormData } from "@/lib/validations/hotel";
+import { deleteStoredHotelImageFile } from "@/lib/uploads/hotel-images";
 
 type RouteContext = {
   params: Promise<{
     id: string;
+    imageId: string;
   }>;
 };
 
@@ -46,11 +46,11 @@ function buildHotelSnapshot(hotel: HotelWithRelations) {
   } satisfies HotelAuditSnapshot;
 }
 
-export async function POST(request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
   try {
     await getRequiredSession();
 
-    const { id: hotelId } = await context.params;
+    const { id: hotelId, imageId } = await context.params;
     const user = await requireAuthenticatedRequestUser();
     const twoFactorValidation = await validateAdminTwoFactor(user.id);
 
@@ -59,21 +59,6 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     await requireHotelEditAccess(user.id, hotelId);
-
-    const contentType = request.headers.get("content-type") || "";
-
-    if (!contentType.includes("multipart/form-data")) {
-      return NextResponse.json({ error: "Envie a imagem em multipart/form-data." }, { status: 400 });
-    }
-
-    const formData = await request.formData();
-    const parsedUpload = parseHotelUploadFormData(formData);
-
-    if (!parsedUpload.success) {
-      return NextResponse.json({ error: parsedUpload.error }, { status: 400 });
-    }
-
-    const { files: normalizedFiles, alt: altBase, setAsCover } = parsedUpload.data;
 
     const hotel = await prisma.hotel.findUnique({
       where: {
@@ -102,20 +87,29 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Hotel não encontrado." }, { status: 404 });
     }
 
+    const imageToRemove = hotel.images.find((image) => image.id === imageId);
+
+    if (!imageToRemove) {
+      return NextResponse.json({ error: "Imagem não encontrada." }, { status: 404 });
+    }
+
+    const remainingImages = hotel.images.filter((image) => image.id !== imageId);
+
+    if (hotel.coverImageUrl === imageToRemove.url && remainingImages.length === 0) {
+      return NextResponse.json(
+        { error: "A imagem de capa não pode ser removida sem outra imagem disponível." },
+        { status: 400 }
+      );
+    }
+
+    const nextCoverImageUrl =
+      hotel.coverImageUrl === imageToRemove.url ? remainingImages[0]?.url ?? hotel.coverImageUrl : hotel.coverImageUrl;
+
     const previousValue = buildHotelSnapshot(hotel);
-    const nextPositionStart = hotel.images.length ? Math.max(...hotel.images.map((image) => image.position)) + 1 : 0;
-    const storedImages = await Promise.all(normalizedFiles.map((file) => storeHotelImageFile(hotelId, file)));
-
-    const createdImagesPayload = storedImages.map((storedImage, index) => ({
-      url: storedImage.url,
-      alt: altBase || `${hotel.name} - imagem ${nextPositionStart + index + 1}`,
-      position: nextPositionStart + index,
-    }));
-
     const nextValue: HotelAuditSnapshot = {
       ...previousValue,
-      coverImageUrl: setAsCover ? createdImagesPayload[0].url : previousValue.coverImageUrl,
-      images: [...previousValue.images, ...createdImagesPayload],
+      coverImageUrl: nextCoverImageUrl,
+      images: remainingImages.map(({ url, alt, position }) => ({ url, alt, position })),
     };
 
     const ipAddress =
@@ -123,27 +117,20 @@ export async function POST(request: Request, context: RouteContext) {
       request.headers.get("x-real-ip") ||
       null;
 
-    const createdImages = await prisma.$transaction(async (tx) => {
-      const images = await Promise.all(
-        createdImagesPayload.map((image) =>
-          tx.hotelImage.create({
-            data: {
-              hotelId,
-              url: image.url,
-              alt: image.alt,
-              position: image.position,
-            },
-          })
-        )
-      );
+    await prisma.$transaction(async (tx) => {
+      await tx.hotelImage.delete({
+        where: {
+          id: imageId,
+        },
+      });
 
-      if (setAsCover) {
+      if (nextCoverImageUrl !== hotel.coverImageUrl) {
         await tx.hotel.update({
           where: {
             id: hotelId,
           },
           data: {
-            coverImageUrl: createdImagesPayload[0].url,
+            coverImageUrl: nextCoverImageUrl,
           },
         });
       }
@@ -152,14 +139,14 @@ export async function POST(request: Request, context: RouteContext) {
         tx,
         userId: user.id,
         hotelId,
-        action: setAsCover ? "hotel.cover.uploaded" : "hotel.gallery.uploaded",
+        action: "hotel.image.removed",
         previousValue,
         newValue: nextValue,
         ipAddress,
       });
-
-      return images;
     });
+
+    await deleteStoredHotelImageFile(imageToRemove.url);
 
     revalidatePath("/admin/hoteis");
     revalidatePath(`/admin/hoteis/${hotelId}`);
@@ -168,23 +155,18 @@ export async function POST(request: Request, context: RouteContext) {
 
     return NextResponse.json({
       ok: true,
-      images: createdImages.map((image, index) => ({
-        id: image.id,
-        url: image.url,
-        alt: image.alt,
-        position: image.position,
-        setAsCover: setAsCover && index === 0,
-      })),
+      removedImageId: imageId,
+      nextCoverImageUrl,
     });
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      return NextResponse.json({ error: "Você não tem permissão para enviar imagens para este hotel." }, { status: 403 });
+      return NextResponse.json({ error: "Você não tem permissão para remover imagens deste hotel." }, { status: 403 });
     }
 
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ error: "Não foi possível concluir o upload." }, { status: 500 });
+    return NextResponse.json({ error: "Não foi possível remover a imagem." }, { status: 500 });
   }
 }

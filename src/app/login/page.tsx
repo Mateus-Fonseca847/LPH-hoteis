@@ -1,14 +1,18 @@
 import { redirect } from "next/navigation";
 
 import { LoginForm } from "@/app/login/LoginForm";
+import { isFullyAuthenticatedSession } from "@/lib/auth";
 import { getAuthSession } from "@/lib/auth/session";
 
 export default async function LoginPage() {
   const session = await getAuthSession();
 
-  if (session) {
+  if (isFullyAuthenticatedSession(session)) {
     redirect("/");
   }
+
+  const initialStep =
+    session?.twoFactorSetupRequired ? "setup" : session?.sub ? "verify" : "credentials";
 
   return (
     <div className="page-shell">
@@ -20,7 +24,7 @@ export default async function LoginPage() {
             <p className="auth-copy">
               Entre com e-mail e senha para acessar a área autenticada da plataforma.
             </p>
-            <LoginForm />
+            <LoginForm initialStep={initialStep} />
           </div>
         </section>
       </main>

@@ -24,10 +24,23 @@ export function isAdminUser(role: "super_admin" | "hotel_admin" | "user") {
   return role === "super_admin" || role === "hotel_admin";
 }
 
+export function isFullyAuthenticatedSession(session: AuthSessionPayload | null) {
+  if (!session?.sub) {
+    return false;
+  }
+
+  return isAdminUser(session.globalRole as "super_admin" | "hotel_admin" | "user")
+    ? session.twoFactorVerified === true
+    : true;
+}
+
 export async function getAuthenticatedUser() {
   const session = await getAuthSession();
 
-  if (!session?.sub) {
+  if (!isFullyAuthenticatedSession(session)) {
+    return null;
+  }
+  if (!session) {
     return null;
   }
 
@@ -42,7 +55,30 @@ export async function getAuthenticatedUser() {
 export async function getRequiredSession(): Promise<AuthSessionPayload> {
   const session = await getAuthSession();
 
+  if (!isFullyAuthenticatedSession(session)) {
+    throw new AuthenticationError();
+  }
+  if (!session) {
+    throw new AuthenticationError();
+  }
+
+  return session;
+}
+
+export async function getPendingAuthSession() {
+  const session = await getAuthSession();
+
   if (!session?.sub) {
+    return null;
+  }
+
+  return session;
+}
+
+export async function requirePendingAuthSession() {
+  const session = await getPendingAuthSession();
+
+  if (!session) {
     throw new AuthenticationError();
   }
 

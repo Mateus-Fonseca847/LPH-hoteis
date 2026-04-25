@@ -29,6 +29,32 @@ type HotelPolicyRow = {
   position: number;
 };
 
+type HotelRoomRow = {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  capacity: number;
+  beds: string;
+  size: string;
+  priceFrom: { toString(): string };
+  isAvailable: boolean;
+};
+
+export type HotelNearbyPlace = {
+  name: string;
+  type:
+    | "airport"
+    | "beach"
+    | "shopping"
+    | "museum"
+    | "historic_center"
+    | "restaurant"
+    | "convention_center"
+    | "park";
+  distanceText: string;
+};
+
 export type HotelPageData = {
   id: string;
   slug: string;
@@ -47,9 +73,66 @@ export type HotelPageData = {
   latitude: { toString(): string } | null;
   longitude: { toString(): string } | null;
   images: HotelImageRow[];
+  rooms: HotelRoomRow[];
   amenities: HotelAmenityRow[];
   policies: HotelPolicyRow[];
+  nearbyPlaces: HotelNearbyPlace[];
 };
+
+const nearbyPlacesBySlug: Record<string, HotelNearbyPlace[]> = {
+  "pousada-charle-brown": [
+    { name: "Praia central de Garopaba", type: "beach", distanceText: "8 min de carro" },
+    { name: "Lagoa costeira da região", type: "park", distanceText: "12 min de carro" },
+    { name: "Centro comercial local", type: "shopping", distanceText: "6 min de carro" },
+    { name: "Polo gastronômico litorâneo", type: "restaurant", distanceText: "10 min de carro" },
+  ],
+  "lph-serra-imperial": [
+    { name: "Centro histórico serrano", type: "historic_center", distanceText: "9 min de carro" },
+    { name: "Museu regional da cidade", type: "museum", distanceText: "11 min de carro" },
+    { name: "Parque de trilhas e mirantes", type: "park", distanceText: "14 min de carro" },
+    { name: "Boulevard gastronômico", type: "restaurant", distanceText: "7 min de carro" },
+  ],
+  "lph-jardins": [
+    { name: "Aeroporto da capital", type: "airport", distanceText: "22 min de carro" },
+    { name: "Centro de compras premium", type: "shopping", distanceText: "5 min de carro" },
+    { name: "Museu de arte urbana", type: "museum", distanceText: "9 min de carro" },
+    { name: "Corredor gastronômico dos Jardins", type: "restaurant", distanceText: "4 min a pé" },
+  ],
+  "lph-lago-sul": [
+    { name: "Aeroporto internacional da cidade", type: "airport", distanceText: "18 min de carro" },
+    { name: "Centro de convenções da região", type: "convention_center", distanceText: "16 min de carro" },
+    { name: "Parque urbano à beira do lago", type: "park", distanceText: "10 min de carro" },
+    { name: "Polo gastronômico do Lago Sul", type: "restaurant", distanceText: "8 min de carro" },
+  ],
+  "lph-boa-viagem": [
+    { name: "Praia de Boa Viagem", type: "beach", distanceText: "3 min a pé" },
+    { name: "Aeroporto da cidade", type: "airport", distanceText: "14 min de carro" },
+    { name: "Shopping da zona sul", type: "shopping", distanceText: "9 min de carro" },
+    { name: "Centro gastronômico da orla", type: "restaurant", distanceText: "6 min de carro" },
+  ],
+  "lph-pelourinho": [
+    { name: "Centro histórico do entorno", type: "historic_center", distanceText: "4 min a pé" },
+    { name: "Museu cultural da região", type: "museum", distanceText: "7 min a pé" },
+    { name: "Polo de restaurantes coloniais", type: "restaurant", distanceText: "5 min a pé" },
+    { name: "Praça com programação artística", type: "park", distanceText: "6 min a pé" },
+  ],
+  "lph-gramado-village": [
+    { name: "Centro charmoso da cidade", type: "historic_center", distanceText: "8 min de carro" },
+    { name: "Parque de lazer da serra", type: "park", distanceText: "12 min de carro" },
+    { name: "Boulevard de chocolates e cafés", type: "shopping", distanceText: "9 min de carro" },
+    { name: "Restaurantes da avenida principal", type: "restaurant", distanceText: "7 min de carro" },
+  ],
+  "lph-beira-mar": [
+    { name: "Orla da Beira-Mar", type: "beach", distanceText: "4 min a pé" },
+    { name: "Parque urbano da baía", type: "park", distanceText: "10 min de carro" },
+    { name: "Centro comercial da região norte", type: "shopping", distanceText: "8 min de carro" },
+    { name: "Corredor gastronômico litorâneo", type: "restaurant", distanceText: "6 min de carro" },
+  ],
+};
+
+function getNearbyPlaces(slug: string): HotelNearbyPlace[] {
+  return nearbyPlacesBySlug[slug] ?? [];
+}
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 
@@ -134,6 +217,7 @@ function mapFallbackHotel(hotel: FallbackHotel): HotelPageData {
       alt: hotel.alt,
       position: index,
     })),
+    rooms: [],
     amenities: hotel.amenities.map((label, index) => ({
       id: `fallback-amenity-${hotel.slug}-${index}`,
       label,
@@ -145,6 +229,7 @@ function mapFallbackHotel(hotel: FallbackHotel): HotelPageData {
       description: policy.description,
       position: index,
     })),
+    nearbyPlaces: getNearbyPlaces(hotel.slug),
   };
 }
 
@@ -202,7 +287,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
   }
 
   try {
-    return await prisma.hotel.findFirst({
+    const hotel = await prisma.hotel.findFirst({
       where: {
         slug,
         isPublished: true,
@@ -211,6 +296,11 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
         images: {
           orderBy: {
             position: "asc",
+          },
+        },
+        rooms: {
+          orderBy: {
+            createdAt: "asc",
           },
         },
         amenities: {
@@ -225,6 +315,13 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
         },
       },
     });
+
+    return hotel
+      ? {
+          ...hotel,
+          nearbyPlaces: getNearbyPlaces(hotel.slug),
+        }
+      : null;
   } catch (error) {
     warnDatabaseFallback(error);
     const hotel = getHotelBySlug(slug);

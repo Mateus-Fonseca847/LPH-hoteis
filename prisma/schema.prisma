@@ -28,6 +28,7 @@ model Hotel {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   images           HotelImage[]
+  rooms            HotelRoom[]
   amenities        HotelAmenity[]
   policies         HotelPolicy[]
   permissions      HotelPermission[]
@@ -38,6 +39,25 @@ model Hotel {
   @@index([state])
   @@index([city, state])
   @@index([isPublished])
+}
+
+model HotelRoom {
+  id          String   @id @default(cuid())
+  hotelId     String
+  name        String
+  description String   @db.Text
+  imageUrl    String
+  capacity    Int
+  beds        String
+  size        String
+  priceFrom   Decimal  @db.Decimal(10, 2)
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  hotel       Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId])
+  @@index([hotelId, isAvailable])
 }
 
 model HotelImage {

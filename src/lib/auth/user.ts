@@ -17,17 +17,6 @@ export async function findUserByEmail(email: string) {
 }
 
 export async function getCurrentUser() {
-  const sessionModule = await import("@/lib/auth/session");
-  const session = await sessionModule.getAuthSession();
-
-  if (!session?.sub) {
-    return null;
-  }
-
-  return prisma.user.findUnique({
-    where: {
-      id: session.sub,
-    },
-    select: authenticatedUserSelect,
-  });
+  const authModule = await import("@/lib/auth");
+  return authModule.getAuthenticatedUser();
 }
