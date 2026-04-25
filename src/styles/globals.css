@@ -1258,6 +1258,20 @@ button {
   font-size: 0.86rem;
 }
 
+.admin-form-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.admin-form-error--block {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(180, 35, 24, 0.08);
+}
+
 .admin-form-field input,
 .admin-form-field textarea {
   width: 100%;
@@ -1310,6 +1324,159 @@ button {
 
 .admin-upload-actions {
   justify-content: start;
+}
+
+.admin-rooms-section,
+.admin-rooms-list,
+.admin-room-card,
+.admin-room-card-body,
+.admin-room-meta-grid,
+.admin-room-actions,
+.admin-room-panel,
+.admin-rooms-header,
+.admin-room-card-top {
+  display: grid;
+}
+
+.admin-rooms-section {
+  gap: 18px;
+}
+
+.admin-rooms-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-rooms-copy,
+.admin-room-description {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.admin-rooms-list {
+  gap: 16px;
+}
+
+.admin-room-card {
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-room-card-media {
+  min-height: 220px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(6, 41, 79, 0.05);
+}
+
+.admin-room-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-room-card-body {
+  gap: 14px;
+}
+
+.admin-room-card-top {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.admin-room-card-top strong,
+.admin-room-panel-heading strong {
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.admin-room-card-top p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.admin-room-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-room-badge.is-active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #0f766e;
+}
+
+.admin-room-badge.is-inactive {
+  background: rgba(30, 30, 30, 0.08);
+  color: var(--muted);
+}
+
+.admin-room-meta-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-room-meta-grid span {
+  min-height: 52px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(6, 41, 79, 0.05);
+  color: var(--brand);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.admin-room-panel {
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(6, 41, 79, 0.1);
+  border-radius: 22px;
+  background: rgba(6, 41, 79, 0.03);
+}
+
+.admin-room-panel--inline {
+  margin-top: 6px;
+}
+
+.admin-room-actions {
+  grid-template-columns: repeat(auto-fit, minmax(140px, max-content));
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-secondary-button {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid rgba(6, 41, 79, 0.14);
+  border-radius: 999px;
+  background: rgba(6, 41, 79, 0.04);
+  color: var(--brand);
+  font-weight: 700;
+  transition:
+    transform 0.24s ease,
+    background-color 0.24s ease,
+    border-color 0.24s ease;
+}
+
+.admin-secondary-button:hover {
+  transform: translateY(-1px);
+  background: rgba(6, 41, 79, 0.08);
+  border-color: rgba(6, 41, 79, 0.2);
 }
 
 .admin-image-preview-card,
@@ -2342,6 +2509,9 @@ button {
   .admin-overview-grid,
   .admin-hotels-grid,
   .admin-hotel-detail-grid,
+  .admin-rooms-header,
+  .admin-room-card,
+  .admin-room-meta-grid,
   .admin-image-grid,
   .admin-form-grid--two,
   .admin-form-grid--three,

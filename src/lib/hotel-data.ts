@@ -38,11 +38,15 @@ type HotelRoomRow = {
   name: string;
   description: string;
   imageUrl: string;
+  capacityAdults: number;
+  capacityChildren: number;
   capacity: number;
   beds: string;
+  sizeM2: number | null;
   size: string;
   priceFrom: { toString(): string };
   isAvailable: boolean;
+  isActive: boolean;
 };
 
 export type HotelNearbyPlace = {
@@ -327,6 +331,9 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
           },
         },
         rooms: {
+          where: {
+            isActive: true,
+          },
           orderBy: {
             createdAt: "asc",
           },

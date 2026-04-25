@@ -42,21 +42,27 @@ model Hotel {
 }
 
 model HotelRoom {
-  id          String   @id @default(cuid())
-  hotelId     String
-  name        String
-  description String   @db.Text
-  imageUrl    String
-  capacity    Int
-  beds        String
-  size        String
-  priceFrom   Decimal  @db.Decimal(10, 2)
-  isAvailable Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  hotel       Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  hotelId          String
+  name             String
+  description      String   @db.Text
+  imageUrl         String
+  capacity         Int
+  capacityAdults   Int      @default(1)
+  capacityChildren Int      @default(0)
+  beds             String
+  size             String
+  sizeM2           Int?
+  amenities        String[] @default([])
+  priceFrom        Decimal  @db.Decimal(10, 2)
+  isAvailable      Boolean  @default(true)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  hotel            Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
   @@index([hotelId])
+  @@index([hotelId, isActive])
   @@index([hotelId, isAvailable])
 }
 

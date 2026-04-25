@@ -7,6 +7,7 @@ import { AuthorizationError, requireHotelEditAccess } from "@/lib/auth/authoriza
 import { prisma } from "@/lib/prisma";
 
 import { HotelEditorForm } from "./HotelEditorForm";
+import { HotelRoomsSection } from "./HotelRoomsSection";
 import { updateHotelProfileAction } from "./actions";
 
 type AdminHotelDetailPageProps = {
@@ -81,6 +82,25 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
           position: "asc",
         },
       },
+      rooms: {
+        orderBy: [{ createdAt: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          imageUrl: true,
+          capacityAdults: true,
+          capacityChildren: true,
+          beds: true,
+          sizeM2: true,
+          amenities: true,
+          isActive: true,
+          capacity: true,
+          size: true,
+          priceFrom: true,
+          isAvailable: true,
+        },
+      },
       auditLogs: {
         orderBy: {
           createdAt: "desc",
@@ -112,6 +132,13 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
       </div>
 
       <HotelEditorForm action={saveAction} hotel={hotel} />
+      <HotelRoomsSection
+        hotelId={hotel.id}
+        initialRooms={hotel.rooms.map((room) => ({
+          ...room,
+          priceFrom: room.priceFrom.toString(),
+        }))}
+      />
 
       <section className="hotel-content-card admin-history-section">
         <div className="section-heading admin-subsection-heading">

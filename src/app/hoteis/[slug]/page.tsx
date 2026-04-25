@@ -15,6 +15,8 @@ type HotelPageProps = {
   }>;
 };
 
+type HotelPageRoom = NonNullable<Awaited<ReturnType<typeof getHotelPageData>>>["rooms"][number];
+
 function buildAccessibility(hotel: Awaited<ReturnType<typeof getHotelPageData>>) {
   if (!hotel) {
     return [];
@@ -145,6 +147,16 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({
     slug,
   }));
+}
+
+function formatRoomCapacity(room: HotelPageRoom) {
+  const parts = [`${room.capacityAdults} adulto${room.capacityAdults > 1 ? "s" : ""}`];
+
+  if (room.capacityChildren > 0) {
+    parts.push(`${room.capacityChildren} criança${room.capacityChildren > 1 ? "s" : ""}`);
+  }
+
+  return parts.join(" + ");
 }
 
 export default async function HotelPage({ params }: HotelPageProps) {
@@ -308,27 +320,19 @@ export default async function HotelPage({ params }: HotelPageProps) {
                     <div className="hotel-room-body">
                       <div className="hotel-room-header">
                         <h3>{room.name}</h3>
-                        <span
-                          className={`hotel-room-badge ${room.isAvailable ? "is-available" : "is-unavailable"}`}
-                        >
-                          {room.isAvailable ? "Disponível" : "Indisponível"}
-                        </span>
+                        <span className="hotel-room-badge is-available">Ativo</span>
                       </div>
                       <p>{room.description}</p>
                       <div className="hotel-room-meta">
-                        <span>{room.capacity} hóspedes</span>
+                        <span>{formatRoomCapacity(room)}</span>
                         <span>{room.beds}</span>
-                        <span>{room.size}</span>
+                        <span>{room.sizeM2 ? `${room.sizeM2} m²` : room.size}</span>
                       </div>
                       <div className="hotel-room-footer">
-                        <strong>A partir de R$ {room.priceFrom.toString()}</strong>
-                        {room.isAvailable ? (
-                          <button type="button" className="hotel-room-cta">
-                            Selecionar quarto
-                          </button>
-                        ) : (
-                          <span className="hotel-room-status">Indisponível</span>
-                        )}
+                        <strong>{hotel.name}</strong>
+                        <button type="button" className="hotel-room-cta">
+                          Consultar disponibilidade
+                        </button>
                       </div>
                     </div>
                   </article>
@@ -336,10 +340,10 @@ export default async function HotelPage({ params }: HotelPageProps) {
               </div>
             ) : (
               <div className="hotel-empty-state">
-                <strong>Opções detalhadas em breve</strong>
+                <strong>Quartos disponíveis mediante consulta</strong>
                 <p>
-                  Use o botão de consulta para receber as categorias de acomodação disponíveis para
-                  as datas desejadas.
+                  Fale com a equipe do hotel para conhecer as categorias disponíveis para as suas
+                  datas.
                 </p>
               </div>
             )}
