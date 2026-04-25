@@ -1,15 +1,10 @@
 import { redirect } from "next/navigation";
 
+import { normalizeRedirectTarget } from "@/lib/auth/redirect";
 import { getAuthSession, type AuthSessionPayload } from "@/lib/auth/session";
 import { authenticatedUserSelect } from "@/lib/auth/user";
+import { AuthenticationError, AuthorizationError } from "@/lib/errors/app-error";
 import { prisma } from "@/lib/prisma";
-
-export class AuthenticationError extends Error {
-  constructor(message = "Usuário não autenticado.") {
-    super(message);
-    this.name = "AuthenticationError";
-  }
-}
 
 export class AdminAccessError extends Error {
   constructor(message = "Acesso administrativo negado.") {
@@ -37,10 +32,7 @@ export function isFullyAuthenticatedSession(session: AuthSessionPayload | null) 
 export async function getAuthenticatedUser() {
   const session = await getAuthSession();
 
-  if (!isFullyAuthenticatedSession(session)) {
-    return null;
-  }
-  if (!session) {
+  if (!isFullyAuthenticatedSession(session) || !session) {
     return null;
   }
 
@@ -55,10 +47,7 @@ export async function getAuthenticatedUser() {
 export async function getRequiredSession(): Promise<AuthSessionPayload> {
   const session = await getAuthSession();
 
-  if (!isFullyAuthenticatedSession(session)) {
-    throw new AuthenticationError();
-  }
-  if (!session) {
+  if (!isFullyAuthenticatedSession(session) || !session) {
     throw new AuthenticationError();
   }
 
@@ -116,6 +105,13 @@ export async function requireAdminRouteSession(redirectTo?: string) {
 }
 
 export function redirectToLogin(redirectTo?: string): never {
-  const target = redirectTo ? `/login?redirectTo=${encodeURIComponent(redirectTo)}` : "/login";
+  const safeRedirectTarget = normalizeRedirectTarget(redirectTo);
+  const target =
+    safeRedirectTarget !== "/"
+      ? `/login?redirectTo=${encodeURIComponent(safeRedirectTarget)}`
+      : "/login";
+
   redirect(target);
 }
+
+export { AuthenticationError, AuthorizationError };

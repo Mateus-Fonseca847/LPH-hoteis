@@ -43,7 +43,8 @@ const experienceDestinations = {
   esporte: [
     {
       title: "Trilha na Serra dos \u00d3rg\u00e3os",
-      description: "Petr\u00f3polis, Teres\u00f3polis e montanhas para quem busca aventura ao ar livre.",
+      description:
+        "Petr\u00f3polis, Teres\u00f3polis e montanhas para quem busca aventura ao ar livre.",
       image:
         "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80",
       alt: "Montanhas e trilha ao ar livre na Serra dos \u00d3rg\u00e3os",
@@ -66,14 +67,16 @@ const experienceDestinations = {
   musica: [
     {
       title: "Noites de Bossa no Rio",
-      description: "Hospede-se perto de bares, casas de show e experi\u00eancias musicais cariocas.",
+      description:
+        "Hospede-se perto de bares, casas de show e experi\u00eancias musicais cariocas.",
       image:
         "https://images.unsplash.com/photo-1504609773096-104ff2c73ba4?auto=format&fit=crop&w=1200&q=80",
       alt: "Vista noturna urbana com clima musical no Rio de Janeiro",
     },
     {
       title: "Forr\u00f3 em Recife",
-      description: "Cultura nordestina, dan\u00e7a e hospedagens pr\u00f3ximas aos polos culturais.",
+      description:
+        "Cultura nordestina, dan\u00e7a e hospedagens pr\u00f3ximas aos polos culturais.",
       image:
         "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=1200&q=80",
       alt: "Ambiente cultural e festivo para experi\u00eancias musicais em Recife",
@@ -156,9 +159,7 @@ function renderSuggestions(query) {
   if (!citySearchSuggestions || !citySearchInput) return;
 
   const normalizedQuery = normalizeText(query.trim());
-  const matches = brazilianCities.filter((city) =>
-    normalizeText(city).includes(normalizedQuery)
-  );
+  const matches = brazilianCities.filter((city) => normalizeText(city).includes(normalizedQuery));
 
   citySearchSuggestions.innerHTML = "";
 
@@ -205,10 +206,7 @@ if (citySearchInput && citySearchSuggestions) {
   });
 
   document.addEventListener("click", (event) => {
-    if (
-      !citySearchInput.contains(event.target) &&
-      !citySearchSuggestions.contains(event.target)
-    ) {
+    if (!citySearchInput.contains(event.target) && !citySearchSuggestions.contains(event.target)) {
       closeSuggestions();
     }
   });

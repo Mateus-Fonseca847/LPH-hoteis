@@ -3,6 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
+import { normalizeRedirectTarget } from "@/lib/auth/redirect";
+
 type LoginResponse = {
   error?: string;
   requiresTwoFactor?: boolean;
@@ -32,14 +34,19 @@ export function LoginForm({ initialStep = "credentials" }: LoginFormProps) {
   const [otpauthUrl, setOtpauthUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    setStep(initialStep);
-  }, [initialStep]);
+  function updateStep(nextStep: "credentials" | "verify" | "setup") {
+    setStep(nextStep);
+
+    if (nextStep !== "setup") {
+      setManualEntryKey("");
+      setOtpauthUrl("");
+    }
+  }
 
   useEffect(() => {
     async function loadPendingSetup() {
-      if (initialStep !== "setup") {
-        if (initialStep === "verify") {
+      if (step !== "setup") {
+        if (step === "verify") {
           setInfo("Digite o código gerado no seu aplicativo autenticador.");
         }
         return;
@@ -66,17 +73,10 @@ export function LoginForm({ initialStep = "credentials" }: LoginFormProps) {
     }
 
     void loadPendingSetup();
-  }, [initialStep]);
-
-  useEffect(() => {
-    if (step !== "setup") {
-      setManualEntryKey("");
-      setOtpauthUrl("");
-    }
   }, [step]);
 
   async function redirectAfterLogin() {
-    const redirectTo = searchParams.get("redirectTo") || "/";
+    const redirectTo = normalizeRedirectTarget(searchParams.get("redirectTo"));
     router.push(redirectTo);
     router.refresh();
   }
@@ -118,13 +118,13 @@ export function LoginForm({ initialStep = "credentials" }: LoginFormProps) {
 
           setManualEntryKey(setupData.manualEntryKey);
           setOtpauthUrl(setupData.otpauthUrl ?? "");
-          setStep("setup");
+          updateStep("setup");
           setInfo("Cadastre a chave no aplicativo autenticador e informe o código gerado.");
           return;
         }
 
         if (data.requiresTwoFactor) {
-          setStep("verify");
+          updateStep("verify");
           setInfo("Digite o código gerado no seu aplicativo autenticador.");
           return;
         }
@@ -193,13 +193,10 @@ export function LoginForm({ initialStep = "credentials" }: LoginFormProps) {
           {step === "setup" ? (
             <div className="auth-field">
               <label>Chave do autenticador</label>
-              <textarea
-                className="auth-textarea"
-                value={manualEntryKey}
-                readOnly
-                rows={3}
-              />
-              {otpauthUrl ? <small className="auth-help">Use esta chave ou URL no app autenticador.</small> : null}
+              <textarea className="auth-textarea" value={manualEntryKey} readOnly rows={3} />
+              {otpauthUrl ? (
+                <small className="auth-help">Use esta chave ou URL no app autenticador.</small>
+              ) : null}
             </div>
           ) : null}
 

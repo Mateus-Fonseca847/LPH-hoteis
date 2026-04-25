@@ -35,7 +35,10 @@ export function HotelGallery({ hotelName, images }: HotelGalleryProps) {
     <div className="hotel-gallery-shell">
       <div className="hotel-gallery-grid">
         <article className="hotel-gallery-card hotel-gallery-card--featured">
-          <img src={featuredImage.url} alt={featuredImage.alt || `Imagem principal de ${hotelName}`} />
+          <img
+            src={featuredImage.url}
+            alt={featuredImage.alt || `Imagem principal de ${hotelName}`}
+          />
         </article>
 
         <div className="hotel-gallery-secondary">
@@ -57,7 +60,9 @@ export function HotelGallery({ hotelName, images }: HotelGalleryProps) {
             className="hotel-gallery-more-button"
             onClick={() => setIsExpanded((current) => !current)}
           >
-            {isExpanded ? "Mostrar menos fotos" : `Ver mais ${extraImages.length} foto${extraImages.length > 1 ? "s" : ""}`}
+            {isExpanded
+              ? "Mostrar menos fotos"
+              : `Ver mais ${extraImages.length} foto${extraImages.length > 1 ? "s" : ""}`}
           </button>
 
           {visibleExtraImages.length > 0 ? (
@@ -69,7 +74,10 @@ export function HotelGallery({ hotelName, images }: HotelGalleryProps) {
                 >
                   <img
                     src={image.url}
-                    alt={image.alt || `${hotelName} - foto adicional ${index + SECONDARY_VISIBLE_COUNT + 2}`}
+                    alt={
+                      image.alt ||
+                      `${hotelName} - foto adicional ${index + SECONDARY_VISIBLE_COUNT + 2}`
+                    }
                   />
                 </article>
               ))}
@@ -77,7 +85,9 @@ export function HotelGallery({ hotelName, images }: HotelGalleryProps) {
           ) : null}
         </div>
       ) : (
-        <p className="hotel-gallery-caption">Seleção visual do hotel com imagens principais da estadia.</p>
+        <p className="hotel-gallery-caption">
+          Seleção visual do hotel com imagens principais da estadia.
+        </p>
       )}
     </div>
   );

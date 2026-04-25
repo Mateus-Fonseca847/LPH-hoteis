@@ -92,6 +92,7 @@ export function HotelRegionDetailsSection({
   nearbyPlaces,
 }: HotelRegionDetailsSectionProps) {
   const hasAddress = Boolean(address.trim());
+  const hasCoordinates = Boolean(latitude && longitude);
   const locationQuery = [address, city, state].filter(Boolean).join(", ");
   const encodedLocation = encodeURIComponent(locationQuery);
   const mapEmbedUrl = `https://www.google.com/maps?q=${encodedLocation}&output=embed`;
@@ -106,6 +107,14 @@ export function HotelRegionDetailsSection({
           <span>Endereço</span>
           <strong>{address}</strong>
         </p>
+        {hasCoordinates ? (
+          <p>
+            <span>Coordenadas</span>
+            <strong>
+              {latitude}, {longitude}
+            </strong>
+          </p>
+        ) : null}
       </div>
 
       <div

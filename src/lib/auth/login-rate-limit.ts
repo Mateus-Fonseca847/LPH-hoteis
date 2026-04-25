@@ -114,7 +114,9 @@ export function isLoginRateLimited(input: LoginRateLimitInput) {
     { scope: "combination" as const, bucket: getOrCreateBucket(combinationKey, now) },
   ];
 
-  const blocked = entries.find((entry) => entry.bucket.blockedUntil && entry.bucket.blockedUntil > now);
+  const blocked = entries.find(
+    (entry) => entry.bucket.blockedUntil && entry.bucket.blockedUntil > now
+  );
 
   if (blocked) {
     emitSecurityEvent({
@@ -142,7 +144,11 @@ export function recordFailedLoginAttempt(input: LoginRateLimitInput) {
   const scopes = [
     { scope: "ip" as const, key: ipKey, maxAttempts: MAX_ATTEMPTS_PER_IP },
     { scope: "email" as const, key: emailKey, maxAttempts: MAX_ATTEMPTS_PER_EMAIL },
-    { scope: "combination" as const, key: combinationKey, maxAttempts: MAX_ATTEMPTS_PER_COMBINATION },
+    {
+      scope: "combination" as const,
+      key: combinationKey,
+      maxAttempts: MAX_ATTEMPTS_PER_COMBINATION,
+    },
   ];
 
   scopes.forEach(({ scope, key, maxAttempts }) => {

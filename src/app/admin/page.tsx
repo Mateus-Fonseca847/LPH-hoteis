@@ -47,7 +47,10 @@ export default async function AdminHomePage() {
           <p>{visibleHotelsCount} hotéis visíveis na administração.</p>
         </article>
 
-        <Link href="/admin/hoteis" className="hotel-content-card admin-overview-card admin-link-card">
+        <Link
+          href="/admin/hoteis"
+          className="hotel-content-card admin-overview-card admin-link-card"
+        >
           <span>Hotéis</span>
           <strong>Gerenciar hotéis</strong>
           <p>Ver lista permitida e acessar cada unidade.</p>

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 
+import {
+  createAuthApiErrorResponse,
+  createValidationErrorFromResult,
+  parseLoginRequestBody,
+} from "@/lib/auth/auth-route";
 import { isAdminUser } from "@/lib/auth";
 import {
   clearFailedLoginAttempts,
@@ -10,27 +15,28 @@ import {
 import { verifyPassword } from "@/lib/auth/password";
 import { setAuthSessionCookie, setPendingTwoFactorSessionCookie } from "@/lib/auth/session";
 import { findUserByEmail } from "@/lib/auth/user";
+import { createApiSuccessResponse } from "@/lib/errors/app-error";
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as {
-      email?: string;
-      password?: string;
-    };
+    const parsedBody = parseLoginRequestBody(await request.json());
 
-    const email = body.email?.trim().toLowerCase() ?? "";
-    const password = body.password ?? "";
-    const ip = getClientIp(request);
-
-    if (!email || !password) {
-      return NextResponse.json({ error: "Informe e-mail e senha." }, { status: 400 });
+    if (!parsedBody.success) {
+      throw createValidationErrorFromResult(parsedBody);
     }
 
+    const email = parsedBody.data.email.trim().toLowerCase();
+    const password = parsedBody.data.password;
+    const ip = getClientIp(request);
     const rateLimit = isLoginRateLimited({ email, ip });
 
     if (rateLimit.limited) {
       return NextResponse.json(
-        { error: "Não foi possível concluir o login com essas credenciais." },
+        {
+          ok: false,
+          error: "Não foi possível concluir o login com essas credenciais.",
+          code: "AUTHENTICATION_ERROR",
+        },
         {
           status: 429,
           headers: {
@@ -44,14 +50,30 @@ export async function POST(request: Request) {
 
     if (!user) {
       recordFailedLoginAttempt({ email, ip });
-      return NextResponse.json({ error: "Não foi possível concluir o login com essas credenciais." }, { status: 401 });
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Não foi possível concluir o login com essas credenciais.",
+          code: "AUTHENTICATION_ERROR",
+        },
+        { status: 401 }
+      );
     }
 
     const isValidPassword = await verifyPassword(password, user.passwordHash);
 
     if (!isValidPassword) {
       recordFailedLoginAttempt({ email, ip });
-      return NextResponse.json({ error: "Não foi possível concluir o login com essas credenciais." }, { status: 401 });
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Não foi possível concluir o login com essas credenciais.",
+          code: "AUTHENTICATION_ERROR",
+        },
+        { status: 401 }
+      );
     }
 
     clearFailedLoginAttempts({ email, ip });
@@ -63,8 +85,7 @@ export async function POST(request: Request) {
         twoFactorSetupRequired: !user.twoFactorEnabled,
       });
 
-      return NextResponse.json({
-        ok: true,
+      return createApiSuccessResponse({
         requiresTwoFactor: user.twoFactorEnabled,
         requiresTwoFactorSetup: !user.twoFactorEnabled,
       });
@@ -77,8 +98,7 @@ export async function POST(request: Request) {
       twoFactorSetupRequired: false,
     });
 
-    return NextResponse.json({
-      ok: true,
+    return createApiSuccessResponse({
       user: {
         id: user.id,
         name: user.name,
@@ -86,7 +106,7 @@ export async function POST(request: Request) {
         globalRole: user.globalRole,
       },
     });
-  } catch {
-    return NextResponse.json({ error: "Não foi possível concluir o login." }, { status: 500 });
+  } catch (error) {
+    return createAuthApiErrorResponse(error, "Não foi possível concluir o login.");
   }
 }

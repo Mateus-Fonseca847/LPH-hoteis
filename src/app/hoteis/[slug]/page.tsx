@@ -38,8 +38,9 @@ function buildFaq(hotel: Awaited<ReturnType<typeof getHotelPageData>>) {
   }
 
   const cancelPolicy =
-    hotel.policies.find((policy) => /cancel/i.test(policy.title) || /cancel/i.test(policy.description)) ??
-    hotel.policies[0];
+    hotel.policies.find(
+      (policy) => /cancel/i.test(policy.title) || /cancel/i.test(policy.description)
+    ) ?? hotel.policies[0];
 
   return [
     {
@@ -59,13 +60,17 @@ function buildFaq(hotel: Awaited<ReturnType<typeof getHotelPageData>>) {
   ];
 }
 
-function findPolicyText(hotel: Awaited<ReturnType<typeof getHotelPageData>>, patterns: RegExp[], fallback: string) {
+function findPolicyText(
+  hotel: Awaited<ReturnType<typeof getHotelPageData>>,
+  patterns: RegExp[],
+  fallback: string
+) {
   if (!hotel) {
     return fallback;
   }
 
-  const matched = hotel.policies.find(
-    (policy) => patterns.some((pattern) => pattern.test(policy.title) || pattern.test(policy.description))
+  const matched = hotel.policies.find((policy) =>
+    patterns.some((pattern) => pattern.test(policy.title) || pattern.test(policy.description))
   );
 
   return matched ? `${matched.title}: ${matched.description}` : fallback;
@@ -79,10 +84,9 @@ function buildPolicySections(hotel: Awaited<ReturnType<typeof getHotelPageData>>
   return [
     {
       title: "Políticas da propriedade",
-      description:
-        hotel.policies[0]
-          ? `${hotel.policies[0].title}: ${hotel.policies[0].description}`
-          : "As condições gerais da hospedagem são apresentadas durante a consulta de disponibilidade.",
+      description: hotel.policies[0]
+        ? `${hotel.policies[0].title}: ${hotel.policies[0].description}`
+        : "As condições gerais da hospedagem são apresentadas durante a consulta de disponibilidade.",
     },
     {
       title: "Check-in e check-out",
@@ -124,12 +128,13 @@ function buildPolicySections(hotel: Awaited<ReturnType<typeof getHotelPageData>>
     },
     {
       title: "Outras informações",
-      description: hotel.policies.length > 1
-        ? hotel.policies
-            .slice(1, 3)
-            .map((policy) => `${policy.title}: ${policy.description}`)
-            .join(" ")
-        : "A equipe pode orientar detalhes operacionais, horários e serviços complementares durante a consulta.",
+      description:
+        hotel.policies.length > 1
+          ? hotel.policies
+              .slice(1, 3)
+              .map((policy) => `${policy.title}: ${policy.description}`)
+              .join(" ")
+          : "A equipe pode orientar detalhes operacionais, horários e serviços complementares durante a consulta.",
     },
   ];
 }
@@ -161,7 +166,7 @@ export default async function HotelPage({ params }: HotelPageProps) {
     <div className="page-shell">
       <Header />
 
-      <main className="hotel-page">
+      <main className="hotel-page hotel-page--enter">
         <section className="section hotel-hero-section reveal is-visible">
           <div className="hotel-topbar">
             <Link href="/#journey" className="hotel-page-back">
@@ -303,7 +308,9 @@ export default async function HotelPage({ params }: HotelPageProps) {
                     <div className="hotel-room-body">
                       <div className="hotel-room-header">
                         <h3>{room.name}</h3>
-                        <span className={`hotel-room-badge ${room.isAvailable ? "is-available" : "is-unavailable"}`}>
+                        <span
+                          className={`hotel-room-badge ${room.isAvailable ? "is-available" : "is-unavailable"}`}
+                        >
                           {room.isAvailable ? "Disponível" : "Indisponível"}
                         </span>
                       </div>
@@ -330,7 +337,10 @@ export default async function HotelPage({ params }: HotelPageProps) {
             ) : (
               <div className="hotel-empty-state">
                 <strong>Opções detalhadas em breve</strong>
-                <p>Use o botão de consulta para receber as categorias de acomodação disponíveis para as datas desejadas.</p>
+                <p>
+                  Use o botão de consulta para receber as categorias de acomodação disponíveis para
+                  as datas desejadas.
+                </p>
               </div>
             )}
           </article>
@@ -341,7 +351,10 @@ export default async function HotelPage({ params }: HotelPageProps) {
             </div>
             <div className="hotel-empty-state">
               <strong>Sem avaliações públicas por enquanto</strong>
-              <p>Este perfil já está ativo e novas avaliações poderão aparecer aqui conforme a operação evoluir.</p>
+              <p>
+                Este perfil já está ativo e novas avaliações poderão aparecer aqui conforme a
+                operação evoluir.
+              </p>
             </div>
           </article>
         </section>
@@ -362,7 +375,10 @@ export default async function HotelPage({ params }: HotelPageProps) {
           ) : (
             <div className="hotel-empty-state">
               <strong>Políticas em atualização</strong>
-              <p>As condições da hospedagem serão detalhadas nesta área assim que estiverem disponíveis.</p>
+              <p>
+                As condições da hospedagem serão detalhadas nesta área assim que estiverem
+                disponíveis.
+              </p>
             </div>
           )}
         </section>
@@ -386,7 +402,8 @@ export default async function HotelPage({ params }: HotelPageProps) {
             <span className="hotel-page-eyebrow">Reserva</span>
             <h2>Pronto para consultar sua estadia?</h2>
             <p className="hotel-description hotel-description--compact">
-              Fale com a equipe do {hotel.name} para verificar disponibilidade, categorias e condições para as suas datas.
+              Fale com a equipe do {hotel.name} para verificar disponibilidade, categorias e
+              condições para as suas datas.
             </p>
           </div>
           <button type="button" className="card-cta-button hotel-page-cta">

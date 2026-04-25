@@ -1,4 +1,8 @@
-import { hotels as fallbackHotels, getHotelBySlug, type Hotel as FallbackHotel } from "@/data/hotels";
+import {
+  hotels as fallbackHotels,
+  getHotelBySlug,
+  type Hotel as FallbackHotel,
+} from "@/data/hotels";
 import { prisma } from "@/lib/prisma";
 
 export type PublishedHotelCard = {
@@ -100,7 +104,11 @@ const nearbyPlacesBySlug: Record<string, HotelNearbyPlace[]> = {
   ],
   "lph-lago-sul": [
     { name: "Aeroporto internacional da cidade", type: "airport", distanceText: "18 min de carro" },
-    { name: "Centro de convenções da região", type: "convention_center", distanceText: "16 min de carro" },
+    {
+      name: "Centro de convenções da região",
+      type: "convention_center",
+      distanceText: "16 min de carro",
+    },
     { name: "Parque urbano à beira do lago", type: "park", distanceText: "10 min de carro" },
     { name: "Polo gastronômico do Lago Sul", type: "restaurant", distanceText: "8 min de carro" },
   ],
@@ -120,7 +128,11 @@ const nearbyPlacesBySlug: Record<string, HotelNearbyPlace[]> = {
     { name: "Centro charmoso da cidade", type: "historic_center", distanceText: "8 min de carro" },
     { name: "Parque de lazer da serra", type: "park", distanceText: "12 min de carro" },
     { name: "Boulevard de chocolates e cafés", type: "shopping", distanceText: "9 min de carro" },
-    { name: "Restaurantes da avenida principal", type: "restaurant", distanceText: "7 min de carro" },
+    {
+      name: "Restaurantes da avenida principal",
+      type: "restaurant",
+      distanceText: "7 min de carro",
+    },
   ],
   "lph-beira-mar": [
     { name: "Orla da Beira-Mar", type: "beach", distanceText: "4 min a pé" },
@@ -131,10 +143,11 @@ const nearbyPlacesBySlug: Record<string, HotelNearbyPlace[]> = {
 };
 
 function getNearbyPlaces(slug: string): HotelNearbyPlace[] {
-  return nearbyPlacesBySlug[slug] ?? [];
+  return canUseDevelopmentFallback ? (nearbyPlacesBySlug[slug] ?? []) : [];
 }
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
+const canUseDevelopmentFallback = process.env.NODE_ENV !== "production";
 
 let warnedUnavailableDb = false;
 let schemaSupportPromise: Promise<boolean> | null = null;
@@ -154,14 +167,30 @@ function hasDatabaseConfig() {
   return Boolean(databaseUrl);
 }
 
+function getFallbackPublishedHotels() {
+  return canUseDevelopmentFallback ? fallbackHotels.map(mapFallbackCard) : [];
+}
+
+function getFallbackHotelSlugs() {
+  return canUseDevelopmentFallback ? fallbackHotels.map((hotel) => hotel.slug) : [];
+}
+
+function getFallbackHotelPageData(slug: string) {
+  if (!canUseDevelopmentFallback) {
+    return null;
+  }
+
+  const hotel = getHotelBySlug(slug);
+  return hotel ? mapFallbackHotel(hotel) : null;
+}
+
 async function hasCompatibleHotelSchema() {
   if (!hasDatabaseConfig()) {
     return false;
   }
 
   if (!schemaSupportPromise) {
-    schemaSupportPromise = prisma
-      .$queryRaw<Array<{ column_name: string }>>`
+    schemaSupportPromise = prisma.$queryRaw<Array<{ column_name: string }>>`
         SELECT column_name
         FROM information_schema.columns
         WHERE table_schema = 'public'
@@ -235,7 +264,7 @@ function mapFallbackHotel(hotel: FallbackHotel): HotelPageData {
 
 export async function getPublishedHotels(): Promise<PublishedHotelCard[]> {
   if (!(await hasCompatibleHotelSchema())) {
-    return fallbackHotels.map(mapFallbackCard);
+    return getFallbackPublishedHotels();
   }
 
   try {
@@ -254,13 +283,13 @@ export async function getPublishedHotels(): Promise<PublishedHotelCard[]> {
     });
   } catch (error) {
     warnDatabaseFallback(error);
-    return fallbackHotels.map(mapFallbackCard);
+    return getFallbackPublishedHotels();
   }
 }
 
 export async function getHotelSlugs(): Promise<string[]> {
   if (!(await hasCompatibleHotelSchema())) {
-    return fallbackHotels.map((hotel) => hotel.slug);
+    return getFallbackHotelSlugs();
   }
 
   try {
@@ -276,14 +305,13 @@ export async function getHotelSlugs(): Promise<string[]> {
     return hotels.map((hotel) => hotel.slug);
   } catch (error) {
     warnDatabaseFallback(error);
-    return fallbackHotels.map((hotel) => hotel.slug);
+    return getFallbackHotelSlugs();
   }
 }
 
 export async function getHotelPageData(slug: string): Promise<HotelPageData | null> {
   if (!(await hasCompatibleHotelSchema())) {
-    const hotel = getHotelBySlug(slug);
-    return hotel ? mapFallbackHotel(hotel) : null;
+    return getFallbackHotelPageData(slug);
   }
 
   try {
@@ -324,7 +352,6 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
       : null;
   } catch (error) {
     warnDatabaseFallback(error);
-    const hotel = getHotelBySlug(slug);
-    return hotel ? mapFallbackHotel(hotel) : null;
+    return getFallbackHotelPageData(slug);
   }
 }

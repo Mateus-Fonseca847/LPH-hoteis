@@ -77,8 +77,11 @@ export function Header() {
             id="city-search-input"
             className="city-search-input"
             type="search"
+            role="combobox"
             placeholder="Buscar cidade"
             autoComplete="off"
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
             aria-expanded={isOpen && !!normalizedQuery}
             aria-controls="city-search-suggestions"
             value={query}
@@ -115,6 +118,7 @@ export function Header() {
                 type="button"
                 className="city-search-option"
                 role="option"
+                aria-selected={false}
                 onClick={() => {
                   setQuery(city);
                   setIsOpen(false);
@@ -138,7 +142,12 @@ export function Header() {
         </button>
 
         <span className="avatar" aria-label="Perfil do usuário">
-          <svg className="header-icon profile-icon" viewBox="0 0 640 640" aria-hidden="true" focusable="false">
+          <svg
+            className="header-icon profile-icon"
+            viewBox="0 0 640 640"
+            aria-hidden="true"
+            focusable="false"
+          >
             <path
               fill="currentColor"
               d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z"

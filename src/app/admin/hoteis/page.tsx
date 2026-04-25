@@ -32,54 +32,58 @@ export default async function AdminHotelsPage() {
   let hotels: AdminHotelListItem[] = [];
 
   if (user.globalRole === "super_admin") {
-    hotels = await prisma.hotel.findMany({
-      select: {
-        id: true,
-        name: true,
-        city: true,
-        state: true,
-        coverImageUrl: true,
-        isPublished: true,
-      },
-      orderBy: [{ city: "asc" }, { name: "asc" }],
-    }).then((items) =>
-      items.map((hotel) => ({
-        ...hotel,
-        permissionRole: null,
-      }))
-    );
-  } else {
-    hotels = await prisma.hotelPermission.findMany({
-      where: {
-        userId: user.id,
-        role: {
-          in: [HotelRole.owner, HotelRole.admin, HotelRole.editor],
+    hotels = await prisma.hotel
+      .findMany({
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          state: true,
+          coverImageUrl: true,
+          isPublished: true,
         },
-      },
-      select: {
-        role: true,
-        hotel: {
-          select: {
-            id: true,
-            name: true,
-            city: true,
-            state: true,
-            coverImageUrl: true,
-            isPublished: true,
+        orderBy: [{ city: "asc" }, { name: "asc" }],
+      })
+      .then((items) =>
+        items.map((hotel) => ({
+          ...hotel,
+          permissionRole: null,
+        }))
+      );
+  } else {
+    hotels = await prisma.hotelPermission
+      .findMany({
+        where: {
+          userId: user.id,
+          role: {
+            in: [HotelRole.owner, HotelRole.admin, HotelRole.editor],
           },
         },
-      },
-      orderBy: {
-        hotel: {
-          name: "asc",
+        select: {
+          role: true,
+          hotel: {
+            select: {
+              id: true,
+              name: true,
+              city: true,
+              state: true,
+              coverImageUrl: true,
+              isPublished: true,
+            },
+          },
         },
-      },
-    }).then((items) =>
-      items.map(({ role, hotel }) => ({
-        ...hotel,
-        permissionRole: role,
-      }))
-    );
+        orderBy: {
+          hotel: {
+            name: "asc",
+          },
+        },
+      })
+      .then((items) =>
+        items.map(({ role, hotel }) => ({
+          ...hotel,
+          permissionRole: role,
+        }))
+      );
   }
 
   return (
@@ -116,7 +120,10 @@ export default async function AdminHotelsPage() {
                 <p>Permissão: {hotel.permissionRole ?? "total"}</p>
               </div>
 
-              <Link href={`/admin/hoteis/${hotel.id}`} className="card-cta-button admin-edit-button">
+              <Link
+                href={`/admin/hoteis/${hotel.id}`}
+                className="card-cta-button admin-edit-button"
+              >
                 Editar
               </Link>
             </article>

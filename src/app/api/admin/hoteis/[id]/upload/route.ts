@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 
-import { getRequiredSession, requireAuthenticatedRequestUser } from "@/lib/auth";
-import { validateAdminTwoFactor } from "@/lib/auth/admin-security";
 import { createHotelAuditLog, type HotelAuditSnapshot } from "@/lib/audit/hotel-audit";
-import { AuthorizationError, requireHotelEditAccess } from "@/lib/auth/authorization";
+import { NotFoundError, ValidationError, createApiSuccessResponse } from "@/lib/errors/app-error";
+import {
+  createHotelWriteApiErrorResponse,
+  getRequestIpAddress,
+  parseHotelRouteParams,
+  requireAuthorizedHotelWrite,
+} from "@/lib/hotel-write";
 import { prisma } from "@/lib/prisma";
 import { storeHotelImageFile } from "@/lib/uploads/hotel-images";
 import { parseHotelUploadFormData } from "@/lib/validations/hotel";
@@ -42,35 +45,36 @@ function buildHotelSnapshot(hotel: HotelWithRelations) {
     isPublished: hotel.isPublished,
     images: hotel.images.map(({ url, alt, position }) => ({ url, alt, position })),
     amenities: hotel.amenities.map(({ label, position }) => ({ label, position })),
-    policies: hotel.policies.map(({ title, description, position }) => ({ title, description, position })),
+    policies: hotel.policies.map(({ title, description, position }) => ({
+      title,
+      description,
+      position,
+    })),
   } satisfies HotelAuditSnapshot;
 }
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    await getRequiredSession();
+    const { id } = await context.params;
+    const parsedParams = parseHotelRouteParams({ hotelId: id });
 
-    const { id: hotelId } = await context.params;
-    const user = await requireAuthenticatedRequestUser();
-    const twoFactorValidation = await validateAdminTwoFactor(user.id);
-
-    if (!twoFactorValidation.success) {
-      return NextResponse.json({ error: twoFactorValidation.message }, { status: 403 });
+    if (!parsedParams.success) {
+      throw new ValidationError(parsedParams.error.issues[0]?.message || "Identificador inválido.");
     }
 
-    await requireHotelEditAccess(user.id, hotelId);
-
+    const hotelId = parsedParams.data.hotelId;
+    const user = await requireAuthorizedHotelWrite(hotelId);
     const contentType = request.headers.get("content-type") || "";
 
     if (!contentType.includes("multipart/form-data")) {
-      return NextResponse.json({ error: "Envie a imagem em multipart/form-data." }, { status: 400 });
+      throw new ValidationError("Envie a imagem em multipart/form-data.");
     }
 
     const formData = await request.formData();
     const parsedUpload = parseHotelUploadFormData(formData);
 
     if (!parsedUpload.success) {
-      return NextResponse.json({ error: parsedUpload.error }, { status: 400 });
+      throw new ValidationError(parsedUpload.error);
     }
 
     const { files: normalizedFiles, alt: altBase, setAsCover } = parsedUpload.data;
@@ -99,12 +103,16 @@ export async function POST(request: Request, context: RouteContext) {
     });
 
     if (!hotel) {
-      return NextResponse.json({ error: "Hotel não encontrado." }, { status: 404 });
+      throw new NotFoundError("Hotel não encontrado.");
     }
 
     const previousValue = buildHotelSnapshot(hotel);
-    const nextPositionStart = hotel.images.length ? Math.max(...hotel.images.map((image) => image.position)) + 1 : 0;
-    const storedImages = await Promise.all(normalizedFiles.map((file) => storeHotelImageFile(hotelId, file)));
+    const nextPositionStart = hotel.images.length
+      ? Math.max(...hotel.images.map((image) => image.position)) + 1
+      : 0;
+    const storedImages = await Promise.all(
+      normalizedFiles.map((file) => storeHotelImageFile(hotelId, file))
+    );
 
     const createdImagesPayload = storedImages.map((storedImage, index) => ({
       url: storedImage.url,
@@ -118,10 +126,7 @@ export async function POST(request: Request, context: RouteContext) {
       images: [...previousValue.images, ...createdImagesPayload],
     };
 
-    const ipAddress =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      request.headers.get("x-real-ip") ||
-      null;
+    const ipAddress = getRequestIpAddress(request.headers);
 
     const createdImages = await prisma.$transaction(async (tx) => {
       const images = await Promise.all(
@@ -166,8 +171,7 @@ export async function POST(request: Request, context: RouteContext) {
     revalidatePath("/");
     revalidatePath(`/hoteis/${hotel.slug}`);
 
-    return NextResponse.json({
-      ok: true,
+    return createApiSuccessResponse({
       images: createdImages.map((image, index) => ({
         id: image.id,
         url: image.url,
@@ -177,14 +181,6 @@ export async function POST(request: Request, context: RouteContext) {
       })),
     });
   } catch (error) {
-    if (error instanceof AuthorizationError) {
-      return NextResponse.json({ error: "Você não tem permissão para enviar imagens para este hotel." }, { status: 403 });
-    }
-
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    return NextResponse.json({ error: "Não foi possível concluir o upload." }, { status: 500 });
+    return createHotelWriteApiErrorResponse(error, "Não foi possível concluir o upload.");
   }
 }

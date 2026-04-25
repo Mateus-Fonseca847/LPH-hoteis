@@ -11,8 +11,11 @@ export default async function LoginPage() {
     redirect("/");
   }
 
-  const initialStep =
-    session?.twoFactorSetupRequired ? "setup" : session?.sub ? "verify" : "credentials";
+  const initialStep = session?.twoFactorSetupRequired
+    ? "setup"
+    : session?.sub
+      ? "verify"
+      : "credentials";
 
   return (
     <div className="page-shell">

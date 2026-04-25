@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { isAdminUser, requirePendingAuthSession } from "@/lib/auth";
+import { createAuthApiErrorResponse } from "@/lib/auth/auth-route";
 import { generateTwoFactorSetup } from "@/lib/auth/two-factor";
 
 export async function POST() {
@@ -8,7 +9,10 @@ export async function POST() {
     const session = await requirePendingAuthSession();
 
     if (!isAdminUser(session.globalRole as "super_admin" | "hotel_admin" | "user")) {
-      return NextResponse.json({ error: "2FA não é obrigatório para este usuário." }, { status: 400 });
+      return NextResponse.json(
+        { error: "2FA não é obrigatório para este usuário." },
+        { status: 400 }
+      );
     }
 
     if (!session.twoFactorSetupRequired) {
@@ -23,10 +27,6 @@ export async function POST() {
       manualEntryKey: setup.manualEntryKey,
     });
   } catch (error) {
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    return NextResponse.json({ error: "Não foi possível preparar o 2FA." }, { status: 500 });
+    return createAuthApiErrorResponse(error, "Não foi possível preparar o 2FA.");
   }
 }

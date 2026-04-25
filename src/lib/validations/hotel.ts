@@ -23,7 +23,10 @@ const allowedHotelFormKeys = new Set([
 const allowedHotelUploadFormKeys = new Set(["file", "files", "alt", "setAsCover"]);
 
 function sanitizeText(value: string) {
-  return value.replace(/[\u0000-\u001F\u007F]+/g, " ").trim().replace(/\s+/g, " ");
+  return value
+    .replace(/[\u0000-\u001F\u007F]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 function sanitizeMultilineText(value: string) {
@@ -80,10 +83,7 @@ const timeSchema = z
   .trim()
   .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Horário inválido. Use HH:MM.");
 
-const urlSchema = z
-  .string()
-  .trim()
-  .pipe(z.url("URL inválida.").max(500, "URL muito longa."));
+const urlSchema = z.string().trim().pipe(z.url("URL inválida.").max(500, "URL muito longa."));
 
 const hotelAmenitySchema = z
   .object({
@@ -124,9 +124,18 @@ export const hotelPayloadSchema = z
       .transform((value) => value.trim().toLowerCase()),
     whatsapp: phoneSchema,
     coverImageUrl: urlSchema,
-    images: z.array(hotelImageSchema).min(1, "Adicione pelo menos uma imagem.").max(20, "Máximo de 20 imagens."),
-    amenities: z.array(hotelAmenitySchema).min(1, "Adicione pelo menos uma comodidade.").max(30, "Máximo de 30 comodidades."),
-    policies: z.array(hotelPolicySchema).min(1, "Adicione pelo menos uma política.").max(20, "Máximo de 20 políticas."),
+    images: z
+      .array(hotelImageSchema)
+      .min(1, "Adicione pelo menos uma imagem.")
+      .max(20, "Máximo de 20 imagens."),
+    amenities: z
+      .array(hotelAmenitySchema)
+      .min(1, "Adicione pelo menos uma comodidade.")
+      .max(30, "Máximo de 30 comodidades."),
+    policies: z
+      .array(hotelPolicySchema)
+      .min(1, "Adicione pelo menos uma política.")
+      .max(20, "Máximo de 20 políticas."),
     checkInTime: timeSchema,
     checkOutTime: timeSchema,
     isPublished: z.boolean(),
@@ -277,10 +286,16 @@ export function parseHotelUploadFormData(formData: FormData) {
     };
   }
 
-  const files = formData.getAll("files").filter((item): item is File => item instanceof File && item.size > 0);
+  const files = formData
+    .getAll("files")
+    .filter((item): item is File => item instanceof File && item.size > 0);
   const singleFile = formData.get("file");
   const normalizedFiles =
-    files.length > 0 ? files : singleFile instanceof File && singleFile.size > 0 ? [singleFile] : [];
+    files.length > 0
+      ? files
+      : singleFile instanceof File && singleFile.size > 0
+        ? [singleFile]
+        : [];
 
   if (normalizedFiles.length === 0) {
     return {

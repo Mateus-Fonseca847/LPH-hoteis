@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const DEFAULT_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 const allowedMimeTypes = new Map([
   ["image/jpeg", "jpg"],
@@ -11,9 +11,92 @@ const allowedMimeTypes = new Map([
 ]);
 
 const allowedExtensions = new Set(["jpg", "jpeg", "png", "webp"]);
+const suspiciousExtensions = new Set([
+  "php",
+  "phtml",
+  "phar",
+  "js",
+  "mjs",
+  "cjs",
+  "jsx",
+  "ts",
+  "tsx",
+  "html",
+  "htm",
+  "svg",
+  "exe",
+  "dll",
+  "bat",
+  "cmd",
+  "com",
+  "scr",
+  "msi",
+  "sh",
+  "bash",
+  "ps1",
+  "py",
+  "rb",
+  "jar",
+]);
 
-function getFileExtension(fileName: string) {
-  return path.extname(fileName).replace(".", "").toLowerCase();
+function getMaxImageSizeBytes() {
+  const rawValue = process.env.UPLOAD_MAX_IMAGE_SIZE_BYTES?.trim();
+
+  if (!rawValue) {
+    return DEFAULT_MAX_IMAGE_SIZE_BYTES;
+  }
+
+  const parsedValue = Number.parseInt(rawValue, 10);
+
+  return Number.isFinite(parsedValue) && parsedValue > 0
+    ? parsedValue
+    : DEFAULT_MAX_IMAGE_SIZE_BYTES;
+}
+
+function getMaxImageSizeLabel(bytes: number) {
+  const megaBytes = bytes / (1024 * 1024);
+
+  return Number.isInteger(megaBytes) ? `${megaBytes} MB` : `${megaBytes.toFixed(1)} MB`;
+}
+
+function parseFileName(fileName: string) {
+  const normalizedName = path
+    .basename(fileName)
+    .replace(/[\u0000-\u001F\u007F]+/g, "")
+    .trim();
+
+  if (!normalizedName) {
+    throw new Error("O arquivo precisa ter um nome válido.");
+  }
+
+  const parts = normalizedName
+    .split(".")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length < 2) {
+    throw new Error("O arquivo precisa ter uma extensão válida.");
+  }
+
+  const baseName = parts[0];
+  const extension = parts.at(-1)?.toLowerCase() ?? "";
+  const intermediateExtensions = parts.slice(1, -1).map((part) => part.toLowerCase());
+
+  if (!baseName) {
+    throw new Error("O arquivo precisa ter um nome válido.");
+  }
+
+  if (!extension) {
+    throw new Error("O arquivo precisa ter uma extensão válida.");
+  }
+
+  if (intermediateExtensions.some((part) => suspiciousExtensions.has(part))) {
+    throw new Error("Nome de arquivo inválido. Remova extensões suspeitas e tente novamente.");
+  }
+
+  return {
+    extension,
+  };
 }
 
 function assertMagicNumber(buffer: Uint8Array, mimeType: string) {
@@ -46,24 +129,29 @@ export async function validateHotelImageFile(file: File) {
     throw new Error("Selecione uma imagem válida.");
   }
 
-  if (file.size > MAX_IMAGE_SIZE_BYTES) {
-    throw new Error("A imagem excede o limite de 5 MB.");
+  const maxImageSizeBytes = getMaxImageSizeBytes();
+
+  if (file.size > maxImageSizeBytes) {
+    throw new Error(`A imagem excede o limite de ${getMaxImageSizeLabel(maxImageSizeBytes)}.`);
   }
 
   const mimeType = file.type.toLowerCase();
-  const extension = getFileExtension(file.name);
+  const { extension } = parseFileName(file.name);
 
   if (!allowedMimeTypes.has(mimeType)) {
-    throw new Error("Formato inválido. Use JPG, PNG ou WEBP.");
+    throw new Error("Formato inválido. Use JPG, JPEG, PNG ou WEBP.");
   }
 
   if (!allowedExtensions.has(extension)) {
-    throw new Error("Extensão inválida. Use JPG, PNG ou WEBP.");
+    throw new Error("Extensão inválida. Use JPG, JPEG, PNG ou WEBP.");
   }
 
   const expectedExtension = allowedMimeTypes.get(mimeType);
 
-  if (!expectedExtension || (extension !== expectedExtension && !(mimeType === "image/jpeg" && extension === "jpeg"))) {
+  if (
+    !expectedExtension ||
+    (extension !== expectedExtension && !(mimeType === "image/jpeg" && extension === "jpeg"))
+  ) {
     throw new Error("MIME type e extensão não correspondem.");
   }
 
@@ -82,7 +170,7 @@ export async function validateHotelImageFile(file: File) {
 
 export async function storeHotelImageFile(hotelId: string, file: File) {
   const { buffer, mimeType, extension } = await validateHotelImageFile(file);
-  const fileName = `${Date.now()}-${randomUUID()}.${extension}`;
+  const fileName = `${randomUUID()}.${extension}`;
   const relativeDir = path.posix.join("uploads", "hotels", hotelId);
   const relativePath = path.posix.join(relativeDir, fileName);
   const outputDir = path.join(process.cwd(), "public", "uploads", "hotels", hotelId);
@@ -96,17 +184,28 @@ export async function storeHotelImageFile(hotelId: string, file: File) {
     storageKey: relativePath,
     contentType: mimeType,
     size: file.size,
-    originalName: file.name,
   };
 }
 
 export async function deleteStoredHotelImageFile(imageUrl: string) {
   if (!imageUrl.startsWith("/uploads/hotels/")) {
-    return;
+    return { status: "skipped" as const };
   }
 
   const relativePath = imageUrl.replace(/^\//, "").split("/").join(path.sep);
   const absolutePath = path.join(process.cwd(), "public", relativePath);
 
-  await rm(absolutePath, { force: true });
+  try {
+    await rm(absolutePath, { force: false });
+    return { status: "removed" as const };
+  } catch (error) {
+    const errorCode =
+      typeof error === "object" && error && "code" in error ? String(error.code) : null;
+
+    if (errorCode === "ENOENT") {
+      return { status: "missing" as const };
+    }
+
+    throw error;
+  }
 }

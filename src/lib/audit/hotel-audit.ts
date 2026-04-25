@@ -78,6 +78,10 @@ export async function createHotelAuditLog({
     normalizedNext
   );
 
+  if (changedFields.length === 0) {
+    return;
+  }
+
   await tx.hotelAuditLog.create({
     data: {
       userId,

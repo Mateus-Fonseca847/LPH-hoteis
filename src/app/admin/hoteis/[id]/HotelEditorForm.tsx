@@ -79,7 +79,10 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
     [hotel.policies]
   );
 
-  const coverPreviewUrl = useMemo(() => (coverUploadFile ? URL.createObjectURL(coverUploadFile) : null), [coverUploadFile]);
+  const coverPreviewUrl = useMemo(
+    () => (coverUploadFile ? URL.createObjectURL(coverUploadFile) : null),
+    [coverUploadFile]
+  );
   const galleryPreviewUrls = useMemo(
     () =>
       galleryUploadFiles.map((file, index) => ({
@@ -134,14 +137,19 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
 
       const uploadedImage = result.images[0];
       setCoverImageUrl(uploadedImage.url);
-      setGalleryImages((current) => [...current.filter((image) => image.url !== uploadedImage.url), uploadedImage]);
+      setGalleryImages((current) => [
+        ...current.filter((image) => image.url !== uploadedImage.url),
+        uploadedImage,
+      ]);
       setCoverUploadFile(null);
       setUploadAlt("");
       setUploadFeedbackType("success");
       setUploadFeedback("Imagem de capa enviada com sucesso.");
     } catch (error) {
       setUploadFeedbackType("error");
-      setUploadFeedback(error instanceof Error ? error.message : "Não foi possível concluir o upload da capa.");
+      setUploadFeedback(
+        error instanceof Error ? error.message : "Não foi possível concluir o upload da capa."
+      );
     } finally {
       setIsUploadingCover(false);
     }
@@ -185,7 +193,9 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
       setUploadFeedback("Imagens da galeria enviadas com sucesso.");
     } catch (error) {
       setUploadFeedbackType("error");
-      setUploadFeedback(error instanceof Error ? error.message : "Não foi possível concluir o upload da galeria.");
+      setUploadFeedback(
+        error instanceof Error ? error.message : "Não foi possível concluir o upload da galeria."
+      );
     } finally {
       setIsUploadingGallery(false);
     }
@@ -227,7 +237,9 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
       setUploadFeedback("Imagem removida com sucesso.");
     } catch (error) {
       setUploadFeedbackType("error");
-      setUploadFeedback(error instanceof Error ? error.message : "Não foi possível remover a imagem.");
+      setUploadFeedback(
+        error instanceof Error ? error.message : "Não foi possível remover a imagem."
+      );
     } finally {
       setRemovingImageId(null);
     }
@@ -241,13 +253,17 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
       </div>
 
       {state.message ? (
-        <p className={`admin-editor-feedback ${state.status === "success" ? "is-success" : "is-error"}`}>
+        <p
+          className={`admin-editor-feedback ${state.status === "success" ? "is-success" : "is-error"}`}
+        >
           {state.message}
         </p>
       ) : null}
 
       {uploadFeedback ? (
-        <p className={`admin-editor-feedback ${uploadFeedbackType === "success" ? "is-success" : "is-error"}`}>
+        <p
+          className={`admin-editor-feedback ${uploadFeedbackType === "success" ? "is-success" : "is-error"}`}
+        >
           {uploadFeedback}
         </p>
       ) : null}
@@ -315,11 +331,21 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
         <div className="admin-form-grid">
           <label className="admin-form-field">
             <span>Descrição curta</span>
-            <textarea name="shortDescription" defaultValue={hotel.shortDescription} rows={3} required />
+            <textarea
+              name="shortDescription"
+              defaultValue={hotel.shortDescription}
+              rows={3}
+              required
+            />
           </label>
           <label className="admin-form-field">
             <span>Descrição completa</span>
-            <textarea name="fullDescription" defaultValue={hotel.fullDescription} rows={6} required />
+            <textarea
+              name="fullDescription"
+              defaultValue={hotel.fullDescription}
+              rows={6}
+              required
+            />
           </label>
         </div>
       </section>
@@ -342,7 +368,11 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
 
           <div className="admin-image-preview-card">
             <span className="admin-image-preview-label">Preview da capa</span>
-            <img src={coverPreviewUrl || coverImageUrl} alt={`Capa de ${hotel.name}`} className="admin-cover-preview-image" />
+            <img
+              src={coverPreviewUrl || coverImageUrl}
+              alt={`Capa de ${hotel.name}`}
+              className="admin-cover-preview-image"
+            />
           </div>
 
           <div className="admin-upload-panel">
@@ -363,7 +393,12 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
             </div>
 
             <div className="admin-upload-actions">
-              <button type="button" className="card-cta-button admin-edit-button" onClick={handleCoverUpload} disabled={isUploadingCover}>
+              <button
+                type="button"
+                className="card-cta-button admin-edit-button"
+                onClick={handleCoverUpload}
+                disabled={isUploadingCover}
+              >
                 {isUploadingCover ? "Enviando capa..." : "Enviar capa"}
               </button>
             </div>
@@ -398,7 +433,12 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
             ) : null}
 
             <div className="admin-upload-actions">
-              <button type="button" className="card-cta-button admin-edit-button" onClick={handleGalleryUpload} disabled={isUploadingGallery}>
+              <button
+                type="button"
+                className="card-cta-button admin-edit-button"
+                onClick={handleGalleryUpload}
+                disabled={isUploadingGallery}
+              >
                 {isUploadingGallery ? "Enviando galeria..." : "Enviar galeria"}
               </button>
             </div>
@@ -436,7 +476,13 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
 
           <label className="admin-form-field">
             <span>Galeria</span>
-            <textarea name="gallery" value={galleryValue} onChange={() => undefined} rows={6} readOnly />
+            <textarea
+              name="gallery"
+              value={galleryValue}
+              onChange={() => undefined}
+              rows={6}
+              readOnly
+            />
             <small>Atualizada automaticamente pelos uploads e remoções.</small>
           </label>
         </div>

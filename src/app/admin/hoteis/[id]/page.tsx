@@ -121,7 +121,9 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
         {hotel.auditLogs.length === 0 ? (
           <div className="hotel-empty-state admin-history-empty">
             <strong>Nenhuma alteração registrada.</strong>
-            <p>Quando este hotel receber atualizações administrativas, o histórico aparecerá aqui.</p>
+            <p>
+              Quando este hotel receber atualizações administrativas, o histórico aparecerá aqui.
+            </p>
           </div>
         ) : (
           <div className="admin-history-list">

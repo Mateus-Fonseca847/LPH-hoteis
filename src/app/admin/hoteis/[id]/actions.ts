@@ -3,10 +3,18 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-import { getRequiredSession, requireAuthenticatedRequestUser } from "@/lib/auth";
-import { validateAdminTwoFactor } from "@/lib/auth/admin-security";
 import { createHotelAuditLog, type HotelAuditSnapshot } from "@/lib/audit/hotel-audit";
-import { AuthorizationError, requireHotelEditAccess } from "@/lib/auth/authorization";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+  getErrorMessage,
+} from "@/lib/errors/app-error";
+import {
+  getRequestIpAddress,
+  parseHotelRouteParams,
+  requireAuthorizedHotelWrite,
+} from "@/lib/hotel-write";
 import { prisma } from "@/lib/prisma";
 import { parseHotelFormData } from "@/lib/validations/hotel";
 
@@ -21,34 +29,26 @@ export async function updateHotelProfileAction(
   formData: FormData
 ): Promise<HotelEditorState> {
   try {
-    await getRequiredSession();
+    const parsedParams = parseHotelRouteParams({ hotelId });
 
-    const user = await requireAuthenticatedRequestUser();
-    const twoFactorValidation = await validateAdminTwoFactor(user.id);
-
-    if (!twoFactorValidation.success) {
-      return {
-        status: "error",
-        message: twoFactorValidation.message,
-      };
+    if (!parsedParams.success) {
+      throw new ValidationError(parsedParams.error.issues[0]?.message || "Identificador inválido.");
     }
 
-    await requireHotelEditAccess(user.id, hotelId);
+    const safeHotelId = parsedParams.data.hotelId;
+    const user = await requireAuthorizedHotelWrite(safeHotelId);
 
     const parsedPayload = parseHotelFormData(formData);
 
     if (!parsedPayload.success) {
-      return {
-        status: "error",
-        message: parsedPayload.error,
-      };
+      throw new ValidationError(parsedPayload.error);
     }
 
     const payload = parsedPayload.data;
 
     const currentHotel = await prisma.hotel.findUnique({
       where: {
-        id: hotelId,
+        id: safeHotelId,
       },
       include: {
         images: {
@@ -70,17 +70,14 @@ export async function updateHotelProfileAction(
     });
 
     if (!currentHotel) {
-      return {
-        status: "error",
-        message: "Hotel não encontrado.",
-      };
+      throw new NotFoundError("Hotel não encontrado.");
     }
 
     const existingSlug = await prisma.hotel.findFirst({
       where: {
         slug: payload.slug,
         NOT: {
-          id: hotelId,
+          id: safeHotelId,
         },
       },
       select: {
@@ -89,10 +86,7 @@ export async function updateHotelProfileAction(
     });
 
     if (existingSlug) {
-      return {
-        status: "error",
-        message: "Este slug já está em uso por outro hotel.",
-      };
+      throw new ConflictError("Este slug já está em uso por outro hotel.");
     }
 
     const previousValue: HotelAuditSnapshot = {
@@ -140,13 +134,12 @@ export async function updateHotelProfileAction(
     };
 
     const requestHeaders = await headers();
-    const forwardedFor = requestHeaders.get("x-forwarded-for");
-    const ipAddress = forwardedFor?.split(",")[0]?.trim() || requestHeaders.get("x-real-ip") || null;
+    const ipAddress = getRequestIpAddress(requestHeaders);
 
     const updatedHotel = await prisma.$transaction(async (tx) => {
       const hotel = await tx.hotel.update({
         where: {
-          id: hotelId,
+          id: safeHotelId,
         },
         data: {
           name: payload.name,
@@ -184,7 +177,7 @@ export async function updateHotelProfileAction(
       await createHotelAuditLog({
         tx,
         userId: user.id,
-        hotelId,
+        hotelId: safeHotelId,
         action: "hotel.profile.updated",
         previousValue,
         newValue: nextValue,
@@ -195,7 +188,7 @@ export async function updateHotelProfileAction(
     });
 
     revalidatePath("/admin/hoteis");
-    revalidatePath(`/admin/hoteis/${hotelId}`);
+    revalidatePath(`/admin/hoteis/${safeHotelId}`);
     revalidatePath("/");
     revalidatePath(`/hoteis/${currentHotel.slug}`);
 
@@ -208,16 +201,9 @@ export async function updateHotelProfileAction(
       message: "Hotel salvo com sucesso e publicado imediatamente.",
     };
   } catch (error) {
-    if (error instanceof AuthorizationError) {
-      return {
-        status: "error",
-        message: "Você não tem permissão para editar este hotel.",
-      };
-    }
-
     return {
       status: "error",
-      message: "Não foi possível salvar as alterações.",
+      message: getErrorMessage(error, "Não foi possível salvar as alterações."),
     };
   }
 }

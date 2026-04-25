@@ -154,7 +154,14 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
               onClick={() => moveCarousel(-1)}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M14.5 5 8 12l6.5 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M14.5 5 8 12l6.5 7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </button>
           ) : null}
@@ -185,7 +192,14 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
               onClick={() => moveCarousel(1)}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="m9.5 5 6.5 7-6.5 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="m9.5 5 6.5 7-6.5 7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </button>
           ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type HotelPageActionsProps = {
   hotelName: string;
@@ -24,12 +24,8 @@ function getSavedHotels() {
 }
 
 export function HotelPageActions({ hotelName, slug }: HotelPageActionsProps) {
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(() => getSavedHotels().includes(slug));
   const [feedback, setFeedback] = useState("");
-
-  useEffect(() => {
-    setIsSaved(getSavedHotels().includes(slug));
-  }, [slug]);
 
   async function handleShare() {
     const url = typeof window !== "undefined" ? window.location.href : "";

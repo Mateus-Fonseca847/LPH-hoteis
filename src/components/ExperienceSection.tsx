@@ -64,7 +64,10 @@ export function ExperienceSection() {
       </div>
 
       <div className={`showcase-gallery ${isTransitioning ? "is-transitioning" : ""}`}>
-        <article className="gallery-card large reveal experience-card experience-card--featured" data-card-index="0">
+        <article
+          className="gallery-card large reveal experience-card experience-card--featured"
+          data-card-index="0"
+        >
           <img src={destinations[0].image} alt={destinations[0].alt} />
           <div className="gallery-caption">
             <strong>{destinations[0].title}</strong>

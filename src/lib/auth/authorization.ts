@@ -1,23 +1,20 @@
 import { HotelRole } from "@prisma/client";
 
+import { AuthorizationError } from "@/lib/errors/app-error";
 import { prisma } from "@/lib/prisma";
 
 const editAllowedRoles: HotelRole[] = [HotelRole.owner, HotelRole.admin, HotelRole.editor];
 const adminAllowedRoles: HotelRole[] = [HotelRole.owner, HotelRole.admin];
-
-export class AuthorizationError extends Error {
-  constructor(message = "Acesso negado.") {
-    super(message);
-    this.name = "AuthorizationError";
-  }
-}
 
 type PermissionContext = {
   globalRole: "super_admin" | "hotel_admin" | "user";
   hotelRole: HotelRole | null;
 };
 
-async function getPermissionContext(userId: string, hotelId: string): Promise<PermissionContext | null> {
+async function getPermissionContext(
+  userId: string,
+  hotelId: string
+): Promise<PermissionContext | null> {
   const user = await prisma.user.findUnique({
     where: {
       id: userId,
@@ -104,11 +101,7 @@ export async function requireHotelPermission(
     };
   }
 
-  if (context.globalRole !== "hotel_admin") {
-    throw new AuthorizationError();
-  }
-
-  if (!context.hotelRole) {
+  if (context.globalRole !== "hotel_admin" || !context.hotelRole) {
     throw new AuthorizationError();
   }
 
@@ -129,3 +122,5 @@ export async function requireHotelAdminAccess(userId: string, hotelId: string) {
 export async function requireHotelEditAccess(userId: string, hotelId: string) {
   return requireHotelPermission(userId, hotelId, editAllowedRoles);
 }
+
+export { AuthorizationError };

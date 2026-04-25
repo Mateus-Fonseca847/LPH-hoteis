@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 
-import { getRequiredSession, requireAuthenticatedRequestUser } from "@/lib/auth";
-import { validateAdminTwoFactor } from "@/lib/auth/admin-security";
 import { createHotelAuditLog, type HotelAuditSnapshot } from "@/lib/audit/hotel-audit";
-import { AuthorizationError, requireHotelEditAccess } from "@/lib/auth/authorization";
+import { NotFoundError, ValidationError, createApiSuccessResponse } from "@/lib/errors/app-error";
+import {
+  createHotelWriteApiErrorResponse,
+  getRequestIpAddress,
+  parseHotelImageRouteParams,
+  requireAuthorizedHotelWrite,
+} from "@/lib/hotel-write";
 import { prisma } from "@/lib/prisma";
 import { deleteStoredHotelImageFile } from "@/lib/uploads/hotel-images";
 
@@ -42,23 +45,25 @@ function buildHotelSnapshot(hotel: HotelWithRelations) {
     isPublished: hotel.isPublished,
     images: hotel.images.map(({ url, alt, position }) => ({ url, alt, position })),
     amenities: hotel.amenities.map(({ label, position }) => ({ label, position })),
-    policies: hotel.policies.map(({ title, description, position }) => ({ title, description, position })),
+    policies: hotel.policies.map(({ title, description, position }) => ({
+      title,
+      description,
+      position,
+    })),
   } satisfies HotelAuditSnapshot;
 }
 
 export async function DELETE(request: Request, context: RouteContext) {
   try {
-    await getRequiredSession();
+    const { id, imageId: rawImageId } = await context.params;
+    const parsedParams = parseHotelImageRouteParams({ hotelId: id, imageId: rawImageId });
 
-    const { id: hotelId, imageId } = await context.params;
-    const user = await requireAuthenticatedRequestUser();
-    const twoFactorValidation = await validateAdminTwoFactor(user.id);
-
-    if (!twoFactorValidation.success) {
-      return NextResponse.json({ error: twoFactorValidation.message }, { status: 403 });
+    if (!parsedParams.success) {
+      throw new ValidationError(parsedParams.error.issues[0]?.message || "Identificador inválido.");
     }
 
-    await requireHotelEditAccess(user.id, hotelId);
+    const { hotelId, imageId } = parsedParams.data;
+    const user = await requireAuthorizedHotelWrite(hotelId);
 
     const hotel = await prisma.hotel.findUnique({
       where: {
@@ -84,26 +89,27 @@ export async function DELETE(request: Request, context: RouteContext) {
     });
 
     if (!hotel) {
-      return NextResponse.json({ error: "Hotel não encontrado." }, { status: 404 });
+      throw new NotFoundError("Hotel não encontrado.");
     }
 
     const imageToRemove = hotel.images.find((image) => image.id === imageId);
 
     if (!imageToRemove) {
-      return NextResponse.json({ error: "Imagem não encontrada." }, { status: 404 });
+      throw new NotFoundError("Imagem não encontrada.");
     }
 
     const remainingImages = hotel.images.filter((image) => image.id !== imageId);
 
     if (hotel.coverImageUrl === imageToRemove.url && remainingImages.length === 0) {
-      return NextResponse.json(
-        { error: "A imagem de capa não pode ser removida sem outra imagem disponível." },
-        { status: 400 }
+      throw new ValidationError(
+        "A imagem de capa não pode ser removida sem outra imagem disponível."
       );
     }
 
     const nextCoverImageUrl =
-      hotel.coverImageUrl === imageToRemove.url ? remainingImages[0]?.url ?? hotel.coverImageUrl : hotel.coverImageUrl;
+      hotel.coverImageUrl === imageToRemove.url
+        ? (remainingImages[0]?.url ?? hotel.coverImageUrl)
+        : hotel.coverImageUrl;
 
     const previousValue = buildHotelSnapshot(hotel);
     const nextValue: HotelAuditSnapshot = {
@@ -112,10 +118,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       images: remainingImages.map(({ url, alt, position }) => ({ url, alt, position })),
     };
 
-    const ipAddress =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      request.headers.get("x-real-ip") ||
-      null;
+    const ipAddress = getRequestIpAddress(request.headers);
 
     await prisma.$transaction(async (tx) => {
       await tx.hotelImage.delete({
@@ -146,27 +149,19 @@ export async function DELETE(request: Request, context: RouteContext) {
       });
     });
 
-    await deleteStoredHotelImageFile(imageToRemove.url);
+    const storageCleanup = await deleteStoredHotelImageFile(imageToRemove.url);
 
     revalidatePath("/admin/hoteis");
     revalidatePath(`/admin/hoteis/${hotelId}`);
     revalidatePath("/");
     revalidatePath(`/hoteis/${hotel.slug}`);
 
-    return NextResponse.json({
-      ok: true,
+    return createApiSuccessResponse({
       removedImageId: imageId,
       nextCoverImageUrl,
+      storageCleanup: storageCleanup.status,
     });
   } catch (error) {
-    if (error instanceof AuthorizationError) {
-      return NextResponse.json({ error: "Você não tem permissão para remover imagens deste hotel." }, { status: 403 });
-    }
-
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    return NextResponse.json({ error: "Não foi possível remover a imagem." }, { status: 500 });
+    return createHotelWriteApiErrorResponse(error, "Não foi possível remover a imagem.");
   }
 }

@@ -8,7 +8,9 @@ export function StayDetailsSection() {
       <div className="details-grid">
         <article className="detail-card reveal">
           <h3>Hospedagens selecionadas</h3>
-          <p>Hotéis escolhidos com conforto, personalidade local e padrão de qualidade confiável.</p>
+          <p>
+            Hotéis escolhidos com conforto, personalidade local e padrão de qualidade confiável.
+          </p>
         </article>
 
         <article className="detail-card image-card reveal">
@@ -20,12 +22,18 @@ export function StayDetailsSection() {
 
         <article className="detail-card reveal dark-panel">
           <h3>Atendimento dedicado</h3>
-          <p>Da reserva à chegada, nossa equipe ajuda com traslados, horários e solicitações especiais.</p>
+          <p>
+            Da reserva à chegada, nossa equipe ajuda com traslados, horários e solicitações
+            especiais.
+          </p>
         </article>
 
         <article className="detail-card reveal">
           <h3>Planejamento flexível</h3>
-          <p>Pacotes ideais para lazer, viagens em família e finais de semana prolongados inesquecíveis.</p>
+          <p>
+            Pacotes ideais para lazer, viagens em família e finais de semana prolongados
+            inesquecíveis.
+          </p>
         </article>
       </div>
     </section>
