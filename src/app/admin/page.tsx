@@ -55,6 +55,15 @@ export default async function AdminHomePage() {
           <strong>Gerenciar hotéis</strong>
           <p>Ver lista permitida e acessar cada unidade.</p>
         </Link>
+
+        <Link
+          href="/admin/auditoria"
+          className="hotel-content-card admin-overview-card admin-link-card"
+        >
+          <span>Auditoria</span>
+          <strong>Ver registros</strong>
+          <p>Consultar histórico administrativo dentro do seu escopo.</p>
+        </Link>
       </div>
     </section>
   );

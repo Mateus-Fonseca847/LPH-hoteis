@@ -153,6 +153,7 @@ model User {
   email            String            @unique
   passwordHash     String
   globalRole       GlobalRole        @default(user)
+  isActive         Boolean           @default(true)
   twoFactorEnabled Boolean           @default(false)
   twoFactorSecret  String?
   createdAt        DateTime          @default(now())
@@ -161,6 +162,7 @@ model User {
   auditLogs        HotelAuditLog[]
 
   @@index([globalRole])
+  @@index([isActive])
   @@index([createdAt])
 }
 

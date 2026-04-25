@@ -1548,6 +1548,219 @@ button {
   font-weight: 700;
 }
 
+.admin-admins-grid {
+  grid-template-columns: 1fr;
+}
+
+.admin-admin-card {
+  gap: 18px;
+}
+
+.admin-admin-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-admin-permissions,
+.admin-admin-permissions-list,
+.admin-admin-permission-card,
+.admin-admin-permission-actions {
+  display: grid;
+}
+
+.admin-admin-permissions {
+  gap: 12px;
+}
+
+.admin-admin-permissions-list {
+  gap: 12px;
+}
+
+.admin-admin-permission-card {
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.admin-admin-permission-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-admin-permission-head strong {
+  font-size: 1rem;
+}
+
+.admin-admin-permission-head span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(6, 41, 79, 0.08);
+  color: var(--brand);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.admin-admin-permission-actions {
+  gap: 12px;
+}
+
+.admin-audit-list {
+  gap: 16px;
+}
+
+.admin-audit-filters {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-audit-filter-actions {
+  justify-content: start;
+}
+
+.admin-audit-item {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(247, 245, 241, 0.94) 100%);
+}
+
+.admin-audit-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-audit-meta p {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
+}
+
+.admin-audit-meta span {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-audit-meta strong {
+  color: var(--brand);
+  font-size: 0.95rem;
+}
+
+.admin-audit-details {
+  border-top: 1px solid rgba(30, 30, 30, 0.08);
+  padding-top: 12px;
+}
+
+.admin-audit-details summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--brand);
+  font-weight: 800;
+}
+
+.admin-audit-details dl {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.admin-audit-details div {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-audit-details dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-audit-details dd {
+  margin: 0;
+  color: var(--brand);
+}
+
+.admin-audit-detail-link {
+  width: fit-content;
+  color: var(--brand);
+  font-weight: 800;
+}
+
+.admin-audit-detail-card {
+  display: grid;
+  gap: 22px;
+}
+
+.admin-audit-values-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-audit-values-grid article {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.admin-audit-values-grid span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-audit-values-grid pre {
+  max-height: 360px;
+  overflow: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--brand);
+  font:
+    0.88rem/1.6 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    "Liberation Mono",
+    monospace;
+}
+
+.admin-audit-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.admin-audit-pagination span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.admin-audit-pagination [aria-disabled="true"] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 .admin-toggle-field--boxed {
   min-height: 54px;
   padding: 0 16px;
@@ -2615,6 +2828,9 @@ button {
   .admin-overview-grid,
   .admin-hotels-grid,
   .admin-hotel-detail-grid,
+  .admin-admin-meta,
+  .admin-audit-meta,
+  .admin-audit-values-grid,
   .admin-rooms-header,
   .admin-room-card,
   .admin-room-meta-grid,

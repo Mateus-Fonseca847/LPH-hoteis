@@ -5,6 +5,7 @@ export const authenticatedUserSelect = {
   name: true,
   email: true,
   globalRole: true,
+  isActive: true,
   twoFactorEnabled: true,
 } as const;
 
