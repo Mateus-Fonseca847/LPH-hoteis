@@ -1,19 +1,25 @@
 import { HotelRole } from "@prisma/client";
 import Link from "next/link";
 
+import {
+  calculateHotelCompleteness,
+  getHotelCompletenessSelect,
+} from "@/lib/admin/hotel-completeness";
 import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 import { AdminAccessDenied } from "../AdminAccessDenied";
 
 type AdminHotelListItem = {
-  id: string;
-  name: string;
   city: string;
-  state: string;
+  completenessPending: string[];
+  completenessPercentage: number;
   coverImageUrl: string;
+  id: string;
   isPublished: boolean;
+  name: string;
   permissionRole: string | null;
+  state: string;
 };
 
 export default async function AdminHotelsPage() {
@@ -30,25 +36,33 @@ export default async function AdminHotelsPage() {
   }
 
   let hotels: AdminHotelListItem[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const completenessSelect = getHotelCompletenessSelect(today);
 
   if (user.globalRole === "super_admin") {
     hotels = await prisma.hotel
       .findMany({
         select: {
           id: true,
-          name: true,
           city: true,
           state: true,
-          coverImageUrl: true,
           isPublished: true,
+          ...completenessSelect,
         },
         orderBy: [{ city: "asc" }, { name: "asc" }],
       })
       .then((items) =>
-        items.map((hotel) => ({
-          ...hotel,
-          permissionRole: null,
-        }))
+        items.map((hotel) => {
+          const completeness = calculateHotelCompleteness(hotel);
+
+          return {
+            ...hotel,
+            completenessPending: completeness.pending,
+            completenessPercentage: completeness.percentage,
+            permissionRole: null,
+          };
+        })
       );
   } else {
     hotels = await prisma.hotelPermission
@@ -64,11 +78,10 @@ export default async function AdminHotelsPage() {
           hotel: {
             select: {
               id: true,
-              name: true,
               city: true,
               state: true,
-              coverImageUrl: true,
               isPublished: true,
+              ...completenessSelect,
             },
           },
         },
@@ -79,10 +92,16 @@ export default async function AdminHotelsPage() {
         },
       })
       .then((items) =>
-        items.map(({ role, hotel }) => ({
-          ...hotel,
-          permissionRole: role,
-        }))
+        items.map(({ role, hotel }) => {
+          const completeness = calculateHotelCompleteness(hotel);
+
+          return {
+            ...hotel,
+            completenessPending: completeness.pending,
+            completenessPercentage: completeness.percentage,
+            permissionRole: role,
+          };
+        })
       );
   }
 
@@ -118,6 +137,12 @@ export default async function AdminHotelsPage() {
               <div className="admin-hotel-card-meta">
                 <p>Status: {hotel.isPublished ? "Publicado" : "Rascunho"}</p>
                 <p>Permissão: {hotel.permissionRole ?? "total"}</p>
+                <p>Completude: {hotel.completenessPercentage}%</p>
+                {hotel.completenessPending.length > 0 ? (
+                  <p>Pendências: {hotel.completenessPending.slice(0, 3).join(", ")}</p>
+                ) : (
+                  <p>Perfil completo para operação.</p>
+                )}
               </div>
 
               <Link

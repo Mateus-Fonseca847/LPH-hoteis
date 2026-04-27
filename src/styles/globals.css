@@ -1019,17 +1019,164 @@ button {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.admin-dashboard-hero,
+.admin-dashboard-metrics,
+.admin-dashboard-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-dashboard-hero {
+  grid-template-columns: 1.1fr repeat(2, minmax(0, 0.8fr));
+}
+
+.admin-dashboard-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-dashboard-grid {
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  align-items: start;
+}
+
 .admin-hotels-grid,
 .admin-hotel-detail-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .admin-overview-card,
+.admin-dashboard-profile,
+.admin-dashboard-metric,
 .admin-hotel-card {
   min-height: 210px;
   display: grid;
   align-content: space-between;
   gap: 18px;
+}
+
+.admin-dashboard-profile,
+.admin-dashboard-metric,
+.admin-dashboard-panel {
+  min-width: 0;
+}
+
+.admin-dashboard-profile small {
+  width: fit-content;
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(6, 41, 79, 0.08);
+  color: var(--brand);
+  font-weight: 800;
+}
+
+.admin-dashboard-metric strong {
+  font-family: var(--font-sora), sans-serif;
+  font-size: clamp(2rem, 3vw, 3rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+  color: var(--brand);
+}
+
+.admin-dashboard-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-dashboard-alerts {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-dashboard-completeness-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-dashboard-completeness-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 20px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 20px;
+  background: rgba(6, 41, 79, 0.04);
+}
+
+.admin-dashboard-completeness-item p,
+.admin-dashboard-completeness-item small {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.admin-dashboard-completeness-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.admin-dashboard-completeness-item span {
+  min-width: 62px;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--surface);
+  font-weight: 900;
+}
+
+.admin-dashboard-alert {
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+  border: 1px solid rgba(180, 35, 24, 0.12);
+  border-radius: 20px;
+  background: rgba(180, 35, 24, 0.04);
+  transition:
+    transform 0.24s ease,
+    border-color 0.24s ease,
+    background-color 0.24s ease;
+}
+
+.admin-dashboard-alert:hover,
+.admin-dashboard-alert:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(180, 35, 24, 0.22);
+  background: rgba(180, 35, 24, 0.06);
+  outline: none;
+}
+
+.admin-dashboard-alert strong {
+  color: #8a1f15;
+}
+
+.admin-dashboard-alert span {
+  width: fit-content;
+  color: var(--brand);
+  font-weight: 900;
+}
+
+.admin-dashboard-alert p,
+.admin-dashboard-log-footer {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-dashboard-log-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.admin-dashboard-log-footer a {
+  color: var(--brand);
 }
 
 .admin-hotel-card {
@@ -2826,6 +2973,9 @@ button {
   .testimonial-layout,
   .details-grid,
   .admin-overview-grid,
+  .admin-dashboard-hero,
+  .admin-dashboard-metrics,
+  .admin-dashboard-grid,
   .admin-hotels-grid,
   .admin-hotel-detail-grid,
   .admin-admin-meta,
