@@ -424,6 +424,7 @@ export function AdminUsersClient({
           className={`admin-editor-feedback ${
             feedbackType === "success" ? "is-success" : "is-error"
           }`}
+          role={feedbackType === "error" ? "alert" : "status"}
         >
           {feedback}
         </p>

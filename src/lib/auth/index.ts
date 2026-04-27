@@ -39,6 +39,7 @@ export async function getAuthenticatedUser() {
   return prisma.user.findUnique({
     where: {
       id: session.sub,
+      isActive: true,
     },
     select: authenticatedUserSelect,
   });

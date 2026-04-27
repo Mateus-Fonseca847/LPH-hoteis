@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { getCanonicalAmenityLabel } from "@/lib/hotel-amenities";
+
 const allowedHotelFormKeys = new Set([
   "name",
   "slug",
@@ -36,6 +38,14 @@ function sanitizeMultilineText(value: string) {
     .map((line) => line.trim())
     .filter(Boolean)
     .join("\n");
+}
+
+function parseDelimitedEntries(entries: FormDataEntryValue[]) {
+  return entries
+    .map((entry) => String(entry ?? ""))
+    .flatMap((value) => value.split(/\r?\n/))
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 const textField = (label: string, min: number, max: number) =>
@@ -144,6 +154,7 @@ export const hotelPayloadSchema = z
   .superRefine((value, ctx) => {
     const imageUrls = new Set<string>();
     const imagePositions = new Set<number>();
+    const amenityLabels = new Set<string>();
 
     value.images.forEach((image, index) => {
       if (imageUrls.has(image.url)) {
@@ -164,6 +175,23 @@ export const hotelPayloadSchema = z
 
       imageUrls.add(image.url);
       imagePositions.add(image.position);
+    });
+
+    value.amenities.forEach((amenity, index) => {
+      const normalizedLabel = amenity.label
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+
+      if (amenityLabels.has(normalizedLabel)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["amenities", index, "label"],
+          message: "Não repita a mesma comodidade.",
+        });
+      }
+
+      amenityLabels.add(normalizedLabel);
     });
   });
 
@@ -197,14 +225,10 @@ export function parseHotelFormData(formData: FormData) {
     };
   }
 
-  const parseLines = (value: FormDataEntryValue | null) =>
-    String(value ?? "")
-      .split(/\r?\n/)
-      .map((item) => item.trim())
-      .filter(Boolean);
+  const parseLines = (key: string) => parseDelimitedEntries(formData.getAll(key));
 
   const name = String(formData.get("name") ?? "");
-  const gallery = parseLines(formData.get("gallery")).map((line, index) => {
+  const gallery = parseLines("gallery").map((line, index) => {
     const [url, alt] = line.split("|").map((item) => item.trim());
 
     return {
@@ -214,17 +238,17 @@ export function parseHotelFormData(formData: FormData) {
     };
   });
 
-  const amenities = parseLines(formData.get("amenities")).map((label, index) => ({
-    label,
+  const amenities = parseLines("amenities").map((label, index) => ({
+    label: getCanonicalAmenityLabel(label),
     position: index,
   }));
 
-  const policies = parseLines(formData.get("policies")).map((line, index) => {
+  const policies = parseLines("policies").map((line, index) => {
     const [title, ...descriptionParts] = line.split("|");
 
     return {
-      title: title?.trim() || `Política ${index + 1}`,
-      description: descriptionParts.join("|").trim() || "Descrição não informada.",
+      title: title?.trim() ?? "",
+      description: descriptionParts.join("|").trim(),
       position: index,
     };
   });

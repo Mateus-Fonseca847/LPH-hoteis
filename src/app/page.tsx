@@ -8,6 +8,8 @@ import { StayDetailsSection } from "@/components/StayDetailsSection";
 import { TestimonialsSection } from "@/components/TestimonialsSection";
 import { getPublishedHotels } from "@/lib/hotel-data";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const hotels = await getPublishedHotels();
 

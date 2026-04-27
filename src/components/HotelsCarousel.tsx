@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 
@@ -175,7 +176,14 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
                 aria-hidden={index >= hotels.length}
                 tabIndex={index >= hotels.length ? -1 : 0}
               >
-                <img src={hotel.coverImageUrl} alt={hotel.name} />
+                <Image
+                  src={hotel.coverImageUrl}
+                  alt={hotel.name}
+                  width={420}
+                  height={260}
+                  sizes="(max-width: 560px) 292px, (max-width: 900px) 360px, 33vw"
+                  unoptimized
+                />
                 <h3>{hotel.name}</h3>
                 <p>
                   {hotel.city}, {hotel.state}

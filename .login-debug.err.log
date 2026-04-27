@@ -1,0 +1,32 @@
+[auth/login] Failed to complete login. Error [ValidationError]: Payload invalido.
+    at createValidationErrorFromResult (src\lib\auth\auth-route.ts:39:10)
+    at POST (src\app\api\auth\login\route.ts:45:44)
+  37 |   error?: { issues?: Array<{ message?: string }> };
+  38 | }) {
+> 39 |   return new ValidationError(getFirstValidationErrorMessage(result));
+     |          ^
+  40 | }
+  41 | {
+  statusCode: 400,
+  code: 'VALIDATION_ERROR',
+  exposeMessage: true
+}
+[auth/login] Failed to complete login. Error [ValidationError]: Payload invalido.
+    at createValidationErrorFromResult (src\lib\auth\auth-route.ts:39:10)
+    at POST (src\app\api\auth\login\route.ts:45:44)
+  37 |   error?: { issues?: Array<{ message?: string }> };
+  38 | }) {
+> 39 |   return new ValidationError(getFirstValidationErrorMessage(result));
+     |          ^
+  40 | }
+  41 | {
+  statusCode: 400,
+  code: 'VALIDATION_ERROR',
+  exposeMessage: true
+}
+[auth/login] User not found. { email: 'naoexiste@local.test', ip: '::1' }
+[auth/login] Invalid password. {
+  email: 'qa.no2fa@local.test',
+  userId: 'cmoeu3rk10000sjjcllekxkk6',
+  ip: '::1'
+}

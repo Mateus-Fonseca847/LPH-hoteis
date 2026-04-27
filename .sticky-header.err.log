@@ -1,0 +1,49 @@
+[hotel-data] Falling back to local hotel data: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+Error validating datasource `db`: the URL must start with the protocol `prisma://` or `prisma+postgres://`
+[hotel-data] Falling back to local hotel data: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+Error validating datasource `db`: the URL must start with the protocol `prisma://` or `prisma+postgres://`
+[auth/login] Failed to complete login. Error [PrismaClientKnownRequestError]: 
+Invalid `prisma.user.findUnique()` invocation:
+
+
+Error validating datasource `db`: the URL must start with the protocol `prisma://` or `prisma+postgres://`
+    at async POST (src\app\api\auth\login\route.ts:54:18)
+  52 |     }
+  53 |
+> 54 |     const user = await findUserByEmail(email);
+     |                  ^
+  55 |
+  56 |     if (!user) {
+  57 |       console.warn("[auth/login] User not found.", { email, ip }); {
+  code: 'P6001',
+  meta: [Object],
+  clientVersion: '6.17.1'
+}
+[hotel-data] Falling back to local hotel data: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+Error validating datasource `db`: the URL must start with the protocol `prisma://` or `prisma+postgres://`
+[auth/login] Failed to complete login. Error [PrismaClientKnownRequestError]: 
+Invalid `prisma.user.findUnique()` invocation:
+
+
+Error validating datasource `db`: the URL must start with the protocol `prisma://` or `prisma+postgres://`
+    at async POST (src\app\api\auth\login\route.ts:54:18)
+  52 |     }
+  53 |
+> 54 |     const user = await findUserByEmail(email);
+     |                  ^
+  55 |
+  56 |     if (!user) {
+  57 |       console.warn("[auth/login] User not found.", { email, ip }); {
+  code: 'P6001',
+  meta: [Object],
+  clientVersion: '6.17.1'
+}

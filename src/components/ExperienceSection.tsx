@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 import { experienceDestinations, type ExperienceKey } from "@/data/experience-destinations";
@@ -68,7 +69,12 @@ export function ExperienceSection() {
           className="gallery-card large reveal experience-card experience-card--featured"
           data-card-index="0"
         >
-          <img src={destinations[0].image} alt={destinations[0].alt} />
+          <Image
+            src={destinations[0].image}
+            alt={destinations[0].alt}
+            fill
+            sizes="(max-width: 900px) 100vw, 46vw"
+          />
           <div className="gallery-caption">
             <strong>{destinations[0].title}</strong>
             <span>{destinations[0].description}</span>
@@ -82,7 +88,12 @@ export function ExperienceSection() {
               className="gallery-card reveal experience-card experience-card--small"
               data-card-index={index + 1}
             >
-              <img src={destination.image} alt={destination.alt} />
+              <Image
+                src={destination.image}
+                alt={destination.alt}
+                fill
+                sizes="(max-width: 900px) 100vw, 260px"
+              />
               <div className="gallery-caption">
                 <strong>{destination.title}</strong>
                 <span>{destination.description}</span>

@@ -1,10 +1,15 @@
+import Image from "next/image";
+
 export function Hero() {
   return (
     <section className="hero section reveal">
       <div className="hero-media">
-        <img
+        <Image
           src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80"
           alt="Família aproveitando uma experiência tropical no mar"
+          fill
+          priority
+          sizes="100vw"
         />
 
         <div className="hero-copy">

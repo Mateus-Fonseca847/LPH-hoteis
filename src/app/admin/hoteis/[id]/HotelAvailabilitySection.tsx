@@ -127,12 +127,14 @@ function formatAvailabilityDate(value: string) {
 }
 
 function getRangeLabel(startDate: string, endDate: string) {
-  const diffDays =
-    Math.floor(
-      (new Date(`${endDate}T00:00:00.000Z`).getTime() -
-        new Date(`${startDate}T00:00:00.000Z`).getTime()) /
-        DAY_MS
-    ) + 1;
+  const startTime = new Date(`${startDate}T00:00:00.000Z`).getTime();
+  const endTime = new Date(`${endDate}T00:00:00.000Z`).getTime();
+
+  if (Number.isNaN(startTime) || Number.isNaN(endTime) || endTime < startTime) {
+    return "Ajuste as datas";
+  }
+
+  const diffDays = Math.floor((endTime - startTime) / DAY_MS) + 1;
 
   return `${diffDays} dia${diffDays > 1 ? "s" : ""}`;
 }
@@ -280,7 +282,8 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
         <div className="section-heading admin-subsection-heading">
           <h2>Disponibilidade</h2>
           <p className="admin-rooms-copy">
-            Defina o estoque do quarto por período, com fechamento e observação interna.
+            Defina o estoque do quarto por período. O salvamento em lote aplica os mesmos valores a
+            todas as datas selecionadas.
           </p>
         </div>
       </div>
@@ -313,6 +316,7 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
       {feedback ? (
         <p
           className={`admin-editor-feedback ${feedbackType === "success" ? "is-success" : "is-error"}`}
+          role={feedbackType === "error" ? "alert" : "status"}
         >
           {feedback}
         </p>
@@ -364,6 +368,7 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
               <label className="admin-form-field">
                 <span>Intervalo</span>
                 <input value={getRangeLabel(form.startDate, form.endDate)} readOnly />
+                <small>Limite máximo: 180 dias por operação.</small>
               </label>
 
               <label className="admin-form-field">

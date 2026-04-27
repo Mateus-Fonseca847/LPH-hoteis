@@ -2,29 +2,14 @@
 
 import { useState } from "react";
 
+import { isHotelFavorited, toggleFavoriteHotel, type FavoriteHotel } from "@/lib/hotel-favorites";
+
 type HotelPageActionsProps = {
-  hotelName: string;
-  slug: string;
+  hotel: FavoriteHotel;
 };
 
-const STORAGE_KEY = "lph-saved-hotels";
-
-function getSavedHotels() {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? (JSON.parse(raw) as string[]) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-export function HotelPageActions({ hotelName, slug }: HotelPageActionsProps) {
-  const [isSaved, setIsSaved] = useState(() => getSavedHotels().includes(slug));
+export function HotelPageActions({ hotel }: HotelPageActionsProps) {
+  const [isSaved, setIsSaved] = useState(() => isHotelFavorited(hotel.slug));
   const [feedback, setFeedback] = useState("");
 
   async function handleShare() {
@@ -33,8 +18,8 @@ export function HotelPageActions({ hotelName, slug }: HotelPageActionsProps) {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: hotelName,
-          text: `Confira o perfil do ${hotelName} na LPH.`,
+          title: hotel.name,
+          text: `Confira o perfil do ${hotel.name} na LPH.`,
           url,
         });
         return;
@@ -50,14 +35,10 @@ export function HotelPageActions({ hotelName, slug }: HotelPageActionsProps) {
   }
 
   function handleSave() {
-    const current = getSavedHotels();
-    const next = current.includes(slug)
-      ? current.filter((item) => item !== slug)
-      : [...current, slug];
+    const next = toggleFavoriteHotel(hotel);
 
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setIsSaved(next.includes(slug));
-    setFeedback(next.includes(slug) ? "Hotel salvo." : "Hotel removido dos salvos.");
+    setIsSaved(next.isFavorited);
+    setFeedback(next.isFavorited ? "Hotel favoritado." : "Hotel removido dos favoritos.");
     window.setTimeout(() => setFeedback(""), 2200);
   }
 
@@ -67,7 +48,7 @@ export function HotelPageActions({ hotelName, slug }: HotelPageActionsProps) {
         Compartilhar
       </button>
       <button type="button" className="hotel-utility-button" onClick={handleSave}>
-        {isSaved ? "Salvo" : "Salvar"}
+        {isSaved ? "Favoritado" : "Favoritar"}
       </button>
       {feedback ? <span className="hotel-utility-feedback">{feedback}</span> : null}
     </div>

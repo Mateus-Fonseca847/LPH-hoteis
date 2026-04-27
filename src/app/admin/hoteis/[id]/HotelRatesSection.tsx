@@ -182,7 +182,7 @@ function RateFormCard({
         </label>
 
         <label className="admin-form-field">
-          <span>Preço</span>
+          <span>Preço em reais</span>
           <input
             inputMode="decimal"
             placeholder="0,00"
@@ -190,6 +190,7 @@ function RateFormCard({
             onChange={(event) => onChange("price", event.target.value)}
             aria-invalid={Boolean(errors.price)}
           />
+          <small>Digite o valor em reais. O sistema salva em centavos.</small>
           {errors.price ? <small className="admin-form-error">{errors.price}</small> : null}
         </label>
 
@@ -538,6 +539,7 @@ export function HotelRatesSection({ hotelId, rooms }: HotelRatesSectionProps) {
       {feedback ? (
         <p
           className={`admin-editor-feedback ${feedbackType === "success" ? "is-success" : "is-error"}`}
+          role={feedbackType === "error" ? "alert" : "status"}
         >
           {feedback}
         </p>

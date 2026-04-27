@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useTransition } from "react";
 
 import type { AuthorizedHotelRoom, HotelRoomActionState } from "./room-actions";
@@ -113,7 +114,7 @@ function formatCapacity(room: AuthorizedHotelRoom) {
   const parts = [`${room.capacityAdults} adulto${room.capacityAdults > 1 ? "s" : ""}`];
 
   if (room.capacityChildren > 0) {
-    parts.push(`${room.capacityChildren} crianca${room.capacityChildren > 1 ? "s" : ""}`);
+    parts.push(`${room.capacityChildren} criança${room.capacityChildren > 1 ? "s" : ""}`);
   }
 
   return parts.join(" + ");
@@ -157,12 +158,14 @@ function RoomFormCard({
             value={values.imageUrl}
             onChange={(event) => onChange("imageUrl", event.target.value)}
             aria-invalid={Boolean(errors.imageUrl)}
+            placeholder="https://..."
           />
+          <small>Use a URL de uma imagem já disponível para o quarto.</small>
           {errors.imageUrl ? <small className="admin-form-error">{errors.imageUrl}</small> : null}
         </label>
 
         <label className="admin-form-field admin-form-field--full">
-          <span>Descricao</span>
+          <span>Descrição</span>
           <textarea
             rows={4}
             value={values.description}
@@ -189,7 +192,7 @@ function RoomFormCard({
         </label>
 
         <label className="admin-form-field">
-          <span>Criancas</span>
+          <span>Crianças</span>
           <input
             type="number"
             min="0"
@@ -208,12 +211,13 @@ function RoomFormCard({
             value={values.beds}
             onChange={(event) => onChange("beds", event.target.value)}
             aria-invalid={Boolean(errors.beds)}
+            placeholder="Ex.: 1 cama queen"
           />
           {errors.beds ? <small className="admin-form-error">{errors.beds}</small> : null}
         </label>
 
         <label className="admin-form-field">
-          <span>Tamanho m2</span>
+          <span>Tamanho em m²</span>
           <input
             type="number"
             min="1"
@@ -286,7 +290,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
     const result = await listHotelRoomsAction(hotelId);
 
     if (result.status === "error") {
-      throw new Error(result.message || "Nao foi possivel atualizar a lista de quartos.");
+      throw new Error(result.message || "Não foi possível atualizar a lista de quartos.");
     }
 
     setRooms(result.rooms);
@@ -307,7 +311,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
         const result = await task();
 
         if (result.status === "error") {
-          throw new Error(result.message || "Nao foi possivel concluir a operacao.");
+          throw new Error(result.message || "Não foi possível concluir a operação.");
         }
 
         await refreshRooms();
@@ -317,7 +321,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
       } catch (error) {
         setFeedbackType("error");
         setFeedback(
-          error instanceof Error ? error.message : "Nao foi possivel concluir a operacao."
+          error instanceof Error ? error.message : "Não foi possível concluir a operação."
         );
       } finally {
         setPendingRoomId(null);
@@ -378,7 +382,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
         <div className="section-heading admin-subsection-heading">
           <h2>Quartos</h2>
           <p className="admin-rooms-copy">
-            Gerencie os quartos deste hotel com criacao, edicao e controle de status.
+            Gerencie os quartos deste hotel com criação, edição e controle de status.
           </p>
         </div>
 
@@ -401,6 +405,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
       {feedback ? (
         <p
           className={`admin-editor-feedback ${feedbackType === "success" ? "is-success" : "is-error"}`}
+          role={feedbackType === "error" ? "alert" : "status"}
         >
           {feedback}
         </p>
@@ -427,7 +432,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
       {rooms.length === 0 ? (
         <div className="hotel-empty-state admin-history-empty">
           <strong>Nenhum quarto cadastrado.</strong>
-          <p>Adicione o primeiro quarto para comecar a operacao deste hotel.</p>
+          <p>Adicione o primeiro quarto para começar a operação deste hotel.</p>
         </div>
       ) : (
         <div className="admin-rooms-list">
@@ -438,7 +443,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
             return (
               <article key={room.id} className="admin-room-card">
                 <div className="admin-room-card-media">
-                  <img src={room.imageUrl} alt={room.name} className="admin-hotel-card-image" />
+                  <Image src={room.imageUrl} alt={room.name} fill sizes="260px" unoptimized />
                 </div>
 
                 <div className="admin-room-card-body">
@@ -457,7 +462,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
 
                   <div className="admin-room-meta-grid">
                     <span>{room.beds}</span>
-                    <span>{room.sizeM2 ? `${room.sizeM2} m2` : room.size}</span>
+                    <span>{room.sizeM2 ? `${room.sizeM2} m²` : room.size}</span>
                     <span>{room.amenities.length} comodidades</span>
                   </div>
 

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -7,7 +8,9 @@ import { HotelAmenitiesSection } from "@/components/HotelAmenitiesSection";
 import { HotelGallery } from "@/components/HotelGallery";
 import { HotelPageActions } from "@/components/HotelPageActions";
 import { HotelRegionDetailsSection } from "@/components/HotelRegionDetailsSection";
-import { getHotelPageData, getHotelSlugs } from "@/lib/hotel-data";
+import { getHotelPageData } from "@/lib/hotel-data";
+
+export const dynamic = "force-dynamic";
 
 type HotelPageProps = {
   params: Promise<{
@@ -141,14 +144,6 @@ function buildPolicySections(hotel: Awaited<ReturnType<typeof getHotelPageData>>
   ];
 }
 
-export async function generateStaticParams() {
-  const slugs = await getHotelSlugs();
-
-  return slugs.map((slug) => ({
-    slug,
-  }));
-}
-
 function formatRoomCapacity(room: HotelPageRoom) {
   const parts = [`${room.capacityAdults} adulto${room.capacityAdults > 1 ? "s" : ""}`];
 
@@ -196,6 +191,7 @@ export default async function HotelPage({ params }: HotelPageProps) {
   const accessibility = buildAccessibility(hotel);
   const faq = buildFaq(hotel);
   const policySections = buildPolicySections(hotel);
+  const availabilityHref = `/hoteis/${hotel.slug}/disponibilidade`;
 
   return (
     <div className="page-shell">
@@ -207,7 +203,6 @@ export default async function HotelPage({ params }: HotelPageProps) {
             <Link href="/#journey" className="hotel-page-back">
               Voltar à lista de hotéis
             </Link>
-            <HotelPageActions hotelName={hotel.name} slug={hotel.slug} />
           </div>
 
           <div className="hotel-hero-layout">
@@ -247,14 +242,32 @@ export default async function HotelPage({ params }: HotelPageProps) {
               </div>
 
               <div className="hotel-page-actions">
-                <button type="button" className="card-cta-button hotel-page-cta">
+                <Link href={availabilityHref} className="card-cta-button hotel-page-cta">
                   Consultar disponibilidade
-                </button>
+                </Link>
               </div>
             </div>
 
-            <div className="hotel-hero-media">
-              <img src={hotel.coverImageUrl} alt={hotel.name} />
+            <div className="hotel-hero-media-shell">
+              <div className="hotel-hero-media">
+                <Image
+                  src={hotel.coverImageUrl}
+                  alt={hotel.name}
+                  fill
+                  priority
+                  sizes="(max-width: 900px) 100vw, 52vw"
+                  unoptimized
+                />
+              </div>
+              <HotelPageActions
+                hotel={{
+                  slug: hotel.slug,
+                  name: hotel.name,
+                  city: hotel.city,
+                  state: hotel.state,
+                  coverImageUrl: hotel.coverImageUrl,
+                }}
+              />
             </div>
           </div>
         </section>
@@ -338,7 +351,13 @@ export default async function HotelPage({ params }: HotelPageProps) {
                 {hotel.rooms.map((room) => (
                   <article key={room.id} className="hotel-room-card">
                     <div className="hotel-room-media">
-                      <img src={room.imageUrl} alt={`Quarto ${room.name}`} />
+                      <Image
+                        src={room.imageUrl}
+                        alt={`Quarto ${room.name}`}
+                        fill
+                        sizes="(max-width: 900px) 100vw, 280px"
+                        unoptimized
+                      />
                     </div>
                     <div className="hotel-room-body">
                       <div className="hotel-room-header">
@@ -364,9 +383,9 @@ export default async function HotelPage({ params }: HotelPageProps) {
                           <strong>{formatRoomStartingPrice(room.lowestActiveRateCents)}</strong>
                           <p className="hotel-room-status">{getRoomAvailabilityLabel(room)}</p>
                         </div>
-                        <button type="button" className="hotel-room-cta">
+                        <Link href={availabilityHref} className="hotel-room-cta">
                           Consultar disponibilidade
-                        </button>
+                        </Link>
                       </div>
                     </div>
                   </article>
@@ -444,9 +463,9 @@ export default async function HotelPage({ params }: HotelPageProps) {
               condições para as suas datas.
             </p>
           </div>
-          <button type="button" className="card-cta-button hotel-page-cta">
+          <Link href={availabilityHref} className="card-cta-button hotel-page-cta">
             Consultar disponibilidade
-          </button>
+          </Link>
         </section>
       </main>
 

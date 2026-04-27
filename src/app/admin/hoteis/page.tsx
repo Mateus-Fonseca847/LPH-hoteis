@@ -1,4 +1,5 @@
 import { HotelRole } from "@prisma/client";
+import Image from "next/image";
 import Link from "next/link";
 
 import {
@@ -121,10 +122,14 @@ export default async function AdminHotelsPage() {
         <div className="admin-hotels-grid">
           {hotels.map((hotel) => (
             <article key={hotel.id} className="hotel-content-card admin-hotel-card">
-              <img
+              <Image
                 className="admin-hotel-card-image"
                 src={hotel.coverImageUrl}
                 alt={`Imagem de capa do ${hotel.name}`}
+                width={520}
+                height={320}
+                sizes="(max-width: 900px) 100vw, 33vw"
+                unoptimized
               />
 
               <div className="admin-hotel-card-top">

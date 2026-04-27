@@ -21,6 +21,7 @@ async function getPermissionContext(
     },
     select: {
       globalRole: true,
+      isActive: true,
       hotelPermissions: {
         where: {
           hotelId,
@@ -34,6 +35,10 @@ async function getPermissionContext(
   });
 
   if (!user) {
+    return null;
+  }
+
+  if (!user.isActive) {
     return null;
   }
 

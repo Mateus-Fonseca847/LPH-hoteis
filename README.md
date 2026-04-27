@@ -2,36 +2,27 @@
 
 Plataforma web da rede LPH para catálogo público de hotéis e operação administrativa interna.
 
-O projeto combina:
+## Stack
 
-- site público com listagem e páginas individuais de hotéis;
-- área administrativa protegida;
-- persistência com Prisma + PostgreSQL;
-- autenticação com sessão segura e 2FA para administradores.
-
-## Stack utilizada
-
-- Next.js 15 (App Router)
+- Next.js 15 com App Router
 - React 19
 - TypeScript
 - Prisma ORM
 - PostgreSQL
 - Zod
 - `bcryptjs` para hash de senha
-- `jose` para sessão baseada em cookie assinado
+- `jose` para sessão em cookie assinado
 - `otpauth` para 2FA
 
-## Requisitos para rodar localmente
+## Requisitos
 
-- Node.js 20+ recomendado
+- Node.js 20+
 - npm
-- PostgreSQL disponível localmente
+- PostgreSQL
 
 ## Variáveis de ambiente
 
-Crie um arquivo `.env` com base em `.env.example`.
-
-Variáveis atualmente necessárias:
+Crie `.env` com base em `.env.example`.
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/lph_hoteis?schema=public"
@@ -40,22 +31,21 @@ TWO_FACTOR_ENCRYPTION_KEY="defina-uma-chave-base64-com-32-bytes"
 UPLOAD_MAX_IMAGE_SIZE_BYTES="5242880"
 ```
 
-Descrição:
+Nunca commite `.env`.
 
-- `DATABASE_URL`: conexão com o PostgreSQL.
-- `AUTH_SECRET`: segredo usado para assinatura e validação de sessão.
-- `TWO_FACTOR_ENCRYPTION_KEY`: chave base64 de 32 bytes para proteger o segredo de 2FA no banco.
-- `UPLOAD_MAX_IMAGE_SIZE_BYTES`: limite máximo de upload de imagem em bytes. Opcional. Se ausente, usa `5 MB`.
-
-## Instalação
+## Instalação e uso
 
 ```bash
 npm install
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:seed
+npm run dev
 ```
 
-## Comandos principais
+Aplicação local: [http://localhost:3000](http://localhost:3000)
 
-Comandos existentes no `package.json`:
+## Comandos úteis
 
 ```bash
 npm run dev
@@ -72,241 +62,193 @@ npm run prisma:seed
 npm run prisma:validate
 ```
 
-## Como rodar o projeto
-
-1. Instale as dependências.
-2. Configure o `.env`.
-3. Gere o client do Prisma:
-
-```bash
-npm run prisma:generate
-```
-
-4. Rode as migrations:
-
-```bash
-npm run prisma:migrate
-```
-
-5. Popule a base com seed:
-
-```bash
-npm run prisma:seed
-```
-
-6. Inicie o ambiente local:
-
-```bash
-npm run dev
-```
-
-Aplicação local padrão:
-
-- [http://localhost:3000](http://localhost:3000)
-
-## Migrations
-
-```bash
-npm run prisma:migrate
-```
-
-## Seed
-
-```bash
-npm run prisma:seed
-```
-
-## Prisma Studio
-
-```bash
-npm run prisma:studio
-```
-
-## Lint, format e build
-
-### Lint
-
-```bash
-npm run lint
-```
-
-### Format
-
-```bash
-npm run format
-npm run format:check
-```
-
-### Build
-
-```bash
-npm run build
-```
-
-### Quality gate local
+O quality gate executa formatação, lint, validação do Prisma e build:
 
 ```bash
 npm run quality
 ```
 
-## Visão geral da arquitetura
+## Arquitetura
 
-### Camadas principais
-
-- `src/app`: rotas públicas, rotas administrativas e rotas de API.
-- `src/components`: componentes visuais reutilizáveis.
-- `src/lib`: autenticação, autorização, validação, auditoria, upload, leitura de dados e tratamento de erro.
+- `src/app`: rotas públicas, rotas administrativas e APIs.
+- `src/components`: componentes reutilizáveis da home e páginas públicas.
+- `src/lib`: autenticação, autorização, validações, auditoria, upload, erros e Prisma.
 - `src/data`: dados locais de apoio para desenvolvimento.
 - `prisma`: schema, migrations e seed.
 
-### Estratégia de dados
+## Fluxo público
 
-O fluxo principal usa Prisma + PostgreSQL.
+- A home lista hotéis publicados.
+- Cards da seção `Conheça nossos hotéis` navegam para `/hoteis/[slug]`.
+- A página pública do hotel usa dados do banco.
+- Hotéis inexistentes ou despublicados retornam 404.
+- Quartos ativos aparecem publicamente com preço inicial baseado em tarifas ativas.
+- Disponibilidade pública é exibida como status simples, sem motor de reserva.
 
-Em desenvolvimento, ainda existem dados locais de apoio em `src/data` para cenários controlados. Em produção, páginas públicas não devem exibir hotéis mockados quando o banco não retornar dados.
+## Admin Fase 2
 
-### Segurança
+### Dashboard operacional
 
-- autenticação por e-mail e senha;
-- sessão em cookie `HttpOnly`;
-- `Secure` em produção;
-- `SameSite` configurado;
-- 2FA para administradores;
-- autorização por hotel no backend;
-- auditoria de alterações administrativas;
-- upload protegido por autenticação, permissão e validação de arquivo.
+Rota: `/admin`
 
-## Principais pastas
+- `super_admin` vê visão da rede.
+- `hotel_admin` vê apenas hotéis vinculados.
+- Exibe métricas de hotéis, quartos ativos, tarifas ativas, disponibilidade futura e admins ativos.
+- Exibe últimos logs dentro do escopo.
+- Exibe alertas acionáveis com links para corrigir pendências.
+- Exibe completude dos hotéis com percentual e pendências.
 
-### `src/app`
+### Hotéis
 
-- `page.tsx`: home pública.
-- `hoteis/[slug]/page.tsx`: página pública individual de hotel.
-- `login`: tela de login.
-- `admin`: área administrativa protegida.
-- `api/auth`: login, logout e 2FA.
-- `api/admin/hoteis`: upload e remoção de imagens.
+Rota: `/admin/hoteis`
 
-### `src/lib`
+- `super_admin` lista todos os hotéis.
+- `hotel_admin` lista apenas hotéis vinculados.
+- Cada card mostra status, permissão e completude do perfil.
 
-- `auth/`: sessão, senha, 2FA, rate limit, autorização e proteção.
-- `audit/`: auditoria administrativa.
-- `errors/`: base central de erros e respostas padronizadas.
-- `uploads/`: validação e persistência de imagens.
-- `validations/`: schemas Zod dos payloads administrativos.
-- `hotel-data.ts`: leitura pública de hotéis.
-- `prisma.ts`: instância central do Prisma Client.
+### Edição de hotel
 
-### `src/components`
+Rota: `/admin/hoteis/[id]`
 
-Componentes da home, da página pública do hotel e do admin.
+Permite editar:
 
-### `src/data`
+- dados principais;
+- localização;
+- contato;
+- descrições;
+- imagem de capa;
+- galeria;
+- comodidades;
+- políticas;
+- horários;
+- visibilidade/publicação.
 
-Dados locais de apoio e conteúdo estático de interface.
+Toda escrita valida sessão, 2FA administrativo, permissão por hotel, payload e auditoria.
 
-### `prisma`
+### CRUD de quartos
 
-- `schema.prisma`: modelagem principal.
-- `migrations/`: histórico de migrations.
-- `seed.cjs`: carga inicial da base.
+Na edição do hotel:
 
-## Fluxo público dos hotéis
+- listar quartos;
+- criar quarto;
+- editar quarto;
+- ativar/desativar quarto.
 
-1. A home consulta hotéis publicados.
-2. A seção `Conheça nossos hotéis` renderiza cards com imagem, nome, cidade e estado.
-3. Cada card navega para `/hoteis/[slug]`.
-4. A página pública carrega os dados do hotel publicado.
-5. Se o hotel não existir ou não estiver publicado, retorna 404.
+Campos principais:
 
-## Fluxo administrativo
+- nome;
+- descrição;
+- imagem por URL;
+- capacidade de adultos e crianças;
+- camas;
+- tamanho em m²;
+- comodidades;
+- status ativo.
 
-1. Usuário acessa `/login`.
-2. Autentica com e-mail e senha.
-3. Se for administrador, precisa concluir 2FA.
-4. Rotas `/admin` exigem sessão válida e 2FA validado.
-5. `super_admin` acessa todos os hotéis.
-6. `hotel_admin` acessa apenas hotéis vinculados em `HotelPermission`.
-7. Escritas administrativas validam:
-   - sessão;
-   - permissão no backend;
-   - payload com schema;
-   - auditoria da alteração.
+### CRUD de tarifas
 
-## Estado atual do projeto
+Na edição do hotel:
 
-### Já existe
+- selecionar quarto;
+- listar tarifas do quarto;
+- criar tarifa;
+- editar tarifa;
+- ativar/desativar tarifa.
 
-- site público em Next.js
-- página pública dinâmica por hotel
-- Prisma configurado
-- schema e migrations
-- seed inicial
-- autenticação com sessão segura
-- 2FA para administradores
-- autorização por hotel
-- upload protegido de imagens
-- auditoria administrativa
-- ESLint
-- Prettier
-- quality gate local
+Na UI, o preço é digitado em reais. No banco, é salvo em centavos (`priceCents`).
 
-### Parcial / pendente
+### Gestão de disponibilidade
 
-- `npm audit` ainda precisa ser revisado antes de produção
-- dados locais de apoio ainda existem em desenvolvimento
-- não há painel de gestão de usuários/permissões
+Na edição do hotel:
 
-## Checklist de segurança operacional
+- selecionar quarto;
+- escolher data inicial e final;
+- definir unidades totais;
+- definir unidades disponíveis;
+- marcar período como fechado;
+- adicionar observação interna;
+- salvar em lote.
 
-- [ ] Nunca versionar `.env`. Use apenas `.env.example` como referência.
-- [ ] Manter `DATABASE_URL` real e separado por ambiente.
-- [ ] Não usar mocks ou fallbacks de hotéis em produção.
-- [x] Toda escrita administrativa exige autenticação e autorização no backend.
-- [x] Upload aceita apenas imagens validadas por tipo, extensão e conteúdo.
-- [ ] Revisar toda migration antes de aplicar em ambientes compartilhados ou produção.
-- [ ] Rodar `npm run quality` antes de merge ou deploy.
-- [ ] Revisar `npm audit` antes de produção.
-- [x] Nunca expor segredos, hashes, tokens ou chaves no frontend.
+O intervalo de edição em lote é limitado pelos validadores do backend.
 
-Observação:
+### Administradores e permissões
 
-- O item de `npm audit` continua pendente operacionalmente. O projeto possui quality gate local, mas a revisão de dependências vulneráveis ainda depende do processo de release.
+Rota: `/admin/administradores`
 
-## Observações de segurança
+- lista administradores acessíveis dentro do escopo;
+- cria administrador com vínculo inicial a hotel;
+- edita papel por hotel quando permitido;
+- remove vínculo permitido;
+- `super_admin` pode ativar/desativar usuários;
+- protege contra desativar o último `super_admin`;
+- impede escalada de privilégio.
 
-- Nunca salvar senha em texto puro.
-- Nunca confiar em validação apenas no frontend.
-- Toda escrita administrativa deve continuar validando permissão no backend.
-- Não remover auditoria de operações sensíveis.
-- Não expor segredos, hashes, tokens ou segredos de 2FA no cliente.
-- Não aceitar upload fora das validações já existentes.
+Convite por e-mail ainda não está implementado. A criação gera usuário e vínculo administrativo para configuração posterior de acesso.
 
-## Orientações para colaboradores
+### Auditoria navegável
 
-- Preserve a separação entre autenticação e autorização.
-- Mantenha validação forte no backend.
-- Use os helpers existentes em `src/lib/auth`, `src/lib/validations`, `src/lib/audit` e `src/lib/errors`.
-- Ao adicionar campos novos ao hotel:
-  - atualize o schema do Prisma;
-  - gere migration;
-  - ajuste seed se necessário;
-  - revise a leitura pública em `src/lib/hotel-data.ts`;
-  - revise a edição administrativa.
-- Antes de abrir PR interno, rode:
+Rotas:
 
-```bash
-npm run quality
-```
+- `/admin/auditoria`
+- `/admin/auditoria/[id]`
 
-## Importante
+Inclui:
 
-Nunca commite:
+- listagem paginada;
+- filtros por hotel, usuário, ação, período e texto livre;
+- detalhe do log;
+- escopo por perfil;
+- redaction de dados sensíveis.
 
-- `.env`
-- segredos reais
-- credenciais de banco
-- chaves de autenticação
-- chaves de criptografia
+Logs cobrem alterações relevantes em hotéis, quartos, tarifas, disponibilidade, imagens e permissões.
 
-O arquivo versionado para referência deve ser apenas `.env.example`.
+## Papéis e escopos
+
+### Papéis globais
+
+- `super_admin`: acessa a rede inteira.
+- `hotel_admin`: acessa hotéis vinculados via `HotelPermission`.
+- `user`: não acessa área administrativa.
+
+### Papéis por hotel
+
+- `owner`: pode gerenciar o hotel e atribuir papéis permitidos.
+- `admin`: pode gerenciar o hotel e atribuir papéis inferiores.
+- `editor`: pode editar dados do hotel, quartos, tarifas e disponibilidade.
+
+As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
+
+## Segurança
+
+- Senhas são armazenadas com hash.
+- Sessão usa cookie `HttpOnly`.
+- Cookie usa `Secure` em produção.
+- `SameSite` configurado.
+- Administradores precisam de 2FA.
+- Usuário desativado não autentica como usuário válido.
+- Escritas administrativas exigem autenticação e autorização no backend.
+- Escritas ligadas a hotel validam permissão por hotel.
+- Payloads são validados com Zod e rejeitam campos inesperados.
+- Upload aceita apenas imagens validadas por MIME, extensão, tamanho e conteúdo.
+- Remoção de imagem exige permissão e registra auditoria.
+- Erros usam padrão comum e não devem expor stack trace em produção.
+- Auditoria não deve registrar senhas, tokens, segredos de 2FA ou dados sensíveis.
+
+## Pendências reais
+
+- Convite por e-mail ainda não existe.
+- Não há motor de reserva.
+- Não há calendário visual avançado de disponibilidade.
+- Não há gestão dedicada de upload para imagem de quarto; hoje o quarto usa URL/imagem existente.
+- Warnings de lint sobre `<img>` ainda existem e podem ser tratados futuramente com `next/image`.
+- `npm audit` deve ser revisado antes de produção.
+- Dados locais de apoio continuam existindo para desenvolvimento e não devem contaminar produção.
+
+## Checklist operacional
+
+- Rode `npm run quality` antes de merge/deploy.
+- Revise migrations antes de aplicar em ambientes compartilhados.
+- Use `DATABASE_URL` real e separado por ambiente.
+- Nunca use mocks em produção.
+- Nunca exponha segredos no frontend.
+- Nunca commite `.env`, credenciais ou chaves reais.

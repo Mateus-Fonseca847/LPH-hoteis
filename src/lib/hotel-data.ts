@@ -44,11 +44,30 @@ type HotelRoomRow = {
   beds: string;
   sizeM2: number | null;
   size: string;
+  amenities: string[];
   priceFrom: { toString(): string };
   lowestActiveRateCents: number | null;
   isAvailable: boolean;
   isActive: boolean;
   publicAvailabilityStatus: "available" | "unavailable" | "unknown";
+  availability: Array<{
+    date: string;
+    availableUnits: number;
+    closed: boolean;
+  }>;
+  rates: Array<{
+    id: string;
+    name: string;
+    description: string;
+    priceCents: number;
+    currency: string;
+    startDate: string;
+    endDate: string;
+    minNights: number;
+    maxGuests: number;
+    refundable: boolean;
+    breakfastIncluded: boolean;
+  }>;
 };
 
 export type HotelNearbyPlace = {
@@ -169,6 +188,23 @@ function warnDatabaseFallback(error: unknown) {
   console.warn(`[hotel-data] Falling back to local hotel data: ${message}`);
 }
 
+function throwProductionDatabaseError(error: unknown): never {
+  if (error instanceof Error) {
+    throw error;
+  }
+
+  throw new Error("Database unavailable.");
+}
+
+function handleDatabaseFallback<T>(error: unknown, fallback: T): T {
+  if (!canUseDevelopmentFallback) {
+    throwProductionDatabaseError(error);
+  }
+
+  warnDatabaseFallback(error);
+  return fallback;
+}
+
 function hasDatabaseConfig() {
   return Boolean(databaseUrl);
 }
@@ -192,6 +228,10 @@ function getFallbackHotelPageData(slug: string) {
 
 async function hasCompatibleHotelSchema() {
   if (!hasDatabaseConfig()) {
+    if (!canUseDevelopmentFallback) {
+      throw new Error("DATABASE_URL is required.");
+    }
+
     return false;
   }
 
@@ -210,8 +250,7 @@ async function hasCompatibleHotelSchema() {
         );
       })
       .catch((error) => {
-        warnDatabaseFallback(error);
-        return false;
+        return handleDatabaseFallback(error, false);
       });
   }
 
@@ -303,8 +342,7 @@ export async function getPublishedHotels(): Promise<PublishedHotelCard[]> {
       orderBy: [{ city: "asc" }, { name: "asc" }],
     });
   } catch (error) {
-    warnDatabaseFallback(error);
-    return getFallbackPublishedHotels();
+    return handleDatabaseFallback(error, getFallbackPublishedHotels());
   }
 }
 
@@ -325,8 +363,7 @@ export async function getHotelSlugs(): Promise<string[]> {
 
     return hotels.map((hotel) => hotel.slug);
   } catch (error) {
-    warnDatabaseFallback(error);
-    return getFallbackHotelSlugs();
+    return handleDatabaseFallback(error, getFallbackHotelSlugs());
   }
 }
 
@@ -359,19 +396,25 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
             rates: {
               where: {
                 isActive: true,
-                startDate: {
-                  lte: now,
-                },
                 endDate: {
                   gte: now,
                 },
               },
               orderBy: {
-                priceCents: "asc",
+                startDate: "asc",
               },
-              take: 1,
               select: {
+                id: true,
+                name: true,
+                description: true,
                 priceCents: true,
+                currency: true,
+                startDate: true,
+                endDate: true,
+                minNights: true,
+                maxGuests: true,
+                refundable: true,
+                breakfastIncluded: true,
               },
             },
             availability: {
@@ -385,6 +428,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
               },
               take: 30,
               select: {
+                date: true,
                 closed: true,
                 availableUnits: true,
               },
@@ -418,11 +462,36 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
             beds: room.beds,
             sizeM2: room.sizeM2,
             size: room.size,
+            amenities: room.amenities,
             priceFrom: room.priceFrom,
-            lowestActiveRateCents: room.rates[0]?.priceCents ?? null,
+            lowestActiveRateCents:
+              room.rates.length > 0
+                ? room.rates.reduce(
+                    (lowest, rate) => (rate.priceCents < lowest ? rate.priceCents : lowest),
+                    room.rates[0].priceCents
+                  )
+                : null,
             isAvailable: room.isAvailable,
             isActive: room.isActive,
             publicAvailabilityStatus: getPublicAvailabilityStatus(room.availability),
+            availability: room.availability.map((entry) => ({
+              date: entry.date.toISOString().slice(0, 10),
+              availableUnits: entry.availableUnits,
+              closed: entry.closed,
+            })),
+            rates: room.rates.map((rate) => ({
+              id: rate.id,
+              name: rate.name,
+              description: rate.description,
+              priceCents: rate.priceCents,
+              currency: rate.currency,
+              startDate: rate.startDate.toISOString().slice(0, 10),
+              endDate: rate.endDate.toISOString().slice(0, 10),
+              minNights: rate.minNights,
+              maxGuests: rate.maxGuests,
+              refundable: rate.refundable,
+              breakfastIncluded: rate.breakfastIncluded,
+            })),
           })),
           nearbyPlaces: getNearbyPlaces(hotel.slug),
         }
@@ -436,8 +505,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
       message.includes("public.RoomRate");
 
     if (!canRetryWithoutRooms) {
-      warnDatabaseFallback(error);
-      return getFallbackHotelPageData(slug);
+      return handleDatabaseFallback(error, getFallbackHotelPageData(slug));
     }
 
     console.warn(`[hotel-data] Retrying hotel detail without rooms for slug "${slug}": ${message}`);
@@ -475,8 +543,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
           }
         : getFallbackHotelPageData(slug);
     } catch (retryError) {
-      warnDatabaseFallback(retryError);
-      return getFallbackHotelPageData(slug);
+      return handleDatabaseFallback(retryError, getFallbackHotelPageData(slug));
     }
   }
 }

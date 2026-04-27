@@ -9,8 +9,15 @@ const people = [
   },
 ];
 
-const avatarSrc =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='60' fill='%23e9e5dc'/%3E%3Ccircle cx='60' cy='45' r='22' fill='%23706d64'/%3E%3Cpath d='M26 100c6-19 22-29 34-29s28 10 34 29' fill='%23706d64'/%3E%3C/svg%3E";
+function DefaultAvatar() {
+  return (
+    <svg className="person-avatar" viewBox="0 0 120 120" aria-label="Avatar padrão de cliente">
+      <rect width="120" height="120" rx="60" fill="#e9e5dc" />
+      <circle cx="60" cy="45" r="22" fill="#706d64" />
+      <path d="M26 100c6-19 22-29 34-29s28 10 34 29" fill="#706d64" />
+    </svg>
+  );
+}
 
 export function TestimonialsSection() {
   return (
@@ -21,7 +28,7 @@ export function TestimonialsSection() {
 
       <div className="testimonial-layout">
         <article className="person-card reveal">
-          <img src={avatarSrc} alt="Avatar padrão de cliente" />
+          <DefaultAvatar />
           <div>
             <strong>{people[0].name}</strong>
             <span>{people[0].location}</span>
@@ -36,7 +43,7 @@ export function TestimonialsSection() {
         </article>
 
         <article className="person-card reveal">
-          <img src={avatarSrc} alt="Avatar padrão de cliente" />
+          <DefaultAvatar />
           <div>
             <strong>{people[1].name}</strong>
             <span>{people[1].location}</span>

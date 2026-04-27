@@ -1,6 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { type FormEvent, useActionState, useEffect, useMemo, useState } from "react";
+
+import {
+  findAmenityOptionByLabel,
+  HOTEL_AMENITY_OPTIONS,
+  HotelAmenityIcon,
+} from "@/lib/hotel-amenities";
 
 import type { HotelEditorState } from "./actions";
 
@@ -14,6 +21,24 @@ type ImageItem = {
   url: string;
   alt: string;
   preview?: boolean;
+};
+
+type PolicyItem = {
+  id: string;
+  title: string;
+  description: string;
+};
+
+type PolicyErrors = Record<string, Partial<Record<"title" | "description", string>>>;
+
+type FileUploadFieldProps = {
+  accept: string;
+  auxiliaryText: string;
+  fileNames: string[];
+  id: string;
+  multiple?: boolean;
+  onChange: (files: FileList | null) => void;
+  title: string;
 };
 
 type HotelEditorFormProps = {
@@ -51,6 +76,55 @@ type HotelEditorFormProps = {
   };
 };
 
+function FileUploadField({
+  accept,
+  auxiliaryText,
+  fileNames,
+  id,
+  multiple = false,
+  onChange,
+  title,
+}: FileUploadFieldProps) {
+  const hasFiles = fileNames.length > 0;
+
+  return (
+    <label className="admin-file-upload">
+      <input
+        id={id}
+        className="admin-file-upload-input"
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        aria-label={title}
+        onChange={(event) => onChange(event.target.files)}
+      />
+      <span className="admin-file-upload-trigger">
+        <span className="admin-file-upload-trigger__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 16V5m0 0-4 4m4-4 4 4M5 19h14" />
+          </svg>
+        </span>
+        <span className="admin-file-upload-trigger__content">
+          <strong>{title}</strong>
+          <small>{auxiliaryText}</small>
+          <span className="admin-file-upload-trigger__meta" aria-live="polite">
+            {hasFiles
+              ? fileNames.length === 1
+                ? fileNames[0]
+                : `${fileNames.length} arquivos selecionados`
+              : "Nenhum arquivo selecionado."}
+          </span>
+        </span>
+      </span>
+      {hasFiles && fileNames.length > 1 ? (
+        <span className="admin-file-upload-list" aria-live="polite">
+          {fileNames.join(", ")}
+        </span>
+      ) : null}
+    </label>
+  );
+}
+
 export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [coverImageUrl, setCoverImageUrl] = useState(hotel.coverImageUrl);
@@ -63,20 +137,34 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isUploadingGallery, setIsUploadingGallery] = useState(false);
   const [removingImageId, setRemovingImageId] = useState<string | null>(null);
+  const [amenityFormError, setAmenityFormError] = useState("");
+  const [policies, setPolicies] = useState<PolicyItem[]>(
+    hotel.policies.map((policy) => ({
+      id: policy.id,
+      title: policy.title,
+      description: policy.description,
+    }))
+  );
+  const [policyErrors, setPolicyErrors] = useState<PolicyErrors>({});
+  const [policyFormError, setPolicyFormError] = useState("");
 
   const galleryValue = useMemo(
     () => galleryImages.map((image) => `${image.url} | ${image.alt}`).join("\n"),
     [galleryImages]
   );
 
-  const amenitiesValue = useMemo(
-    () => hotel.amenities.map((amenity) => amenity.label).join("\n"),
+  const selectedAmenityIds = useMemo(
+    () =>
+      new Set(
+        hotel.amenities
+          .map((amenity) => findAmenityOptionByLabel(amenity.label)?.id)
+          .filter((value): value is string => Boolean(value))
+      ),
     [hotel.amenities]
   );
-
-  const policiesValue = useMemo(
-    () => hotel.policies.map((policy) => `${policy.title} | ${policy.description}`).join("\n"),
-    [hotel.policies]
+  const legacyAmenities = useMemo(
+    () => hotel.amenities.filter((amenity) => !findAmenityOptionByLabel(amenity.label)),
+    [hotel.amenities]
   );
 
   const coverPreviewUrl = useMemo(
@@ -245,8 +333,122 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
     }
   }
 
+  function updatePolicy(id: string, field: "title" | "description", value: string) {
+    setPolicies((current) =>
+      current.map((policy) => (policy.id === id ? { ...policy, [field]: value } : policy))
+    );
+    setPolicyErrors((current) => ({
+      ...current,
+      [id]: {
+        ...current[id],
+        [field]: undefined,
+      },
+    }));
+    setPolicyFormError("");
+  }
+
+  function addPolicy() {
+    setPolicies((current) => [
+      ...current,
+      {
+        id: `new-policy-${Date.now()}`,
+        title: "",
+        description: "",
+      },
+    ]);
+    setPolicyFormError("");
+  }
+
+  function removePolicy(id: string) {
+    setPolicies((current) => current.filter((policy) => policy.id !== id));
+    setPolicyErrors((current) => {
+      const nextErrors = { ...current };
+      delete nextErrors[id];
+      return nextErrors;
+    });
+  }
+
+  function movePolicy(id: string, direction: -1 | 1) {
+    setPolicies((current) => {
+      const index = current.findIndex((policy) => policy.id === id);
+      const targetIndex = index + direction;
+
+      if (index < 0 || targetIndex < 0 || targetIndex >= current.length) {
+        return current;
+      }
+
+      const nextPolicies = [...current];
+      const [policy] = nextPolicies.splice(index, 1);
+      nextPolicies.splice(targetIndex, 0, policy);
+      return nextPolicies;
+    });
+  }
+
+  function validatePolicies() {
+    const nextErrors: PolicyErrors = {};
+
+    policies.forEach((policy) => {
+      const itemErrors: Partial<Record<"title" | "description", string>> = {};
+      const title = policy.title.trim();
+      const description = policy.description.trim();
+
+      if (title.length < 2) {
+        itemErrors.title = "Informe a política com pelo menos 2 caracteres.";
+      } else if (title.length > 80) {
+        itemErrors.title = "Use no máximo 80 caracteres.";
+      }
+
+      if (description.length < 3) {
+        itemErrors.description = "Informe a descrição com pelo menos 3 caracteres.";
+      } else if (description.length > 600) {
+        itemErrors.description = "Use no máximo 600 caracteres.";
+      }
+
+      if (Object.keys(itemErrors).length > 0) {
+        nextErrors[policy.id] = itemErrors;
+      }
+    });
+
+    setPolicyErrors(nextErrors);
+
+    if (policies.length === 0) {
+      setPolicyFormError("Adicione pelo menos uma política do hotel.");
+      return false;
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setPolicyFormError("Revise os campos destacados antes de salvar.");
+      return false;
+    }
+
+    setPolicyFormError("");
+    return true;
+  }
+
+  function serializePolicyValue(policy: PolicyItem) {
+    const normalizedTitle = policy.title.replaceAll("|", " - ").trim();
+    const normalizedDescription = policy.description
+      .replaceAll("|", " - ")
+      .replace(/\r?\n/g, " ")
+      .trim();
+
+    return `${normalizedTitle} | ${normalizedDescription}`;
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    const formData = new FormData(event.currentTarget);
+    const hasAmenities = formData.getAll("amenities").length > 0;
+    const hasValidPolicies = validatePolicies();
+
+    setAmenityFormError(hasAmenities ? "" : "Selecione pelo menos uma comodidade.");
+
+    if (!hasAmenities || !hasValidPolicies) {
+      event.preventDefault();
+    }
+  }
+
   return (
-    <form action={formAction} className="admin-editor-form">
+    <form action={formAction} className="admin-editor-form" onSubmit={handleSubmit}>
       <div className="admin-editor-banner">
         <strong>Publicação imediata</strong>
         <p>Toda alteração salva aqui impacta imediatamente o perfil público do hotel.</p>
@@ -368,23 +570,27 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
 
           <div className="admin-image-preview-card">
             <span className="admin-image-preview-label">Preview da capa</span>
-            <img
+            <Image
               src={coverPreviewUrl || coverImageUrl}
               alt={`Capa de ${hotel.name}`}
               className="admin-cover-preview-image"
+              width={960}
+              height={520}
+              sizes="(max-width: 900px) 100vw, 70vw"
+              unoptimized
             />
           </div>
 
           <div className="admin-upload-panel">
             <div className="admin-form-grid admin-form-grid--two">
-              <label className="admin-form-field">
-                <span>Upload de capa</span>
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                  onChange={(event) => setCoverUploadFile(event.target.files?.[0] ?? null)}
-                />
-              </label>
+              <FileUploadField
+                id="cover-upload-input"
+                title="Selecionar imagem de capa"
+                auxiliaryText="PNG, JPG ou WebP até o limite permitido."
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                fileNames={coverUploadFile ? [coverUploadFile.name] : []}
+                onChange={(files) => setCoverUploadFile(files?.[0] ?? null)}
+              />
 
               <label className="admin-form-field">
                 <span>Texto alternativo</span>
@@ -397,7 +603,7 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
                 type="button"
                 className="card-cta-button admin-edit-button"
                 onClick={handleCoverUpload}
-                disabled={isUploadingCover}
+                disabled={isUploadingCover || !coverUploadFile}
               >
                 {isUploadingCover ? "Enviando capa..." : "Enviar capa"}
               </button>
@@ -406,15 +612,15 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
 
           <div className="admin-upload-panel">
             <div className="admin-form-grid admin-form-grid--two">
-              <label className="admin-form-field">
-                <span>Upload da galeria</span>
-                <input
-                  type="file"
-                  multiple
-                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                  onChange={(event) => setGalleryUploadFiles(Array.from(event.target.files ?? []))}
-                />
-              </label>
+              <FileUploadField
+                id="gallery-upload-input"
+                title="Selecionar imagens da galeria"
+                auxiliaryText="Você pode selecionar múltiplas imagens."
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                multiple
+                fileNames={galleryUploadFiles.map((file) => file.name)}
+                onChange={(files) => setGalleryUploadFiles(Array.from(files ?? []))}
+              />
 
               <label className="admin-form-field">
                 <span>Texto alternativo base</span>
@@ -426,7 +632,14 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
               <div className="admin-preview-grid">
                 {galleryPreviewUrls.map((image) => (
                   <figure key={image.id} className="admin-preview-item">
-                    <img src={image.url} alt={image.alt} />
+                    <Image
+                      src={image.url}
+                      alt={image.alt}
+                      width={360}
+                      height={180}
+                      sizes="(max-width: 900px) 50vw, 240px"
+                      unoptimized
+                    />
                   </figure>
                 ))}
               </div>
@@ -437,7 +650,7 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
                 type="button"
                 className="card-cta-button admin-edit-button"
                 onClick={handleGalleryUpload}
-                disabled={isUploadingGallery}
+                disabled={isUploadingGallery || galleryUploadFiles.length === 0}
               >
                 {isUploadingGallery ? "Enviando galeria..." : "Enviar galeria"}
               </button>
@@ -455,7 +668,14 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
               <div className="admin-preview-grid">
                 {galleryImages.map((image) => (
                   <article key={image.id} className="admin-preview-card">
-                    <img src={image.url} alt={image.alt} />
+                    <Image
+                      src={image.url}
+                      alt={image.alt}
+                      width={360}
+                      height={180}
+                      sizes="(max-width: 900px) 50vw, 240px"
+                      unoptimized
+                    />
                     <div className="admin-preview-card-body">
                       <strong>{image.url === coverImageUrl ? "Capa atual" : "Galeria"}</strong>
                       <p>{image.alt}</p>
@@ -492,22 +712,147 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
         <div className="section-heading admin-subsection-heading">
           <h2>Comodidades</h2>
         </div>
-        <label className="admin-form-field">
-          <span>Lista de comodidades</span>
-          <textarea name="amenities" defaultValue={amenitiesValue} rows={6} />
-          <small>Uma comodidade por linha.</small>
-        </label>
+        <div className="admin-form-field">
+          <span>Selecione as comodidades</span>
+          <div className="admin-amenities-grid" role="group" aria-label="Comodidades do hotel">
+            {HOTEL_AMENITY_OPTIONS.map((amenity) => (
+              <label key={amenity.id} className="admin-amenity-card">
+                <input
+                  type="checkbox"
+                  name="amenities"
+                  value={amenity.label}
+                  defaultChecked={selectedAmenityIds.has(amenity.id)}
+                  onChange={() => setAmenityFormError("")}
+                />
+                <span className="admin-amenity-card__icon">
+                  <HotelAmenityIcon amenityId={amenity.id} />
+                </span>
+                <span className="admin-amenity-card__content">
+                  <strong>{amenity.label}</strong>
+                  <small>{amenity.id}</small>
+                </span>
+                <span className="admin-amenity-card__check" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="m6 12 4 4 8-8" />
+                  </svg>
+                </span>
+              </label>
+            ))}
+          </div>
+          {amenityFormError ? <small className="admin-form-error">{amenityFormError}</small> : null}
+          {legacyAmenities.length ? (
+            <div className="admin-legacy-amenities">
+              <small>
+                Comodidades legadas preservadas automaticamente até revisão:{" "}
+                {legacyAmenities.map((amenity) => amenity.label).join(", ")}.
+              </small>
+              {legacyAmenities.map((amenity) => (
+                <input key={amenity.id} type="hidden" name="amenities" value={amenity.label} />
+              ))}
+            </div>
+          ) : (
+            <small>Seleção visual com 30 comodidades padronizadas.</small>
+          )}
+        </div>
       </section>
 
       <section className="hotel-content-card admin-form-section">
         <div className="section-heading admin-subsection-heading">
           <h2>Políticas</h2>
         </div>
-        <label className="admin-form-field">
-          <span>Lista de políticas</span>
-          <textarea name="policies" defaultValue={policiesValue} rows={6} />
-          <small>Uma política por linha no formato: Título | descrição.</small>
-        </label>
+        <div className="admin-policy-editor">
+          <div className="admin-policy-editor__intro">
+            <p>Cadastre regras claras para orientar o hóspede antes da reserva.</p>
+            <button type="button" className="admin-secondary-button" onClick={addPolicy}>
+              Adicionar política
+            </button>
+          </div>
+
+          {policyFormError ? (
+            <p className="admin-form-error admin-form-error--block">{policyFormError}</p>
+          ) : null}
+
+          {policies.length === 0 ? (
+            <div className="hotel-empty-state admin-history-empty">
+              <strong>Nenhuma política cadastrada ainda.</strong>
+              <p>Adicione a primeira política do hotel.</p>
+            </div>
+          ) : (
+            <div className="admin-policy-list-editor">
+              {policies.map((policy, index) => (
+                <article key={policy.id} className="admin-policy-editor-item">
+                  <div className="admin-policy-editor-item__top">
+                    <strong>Política {index + 1}</strong>
+                    <div className="admin-policy-editor-item__actions">
+                      <button
+                        type="button"
+                        className="admin-secondary-button"
+                        onClick={() => movePolicy(policy.id, -1)}
+                        disabled={index === 0}
+                      >
+                        Subir
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-secondary-button"
+                        onClick={() => movePolicy(policy.id, 1)}
+                        disabled={index === policies.length - 1}
+                      >
+                        Descer
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-remove-image-button"
+                        onClick={() => removePolicy(policy.id)}
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="admin-form-grid admin-form-grid--two">
+                    <label className="admin-form-field">
+                      <span>Política</span>
+                      <input
+                        value={policy.title}
+                        maxLength={80}
+                        onChange={(event) => updatePolicy(policy.id, "title", event.target.value)}
+                        aria-invalid={Boolean(policyErrors[policy.id]?.title)}
+                      />
+                      {policyErrors[policy.id]?.title ? (
+                        <small className="admin-form-error">{policyErrors[policy.id]?.title}</small>
+                      ) : (
+                        <small>Ex.: Cancelamento, check-in, pets.</small>
+                      )}
+                    </label>
+
+                    <label className="admin-form-field">
+                      <span>Descrição</span>
+                      <textarea
+                        value={policy.description}
+                        maxLength={600}
+                        rows={3}
+                        onChange={(event) =>
+                          updatePolicy(policy.id, "description", event.target.value)
+                        }
+                        aria-invalid={Boolean(policyErrors[policy.id]?.description)}
+                      />
+                      {policyErrors[policy.id]?.description ? (
+                        <small className="admin-form-error">
+                          {policyErrors[policy.id]?.description}
+                        </small>
+                      ) : (
+                        <small>Explique a regra de forma curta e objetiva.</small>
+                      )}
+                    </label>
+                  </div>
+
+                  <input type="hidden" name="policies" value={serializePolicyValue(policy)} />
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="hotel-content-card admin-form-section">

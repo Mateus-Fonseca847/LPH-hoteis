@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 export function StayDetailsSection() {
   return (
     <section id="details" className="details section reveal">
@@ -14,9 +16,11 @@ export function StayDetailsSection() {
         </article>
 
         <article className="detail-card image-card reveal">
-          <img
+          <Image
             src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80"
             alt="Piscina de hotel com palmeiras"
+            fill
+            sizes="(max-width: 900px) 100vw, 25vw"
           />
         </article>
 

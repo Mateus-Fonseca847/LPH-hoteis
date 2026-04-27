@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import {
@@ -22,9 +23,33 @@ import { getTwoFactorLoginState } from "@/lib/auth/two-factor";
 import { findUserByEmail } from "@/lib/auth/user";
 import { InternalServerError, createApiSuccessResponse } from "@/lib/errors/app-error";
 
+const INVALID_CREDENTIALS_MESSAGE = "Nao foi possivel concluir o login com essas credenciais.";
+const LOGIN_FAILURE_MESSAGE = "Nao foi possivel concluir o login.";
+
+function isPrismaRuntimeError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    error instanceof Prisma.PrismaClientKnownRequestError ||
+    error instanceof Prisma.PrismaClientUnknownRequestError ||
+    error instanceof Prisma.PrismaClientRustPanicError
+  );
+}
+
 export async function POST(request: Request) {
   try {
-    const parsedBody = parseLoginRequestBody(await request.json());
+    let body: unknown;
+
+    try {
+      body = await request.json();
+    } catch {
+      throw createValidationErrorFromResult({
+        error: {
+          issues: [{ message: "Payload invalido." }],
+        },
+      });
+    }
+
+    const parsedBody = parseLoginRequestBody(body);
 
     if (!parsedBody.success) {
       throw createValidationErrorFromResult(parsedBody);
@@ -39,7 +64,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           ok: false,
-          error: "Não foi possível concluir o login com essas credenciais.",
+          error: INVALID_CREDENTIALS_MESSAGE,
           code: "AUTHENTICATION_ERROR",
         },
         {
@@ -60,7 +85,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           ok: false,
-          error: "Não foi possível concluir o login com essas credenciais.",
+          error: INVALID_CREDENTIALS_MESSAGE,
           code: "AUTHENTICATION_ERROR",
         },
         { status: 401 }
@@ -76,7 +101,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           ok: false,
-          error: "Não foi possível concluir o login com essas credenciais.",
+          error: INVALID_CREDENTIALS_MESSAGE,
           code: "AUTHENTICATION_ERROR",
         },
         { status: 401 }
@@ -155,13 +180,13 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[auth/login] Failed to complete login.", error);
 
-    if (error instanceof Error && error.name === "PrismaClientInitializationError") {
+    if (isPrismaRuntimeError(error)) {
       return createAuthApiErrorResponse(
         new InternalServerError("Database configuration error."),
-        "Não foi possível concluir o login."
+        LOGIN_FAILURE_MESSAGE
       );
     }
 
-    return createAuthApiErrorResponse(error, "Não foi possível concluir o login.");
+    return createAuthApiErrorResponse(error, LOGIN_FAILURE_MESSAGE);
   }
 }

@@ -77,6 +77,7 @@ export default async function AdminHomePage() {
           },
           select: {
             hotelId: true,
+            role: true,
           },
         });
 
@@ -84,6 +85,16 @@ export default async function AdminHomePage() {
     user.globalRole === "super_admin"
       ? null
       : Array.from(new Set(hotelPermissions.map((permission) => permission.hotelId)));
+  const manageableHotelIds =
+    user.globalRole === "super_admin"
+      ? null
+      : Array.from(
+          new Set(
+            hotelPermissions
+              .filter((permission) => permission.role === "owner" || permission.role === "admin")
+              .map((permission) => permission.hotelId)
+          )
+        );
 
   const hotelScope = scopedHotelIds === null ? {} : { id: { in: scopedHotelIds } };
   const roomScope = scopedHotelIds === null ? {} : { hotelId: { in: scopedHotelIds } };
@@ -304,7 +315,7 @@ export default async function AdminHomePage() {
               hotelPermissions: {
                 some: {
                   hotelId: {
-                    in: scopedHotelIds ?? [],
+                    in: manageableHotelIds ?? [],
                   },
                 },
               },

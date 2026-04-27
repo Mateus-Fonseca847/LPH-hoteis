@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 
 type HotelGalleryImage = {
@@ -35,9 +36,12 @@ export function HotelGallery({ hotelName, images }: HotelGalleryProps) {
     <div className="hotel-gallery-shell">
       <div className="hotel-gallery-grid">
         <article className="hotel-gallery-card hotel-gallery-card--featured">
-          <img
+          <Image
             src={featuredImage.url}
             alt={featuredImage.alt || `Imagem principal de ${hotelName}`}
+            fill
+            sizes="(max-width: 900px) 100vw, 58vw"
+            unoptimized
           />
         </article>
 
@@ -47,7 +51,13 @@ export function HotelGallery({ hotelName, images }: HotelGalleryProps) {
               key={`${image.position}-${index}-${image.url}`}
               className="hotel-gallery-card hotel-gallery-card--secondary"
             >
-              <img src={image.url} alt={image.alt || `${hotelName} - foto ${index + 2}`} />
+              <Image
+                src={image.url}
+                alt={image.alt || `${hotelName} - foto ${index + 2}`}
+                fill
+                sizes="(max-width: 900px) 50vw, 20vw"
+                unoptimized
+              />
             </article>
           ))}
         </div>
@@ -72,12 +82,15 @@ export function HotelGallery({ hotelName, images }: HotelGalleryProps) {
                   key={`${image.position}-extra-${index}-${image.url}`}
                   className="hotel-gallery-card hotel-gallery-card--extra"
                 >
-                  <img
+                  <Image
                     src={image.url}
                     alt={
                       image.alt ||
                       `${hotelName} - foto adicional ${index + SECONDARY_VISIBLE_COUNT + 2}`
                     }
+                    fill
+                    sizes="(max-width: 900px) 50vw, 28vw"
+                    unoptimized
                   />
                 </article>
               ))}
