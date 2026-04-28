@@ -9,6 +9,7 @@ import { HotelGallery } from "@/components/HotelGallery";
 import { HotelPageActions } from "@/components/HotelPageActions";
 import { HotelRegionDetailsSection } from "@/components/HotelRegionDetailsSection";
 import { getHotelPageData } from "@/lib/hotel-data";
+import { parseBedsValue, ROOM_BED_OPTIONS } from "@/lib/room-options";
 
 export const dynamic = "force-dynamic";
 
@@ -175,6 +176,86 @@ function getRoomAvailabilityLabel(room: HotelPageRoom) {
   }
 
   return "Consultar disponibilidade";
+}
+
+function BedSummaryIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 11h16v5H4zM6 11V8h7v3M5 16v2m14-2v2" />
+    </svg>
+  );
+}
+
+function RoomFeatureIcon({ label }: { label: string }) {
+  if (/wifi/i.test(label)) {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 9a14.5 14.5 0 0 1 18 0M6 12.5a9.5 9.5 0 0 1 12 0M9.5 16a4.5 4.5 0 0 1 5 0M12 19h.01" />
+      </svg>
+    );
+  }
+
+  if (/tv/i.test(label)) {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 6h16v11H4zM9 20h6M12 17v3" />
+      </svg>
+    );
+  }
+
+  if (/frigobar|cafeteira|chaleira|micro-ondas|cozinha/i.test(label)) {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 8h10v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8Zm10 1h2a2.5 2.5 0 0 1 0 5h-2M7 4v2M10 3v3M13 4v2" />
+      </svg>
+    );
+  }
+
+  if (/vista/i.test(label)) {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 17c1.3 0 1.9-.8 2.5-1.4.6-.6 1.2-1.1 2.5-1.1s1.9.5 2.5 1.1c.6.6 1.2 1.4 2.5 1.4s1.9-.8 2.5-1.4c.6-.6 1.2-1.1 2.5-1.1s1.9.5 2.5 1.1c.6.6 1.2 1.4 2.5 1.4M6 10l3-3 3 3 3-3 3 3" />
+      </svg>
+    );
+  }
+
+  if (/banheira|chuveiro|amenities|secador/i.test(label)) {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 12h14v3a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-3Zm3 6v2m8-2v2M9 12V9a2 2 0 0 1 4 0" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m5 12 4 4L19 6" />
+    </svg>
+  );
+}
+
+function getRoomBedSummary(room: HotelPageRoom) {
+  const parsedBeds = parseBedsValue(room.beds);
+
+  return ROOM_BED_OPTIONS.map((option) => {
+    const quantity = parsedBeds[option.id] ?? 0;
+
+    if (quantity <= 0) {
+      return null;
+    }
+
+    return `${quantity}x ${option.label}`;
+  }).filter((item): item is string => Boolean(item));
+}
+
+function getRoomAmenityHighlights(room: HotelPageRoom) {
+  const maxVisible = 4;
+  const visible = room.amenities.slice(0, maxVisible);
+
+  return {
+    visible,
+    remaining: Math.max(0, room.amenities.length - visible.length),
+  };
 }
 
 export default async function HotelPage({ params }: HotelPageProps) {
@@ -375,9 +456,45 @@ export default async function HotelPage({ params }: HotelPageProps) {
                       <p>{room.description}</p>
                       <div className="hotel-room-meta">
                         <span>{formatRoomCapacity(room)}</span>
-                        <span>{room.beds}</span>
                         <span>{room.sizeM2 ? `${room.sizeM2} m²` : room.size}</span>
                       </div>
+                      {getRoomBedSummary(room).length ? (
+                        <div className="hotel-room-feature-group">
+                          <strong className="hotel-room-feature-title">Camas</strong>
+                          <div className="hotel-room-feature-list">
+                            {getRoomBedSummary(room).map((bed) => (
+                              <span key={bed} className="hotel-room-feature-pill">
+                                <span className="hotel-room-feature-pill__icon">
+                                  <BedSummaryIcon />
+                                </span>
+                                <span>{bed}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      {room.amenities.length ? (
+                        <div className="hotel-room-feature-group">
+                          <strong className="hotel-room-feature-title">
+                            Comodidades do quarto
+                          </strong>
+                          <div className="hotel-room-feature-list">
+                            {getRoomAmenityHighlights(room).visible.map((amenity) => (
+                              <span key={amenity} className="hotel-room-feature-pill">
+                                <span className="hotel-room-feature-pill__icon">
+                                  <RoomFeatureIcon label={amenity} />
+                                </span>
+                                <span>{amenity}</span>
+                              </span>
+                            ))}
+                            {getRoomAmenityHighlights(room).remaining > 0 ? (
+                              <span className="hotel-room-feature-pill hotel-room-feature-pill--muted">
+                                +{getRoomAmenityHighlights(room).remaining} comodidades
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : null}
                       <div className="hotel-room-footer">
                         <div>
                           <strong>{formatRoomStartingPrice(room.lowestActiveRateCents)}</strong>

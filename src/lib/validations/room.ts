@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { canonicalizeBedsValue, canonicalizeRoomAmenityLabels } from "@/lib/room-options";
+
 function sanitizeText(value: string) {
   return value
     .replace(/[\u0000-\u001F\u007F]+/g, " ")
@@ -24,7 +26,7 @@ const textField = (label: string, min: number, max: number) =>
       z
         .string()
         .min(min, `${label} deve ter pelo menos ${min} caracteres.`)
-        .max(max, `${label} deve ter no máximo ${max} caracteres.`)
+        .max(max, `${label} deve ter no maximo ${max} caracteres.`)
     );
 
 const multilineField = (label: string, min: number, max: number) =>
@@ -35,35 +37,69 @@ const multilineField = (label: string, min: number, max: number) =>
       z
         .string()
         .min(min, `${label} deve ter pelo menos ${min} caracteres.`)
-        .max(max, `${label} deve ter no máximo ${max} caracteres.`)
+        .max(max, `${label} deve ter no maximo ${max} caracteres.`)
     );
 
 const positiveIntField = (label: string, min: number, max: number) =>
   z
     .number({
-      error: `${label} inválido.`,
+      error: `${label} invalido.`,
     })
-    .int(`${label} deve ser um número inteiro.`)
-    .min(min, `${label} deve ser no mínimo ${min}.`)
-    .max(max, `${label} deve ser no máximo ${max}.`);
+    .int(`${label} deve ser um numero inteiro.`)
+    .min(min, `${label} deve ser no minimo ${min}.`)
+    .max(max, `${label} deve ser no maximo ${max}.`);
 
-const urlSchema = z.string().trim().url("URL inválida.").max(500, "URL muito longa.");
+const urlSchema = z.string().trim().url("URL invalida.").max(500, "URL muito longa.");
+
+const roomBedSchema = z
+  .string()
+  .transform(sanitizeText)
+  .superRefine((value, context) => {
+    const result = canonicalizeBedsValue(value);
+
+    if (!result.success) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: result.error,
+      });
+    }
+  })
+  .transform((value) => {
+    const result = canonicalizeBedsValue(value);
+    return result.success ? result.value : value;
+  });
 
 const roomAmenitySchema = textField("Comodidade do quarto", 2, 80);
+
+const roomAmenitiesSchema = z
+  .array(roomAmenitySchema)
+  .min(1, "Adicione pelo menos uma comodidade.")
+  .max(30, "Maximo de 30 comodidades.")
+  .superRefine((values, context) => {
+    const result = canonicalizeRoomAmenityLabels(values);
+
+    if (!result.success) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: result.error,
+      });
+    }
+  })
+  .transform((values) => {
+    const result = canonicalizeRoomAmenityLabels(values);
+    return result.success ? result.value : values;
+  });
 
 const roomBaseSchema = z
   .object({
     name: textField("Nome", 3, 120),
-    description: multilineField("Descrição", 10, 2000),
+    description: multilineField("Descricao", 10, 2000),
     imageUrl: urlSchema,
     capacityAdults: positiveIntField("Capacidade de adultos", 1, 20),
-    capacityChildren: positiveIntField("Capacidade de crianças", 0, 20),
-    beds: textField("Camas", 2, 120),
-    sizeM2: positiveIntField("Tamanho em m²", 1, 1000),
-    amenities: z
-      .array(roomAmenitySchema)
-      .min(1, "Adicione pelo menos uma comodidade.")
-      .max(20, "Máximo de 20 comodidades."),
+    capacityChildren: positiveIntField("Capacidade de criancas", 0, 20),
+    beds: roomBedSchema,
+    sizeM2: positiveIntField("Tamanho em m2", 1, 1000),
+    amenities: roomAmenitiesSchema,
     isActive: z.boolean(),
   })
   .strict();
@@ -86,7 +122,7 @@ export function parseCreateHotelRoomPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: result.error.issues[0]?.message || "Payload invalido.",
     };
   }
 
@@ -102,7 +138,7 @@ export function parseUpdateHotelRoomPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: result.error.issues[0]?.message || "Payload invalido.",
     };
   }
 

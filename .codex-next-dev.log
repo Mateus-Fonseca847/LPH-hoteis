@@ -1,0 +1,20 @@
+
+> lph-hoteis@1.0.0 dev
+> next dev
+
+   ▲ Next.js 15.5.15
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.1.21:3002
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.2s
+ ○ Compiling / ...
+ ✓ Compiled / in 1716ms (751 modules)
+ GET / 200 in 2589ms
+ ○ Compiling /hoteis/[slug] ...
+ ✓ Compiled /hoteis/[slug] in 771ms (766 modules)
+ GET /hoteis/lph-beira-mar 200 in 1895ms
+ ✓ Compiled /hoteis/[slug]/disponibilidade in 456ms (777 modules)
+ GET /hoteis/lph-beira-mar/disponibilidade 200 in 1403ms
+ GET /hoteis/hotel-inexistente/disponibilidade 404 in 135ms

@@ -13,6 +13,7 @@ import {
   requireAuthorizedHotelWrite,
 } from "@/lib/hotel-write";
 import { prisma } from "@/lib/prisma";
+import { canonicalizeBedsValue, canonicalizeRoomAmenityLabels } from "@/lib/room-options";
 import { parseCreateHotelRoomPayload, parseUpdateHotelRoomPayload } from "@/lib/validations/room";
 
 export type HotelRoomActionState = {
@@ -88,6 +89,9 @@ function formatRoomForList(room: {
   priceFrom: { toString(): string };
   isAvailable: boolean;
 }) {
+  const normalizedBeds = canonicalizeBedsValue(room.beds);
+  const normalizedAmenities = canonicalizeRoomAmenityLabels(room.amenities);
+
   return {
     id: room.id,
     name: room.name,
@@ -95,9 +99,9 @@ function formatRoomForList(room: {
     imageUrl: room.imageUrl,
     capacityAdults: room.capacityAdults,
     capacityChildren: room.capacityChildren,
-    beds: room.beds,
+    beds: normalizedBeds.success ? normalizedBeds.value : room.beds,
     sizeM2: room.sizeM2,
-    amenities: room.amenities,
+    amenities: normalizedAmenities.success ? normalizedAmenities.value : room.amenities,
     isActive: room.isActive,
     capacity: room.capacity,
     size: room.size,
