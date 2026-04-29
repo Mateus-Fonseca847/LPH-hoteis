@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { HotelAmenitiesSection } from "@/components/HotelAmenitiesSection";
+import { HotelAvailabilityModalTrigger } from "@/components/HotelAvailabilityModalTrigger";
 import { HotelGallery } from "@/components/HotelGallery";
 import { HotelPageActions } from "@/components/HotelPageActions";
 import { HotelRegionDetailsSection } from "@/components/HotelRegionDetailsSection";
@@ -269,11 +270,26 @@ export default async function HotelPage({ params }: HotelPageProps) {
   const gallery = hotel.images.length
     ? hotel.images
     : [{ url: hotel.coverImageUrl, alt: hotel.name, position: 0 }];
+  const availabilityRooms = hotel.rooms.map((room) => ({
+    id: room.id,
+    name: room.name,
+    description: room.description,
+    imageUrl: room.imageUrl,
+    capacity: room.capacity,
+    capacityAdults: room.capacityAdults,
+    capacityChildren: room.capacityChildren,
+    beds: room.beds,
+    sizeM2: room.sizeM2,
+    size: room.size,
+    amenities: room.amenities,
+    lowestActiveRateCents: room.lowestActiveRateCents,
+    publicAvailabilityStatus: room.publicAvailabilityStatus,
+    availability: room.availability,
+    rates: room.rates,
+  }));
   const accessibility = buildAccessibility(hotel);
   const faq = buildFaq(hotel);
   const policySections = buildPolicySections(hotel);
-  const availabilityHref = `/hoteis/${hotel.slug}/disponibilidade`;
-
   return (
     <div className="page-shell">
       <Header />
@@ -323,9 +339,13 @@ export default async function HotelPage({ params }: HotelPageProps) {
               </div>
 
               <div className="hotel-page-actions">
-                <Link href={availabilityHref} className="card-cta-button hotel-page-cta">
-                  Consultar disponibilidade
-                </Link>
+                <HotelAvailabilityModalTrigger
+                  className="card-cta-button hotel-page-cta"
+                  hotelName={hotel.name}
+                  hotelEmail={hotel.email}
+                  hotelWhatsapp={hotel.whatsapp}
+                  rooms={availabilityRooms}
+                />
               </div>
             </div>
 
@@ -500,9 +520,14 @@ export default async function HotelPage({ params }: HotelPageProps) {
                           <strong>{formatRoomStartingPrice(room.lowestActiveRateCents)}</strong>
                           <p className="hotel-room-status">{getRoomAvailabilityLabel(room)}</p>
                         </div>
-                        <Link href={availabilityHref} className="hotel-room-cta">
-                          Consultar disponibilidade
-                        </Link>
+                        <HotelAvailabilityModalTrigger
+                          className="hotel-room-cta"
+                          hotelName={hotel.name}
+                          hotelEmail={hotel.email}
+                          hotelWhatsapp={hotel.whatsapp}
+                          roomName={room.name}
+                          rooms={availabilityRooms}
+                        />
                       </div>
                     </div>
                   </article>
@@ -567,9 +592,13 @@ export default async function HotelPage({ params }: HotelPageProps) {
               condições para as suas datas.
             </p>
           </div>
-          <Link href={availabilityHref} className="card-cta-button hotel-page-cta">
-            Consultar disponibilidade
-          </Link>
+          <HotelAvailabilityModalTrigger
+            className="card-cta-button hotel-page-cta"
+            hotelName={hotel.name}
+            hotelEmail={hotel.email}
+            hotelWhatsapp={hotel.whatsapp}
+            rooms={availabilityRooms}
+          />
         </section>
       </main>
 

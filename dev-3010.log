@@ -1,0 +1,26 @@
+
+> lph-hoteis@1.0.0 dev
+> next dev --hostname 127.0.0.1 --port 3010
+
+   ▲ Next.js 15.5.15
+   - Local:        http://127.0.0.1:3010
+   - Network:      http://127.0.0.1:3010
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.8s
+ ○ Compiling /hoteis/[slug] ...
+ ✓ Compiled /hoteis/[slug] in 5.4s (790 modules)
+ GET /hoteis/lph-beira-mar 404 in 6797ms
+ GET /hoteis/lph-beira-mar 404 in 138ms
+ GET /hoteis/lph-marina-santos 200 in 566ms
+ GET /hoteis/lph-marina-santos 200 in 372ms
+ GET /hoteis/lph-marina-santos 200 in 293ms
+ GET /hoteis/lph-marina-santos 200 in 306ms
+ GET /hoteis/lph-marina-santos 200 in 316ms
+ ○ Compiling /hoteis/[slug]/disponibilidade ...
+ ✓ Compiled /hoteis/[slug]/disponibilidade in 778ms (763 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.6s (1109 modules)
+ GET /hoteis/lph-marina-santos/disponibilidade 500 in 4810ms
+ GET /hoteis/lph-marina-santos/disponibilidade 307 in 851ms

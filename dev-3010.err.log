@@ -1,0 +1,6 @@
+ ⨯ TypeError: __webpack_modules__[moduleId] is not a function
+    at __webpack_exec__ (C:\Users\Mateu\OneDrive\Área de Trabalho\PH hotéis\.next\server\app\hoteis\[slug]\disponibilidade\page.js:257:39)
+    at <unknown> (C:\Users\Mateu\OneDrive\Área de Trabalho\PH hotéis\.next\server\app\hoteis\[slug]\disponibilidade\page.js:258:104) {
+  type: 'TypeError',
+  page: '/hoteis/lph-marina-santos/disponibilidade'
+}
