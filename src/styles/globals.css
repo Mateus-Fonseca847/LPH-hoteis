@@ -257,7 +257,9 @@ button {
   top: calc(100% + 10px);
   left: 0;
   right: 0;
+  max-height: min(320px, calc(100vh - 140px));
   padding: 8px;
+  overflow-y: auto;
   border: 1px solid rgba(6, 41, 79, 0.06);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.98);
@@ -647,6 +649,19 @@ button {
   color: var(--text);
   font-weight: 800;
   box-shadow: var(--shadow);
+}
+
+.button-primary:focus-visible,
+.card-cta-button:focus-visible {
+  outline: 3px solid rgba(6, 41, 79, 0.24);
+  outline-offset: 3px;
+}
+
+.card-cta-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+  transform: none;
+  box-shadow: none;
 }
 
 .destination-card {
@@ -1184,6 +1199,31 @@ button {
   line-height: 1.5;
 }
 
+.auth-requirements {
+  margin: 2px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.auth-requirements li {
+  min-height: 32px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(6, 41, 79, 0.05);
+  font-weight: 700;
+}
+
+.auth-requirements li.is-met {
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+}
+
 .auth-error {
   margin: 0;
   color: #b42318;
@@ -1193,6 +1233,54 @@ button {
 
 .auth-submit {
   width: 100%;
+}
+
+.auth-secondary-button {
+  min-height: 48px;
+  border: 1px solid rgba(6, 41, 79, 0.18);
+  border-radius: 16px;
+  background: #ffffff;
+  color: var(--brand);
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.auth-secondary-button:hover,
+.auth-secondary-button:focus-visible {
+  border-color: rgba(6, 41, 79, 0.32);
+  background: rgba(6, 41, 79, 0.05);
+  color: #0c3968;
+  outline: none;
+}
+
+.auth-secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.auth-footer-link {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.auth-inline-link {
+  color: var(--brand);
+  font-weight: 900;
+}
+
+.auth-inline-link:hover,
+.auth-inline-link:focus-visible {
+  color: #0c3968;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  outline: none;
 }
 
 .admin-page {
@@ -1264,7 +1352,7 @@ button {
 }
 
 .admin-dashboard-hero {
-  grid-template-columns: 1.1fr repeat(2, minmax(0, 0.8fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .admin-dashboard-metrics {
@@ -1668,6 +1756,7 @@ button {
   color: var(--text);
   outline: none;
   resize: vertical;
+  min-width: 0;
   transition:
     border-color 0.24s ease,
     box-shadow 0.24s ease;
@@ -2715,11 +2804,51 @@ button {
   border-color: rgba(6, 41, 79, 0.2);
 }
 
+.admin-secondary-button:focus-visible {
+  outline: 3px solid rgba(6, 41, 79, 0.18);
+  outline-offset: 3px;
+}
+
 .admin-secondary-button:disabled,
 .admin-edit-button:disabled {
   cursor: not-allowed;
   opacity: 0.62;
   transform: none;
+}
+
+.admin-security-grid {
+  margin-bottom: 18px;
+}
+
+.admin-security-panel {
+  display: grid;
+  gap: 20px;
+}
+
+.admin-security-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  gap: 14px;
+  align-items: center;
+}
+
+.admin-security-actions .admin-availability-note,
+.admin-security-feedback,
+.admin-security-actions .admin-form-error {
+  grid-column: 1 / -1;
+}
+
+.admin-security-feedback {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.admin-security-feedback.is-success {
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
 }
 
 .admin-image-preview-card,
@@ -3191,6 +3320,45 @@ button {
   gap: 18px;
 }
 
+.hotel-rooms-section {
+  display: block;
+}
+
+.hotel-rooms-card {
+  width: 100%;
+}
+
+.hotel-rooms-section .hotel-room-card {
+  grid-template-columns: minmax(280px, 36%) minmax(0, 1fr);
+  gap: clamp(18px, 2.5vw, 28px);
+  padding: clamp(18px, 2.4vw, 28px);
+  align-items: stretch;
+}
+
+.hotel-rooms-section .hotel-room-media {
+  min-height: clamp(240px, 28vw, 340px);
+}
+
+.hotel-rooms-section .hotel-room-body {
+  min-width: 0;
+  gap: 16px;
+}
+
+.hotel-rooms-section .hotel-room-header h3 {
+  font-size: clamp(1.2rem, 1.7vw, 1.55rem);
+}
+
+.hotel-rooms-section .hotel-room-footer {
+  gap: 16px;
+  align-items: end;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.hotel-rooms-section .hotel-room-cta {
+  white-space: nowrap;
+}
+
 .hotel-availability-page {
   display: grid;
   gap: 14px;
@@ -3252,6 +3420,7 @@ button {
   background: rgba(247, 245, 241, 0.98);
   color: var(--text);
   outline: none;
+  min-width: 0;
   transition:
     border-color 0.24s ease,
     box-shadow 0.24s ease,
@@ -3829,6 +3998,9 @@ button {
 }
 
 .hotel-room-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 46px;
   padding: 0 18px;
   border-radius: 999px;
@@ -3843,6 +4015,7 @@ button {
 .hotel-room-cta:hover,
 .hotel-room-cta:focus-visible {
   transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(6, 41, 79, 0.18);
   outline: none;
 }
 
@@ -4131,6 +4304,14 @@ button {
   .hotel-gallery-card--extra {
     min-height: 240px;
   }
+
+  .hotel-rooms-section .hotel-room-card {
+    grid-template-columns: minmax(240px, 34%) minmax(0, 1fr);
+  }
+
+  .hotel-rooms-section .hotel-room-media {
+    min-height: 260px;
+  }
 }
 
 @media (max-width: 820px) {
@@ -4246,6 +4427,18 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .hotel-rooms-section .hotel-room-card {
+    grid-template-columns: 1fr;
+  }
+
+  .hotel-rooms-section .hotel-room-media {
+    min-height: 300px;
+  }
+
+  .hotel-rooms-section .hotel-room-footer {
+    align-items: start;
+  }
+
   .admin-policy-editor__intro,
   .admin-policy-editor-item__top {
     align-items: flex-start;
@@ -4263,6 +4456,10 @@ button {
 }
 
 @media (max-width: 560px) {
+  .auth-requirements {
+    grid-template-columns: 1fr;
+  }
+
   .admin-room-actions {
     grid-template-columns: 1fr;
   }
@@ -4360,6 +4557,26 @@ button {
 
   .hotel-page-cta {
     width: 100%;
+  }
+
+  .hotel-rooms-section .hotel-room-card {
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .hotel-rooms-section .hotel-room-media {
+    min-height: 220px;
+    border-radius: 18px;
+  }
+
+  .hotel-rooms-section .hotel-room-header {
+    grid-template-columns: 1fr;
+  }
+
+  .hotel-rooms-section .hotel-room-cta {
+    width: 100%;
+    white-space: normal;
+    text-align: center;
   }
 
   .site-header,

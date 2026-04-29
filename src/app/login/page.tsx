@@ -1,21 +1,33 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { LoginForm } from "@/app/login/LoginForm";
 import { isFullyAuthenticatedSession } from "@/lib/auth";
+import { normalizeRedirectTarget } from "@/lib/auth/redirect";
 import { getAuthSession } from "@/lib/auth/session";
 
-export default async function LoginPage() {
+type LoginPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function getSearchParam(searchParams: Record<string, string | string[] | undefined>, key: string) {
+  const value = searchParams[key];
+
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
   const session = await getAuthSession();
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const redirectTo = normalizeRedirectTarget(getSearchParam(resolvedSearchParams, "redirectTo"));
 
   if (isFullyAuthenticatedSession(session)) {
-    redirect("/");
+    redirect(redirectTo);
   }
 
-  const initialStep = session?.twoFactorSetupRequired
-    ? "setup"
-    : session?.sub
-      ? "verify"
-      : "credentials";
+  if (session?.sub && !session.twoFactorVerified) {
+    redirect(`/auth/2fa?redirectTo=${encodeURIComponent(redirectTo)}`);
+  }
 
   return (
     <div className="page-shell">
@@ -27,7 +39,13 @@ export default async function LoginPage() {
             <p className="auth-copy">
               Entre com e-mail e senha para acessar a área autenticada da plataforma.
             </p>
-            <LoginForm initialStep={initialStep} />
+            <LoginForm />
+            <p className="auth-footer-link">
+              Ainda não tenho conta{" "}
+              <Link href="/cadastro" className="auth-inline-link">
+                Criar conta
+              </Link>
+            </p>
           </div>
         </section>
       </main>

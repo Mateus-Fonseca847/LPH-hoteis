@@ -42,6 +42,16 @@ function getNonNegativeNumber(value: string, fallback: number) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function isValidDateInput(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 function formatDateInput(date: Date) {
   return date.toISOString().slice(0, 10);
 }
@@ -58,7 +68,7 @@ function formatRoomCapacity(room: AvailabilityRoom) {
 
 function formatRoomStartingPrice(priceCents: number | null) {
   if (priceCents === null) {
-    return "Consultar valores";
+    return "Valores sob consulta";
   }
 
   return `A partir de ${formatPriceInBRL(priceCents)}`;
@@ -87,6 +97,20 @@ function resolveRoomAvailabilityStatus(
     return getRoomStayAvailabilityStatus(room, checkIn, checkOut, adults, children);
   } catch {
     return "unknown" as const;
+  }
+}
+
+function resolveRoomPriceEstimate(
+  room: AvailabilityRoom,
+  checkIn: string,
+  checkOut: string,
+  adults: number,
+  children: number
+) {
+  try {
+    return getRoomStayPriceEstimate(room, checkIn, checkOut, adults, children);
+  } catch {
+    return null;
   }
 }
 
@@ -174,7 +198,13 @@ export default async function HotelAvailabilityPage({
     Boolean(getSearchParam(resolvedSearchParams, "checkOut")) ||
     Boolean(getSearchParam(resolvedSearchParams, "adults")) ||
     Boolean(getSearchParam(resolvedSearchParams, "children"));
-  const hasValidStayQuery = hasQuery && checkIn && checkOut;
+  const hasValidStayQuery =
+    hasQuery &&
+    isValidDateInput(checkIn) &&
+    isValidDateInput(checkOut) &&
+    checkOut > checkIn &&
+    adults >= 1 &&
+    children >= 0;
 
   const roomResults = hotel.rooms
     .map((room) => {
@@ -182,7 +212,7 @@ export default async function HotelAvailabilityPage({
         ? resolveRoomAvailabilityStatus(room, checkIn, checkOut, adults, children)
         : room.publicAvailabilityStatus;
       const priceEstimate = hasValidStayQuery
-        ? getRoomStayPriceEstimate(room, checkIn, checkOut, adults, children)
+        ? resolveRoomPriceEstimate(room, checkIn, checkOut, adults, children)
         : null;
       const whatsappHref = buildWhatsAppHref(
         hotel.whatsapp,
@@ -308,7 +338,9 @@ export default async function HotelAvailabilityPage({
             {hasQuery ? (
               <div className="hotel-availability-results-body">
                 <div className="hotel-availability-result-card">
-                  <strong>Sua consulta inicial foi registrada.</strong>
+                  <strong>
+                    {hasValidStayQuery ? "Dados da consulta" : "Revise os dados da consulta."}
+                  </strong>
                   <p>
                     {hotel.name} em {hotel.city}, {hotel.state} para {adults}{" "}
                     {adults === 1 ? "adulto" : "adultos"}
@@ -403,7 +435,7 @@ export default async function HotelAvailabilityPage({
                                         ? `Total estimado para ${priceEstimate.nights} ${
                                             priceEstimate.nights === 1 ? "noite" : "noites"
                                           }: ${formatPriceInBRL(priceEstimate.totalPriceCents)}`
-                                        : "Consultar valores para este período."}
+                                        : "Consulte a equipe para valores neste período."}
                                     </p>
                                     {priceEstimate ? (
                                       <p className="hotel-room-pricing-note">
@@ -432,7 +464,7 @@ export default async function HotelAvailabilityPage({
                                       )}
                                       className="hotel-room-cta"
                                     >
-                                      Solicitar reserva
+                                      Enviar consulta
                                     </Link>
                                   ) : availabilityStatus === "unknown" ? (
                                     whatsappHref ? (
@@ -496,11 +528,7 @@ export default async function HotelAvailabilityPage({
           >
             <div>
               <span className="hotel-page-eyebrow">Próximo passo</span>
-              <h2>
-                {selectedRoom
-                  ? `Solicitar reserva para ${selectedRoom.room.name}`
-                  : "Falar com a equipe"}
-              </h2>
+              <h2>{selectedRoom ? `Consultar ${selectedRoom.room.name}` : "Falar com a equipe"}</h2>
               <p className="hotel-description hotel-description--compact">
                 {selectedRoom
                   ? `Sua solicitação segue para análise da equipe do ${hotel.name}. As datas escolhidas foram ${checkIn} a ${checkOut}.`

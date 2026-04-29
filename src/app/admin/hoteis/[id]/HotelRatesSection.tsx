@@ -190,7 +190,7 @@ function RateFormCard({
             onChange={(event) => onChange("price", event.target.value)}
             aria-invalid={Boolean(errors.price)}
           />
-          <small>Digite o valor em reais. O sistema salva em centavos.</small>
+          <small>Digite o valor em reais, usando vírgula se necessário.</small>
           {errors.price ? <small className="admin-form-error">{errors.price}</small> : null}
         </label>
 

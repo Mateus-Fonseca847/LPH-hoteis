@@ -40,7 +40,7 @@ export default async function AdminHomePage() {
       : Array.from(new Set(hotelPermissions.map((permission) => permission.hotelId)));
   const hotelScope = scopedHotelIds === null ? {} : { id: { in: scopedHotelIds } };
 
-  const [totalHotels, publishedHotels, activeAdmins] = await prisma.$transaction([
+  const [totalHotels, publishedHotels] = await prisma.$transaction([
     prisma.hotel.count({
       where: hotelScope,
     }),
@@ -50,17 +50,34 @@ export default async function AdminHomePage() {
         isPublished: true,
       },
     }),
-    prisma.user.count({
-      where: {
-        isActive: true,
-        globalRole: {
-          in: ["super_admin", "hotel_admin"],
-        },
-      },
-    }),
   ]);
 
   const isSuperAdmin = user.globalRole === "super_admin";
+  const scopedAdminHotelIds = scopedHotelIds ?? [];
+  const activeAdmins = isSuperAdmin
+    ? await prisma.user.count({
+        where: {
+          isActive: true,
+          globalRole: {
+            in: ["super_admin", "hotel_admin"],
+          },
+        },
+      })
+    : scopedAdminHotelIds.length
+      ? await prisma.user.count({
+          where: {
+            isActive: true,
+            globalRole: "hotel_admin",
+            hotelPermissions: {
+              some: {
+                hotelId: {
+                  in: scopedAdminHotelIds,
+                },
+              },
+            },
+          },
+        })
+      : 0;
 
   return (
     <section className="section admin-section">
@@ -98,6 +115,15 @@ export default async function AdminHomePage() {
           <span>Auditoria</span>
           <strong>Ver registros</strong>
           <p>Consultar histórico administrativo dentro do seu escopo.</p>
+        </Link>
+
+        <Link
+          href="/admin/seguranca"
+          className="hotel-content-card admin-overview-card admin-link-card"
+        >
+          <span>SeguranÃ§a</span>
+          <strong>2FA por e-mail</strong>
+          <p>Verificar a polÃ­tica de autenticaÃ§Ã£o em duas etapas da conta.</p>
         </Link>
       </div>
 

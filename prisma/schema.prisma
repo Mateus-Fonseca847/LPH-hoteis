@@ -42,24 +42,24 @@ model Hotel {
 }
 
 model HotelRoom {
-  id               String     @id @default(cuid())
+  id               String             @id @default(cuid())
   hotelId          String
   name             String
-  description      String     @db.Text
+  description      String             @db.Text
   imageUrl         String
   capacity         Int
-  capacityAdults   Int        @default(1)
-  capacityChildren Int        @default(0)
+  capacityAdults   Int                @default(1)
+  capacityChildren Int                @default(0)
   beds             String
   size             String
   sizeM2           Int?
-  amenities        String[]   @default([])
-  priceFrom        Decimal    @db.Decimal(10, 2)
-  isAvailable      Boolean    @default(true)
-  isActive         Boolean    @default(true)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-  hotel            Hotel      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  amenities        String[]           @default([])
+  priceFrom        Decimal            @db.Decimal(10, 2)
+  isAvailable      Boolean            @default(true)
+  isActive         Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  hotel            Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   rates            RoomRate[]
   availability     RoomAvailability[]
 
@@ -148,22 +148,42 @@ model HotelPolicy {
 }
 
 model User {
-  id               String            @id @default(cuid())
-  name             String
-  email            String            @unique
-  passwordHash     String
-  globalRole       GlobalRole        @default(user)
-  isActive         Boolean           @default(true)
-  twoFactorEnabled Boolean           @default(false)
-  twoFactorSecret  String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  hotelPermissions HotelPermission[]
-  auditLogs        HotelAuditLog[]
+  id                    String            @id @default(cuid())
+  name                  String
+  email                 String            @unique
+  passwordHash          String
+  globalRole            GlobalRole        @default(user)
+  isActive              Boolean           @default(true)
+  emailVerifiedAt       DateTime?
+  emailTwoFactorEnabled Boolean           @default(false)
+  twoFactorEnabled      Boolean           @default(false)
+  twoFactorSecret       String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  hotelPermissions      HotelPermission[]
+  auditLogs             HotelAuditLog[]
+  emailAuthCodes        EmailAuthCode[]
 
   @@index([globalRole])
   @@index([isActive])
   @@index([createdAt])
+}
+
+model EmailAuthCode {
+  id        String               @id @default(cuid())
+  userId    String
+  codeHash  String
+  purpose   EmailAuthCodePurpose
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int                  @default(0)
+  createdAt DateTime             @default(now())
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([purpose])
+  @@index([expiresAt])
+  @@index([userId, purpose, expiresAt])
 }
 
 model HotelPermission {
@@ -212,4 +232,10 @@ enum HotelRole {
   owner
   admin
   editor
+}
+
+enum EmailAuthCodePurpose {
+  login_2fa
+  email_verification
+  password_reset
 }

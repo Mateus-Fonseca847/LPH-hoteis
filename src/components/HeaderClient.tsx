@@ -340,7 +340,7 @@ export function HeaderClient({ user }: HeaderClientProps) {
             ) : null}
           </div>
         ) : (
-          <Link className="avatar" href="/login" aria-label="Entrar na conta">
+          <Link className="avatar" href="/login" aria-label="Entrar na conta" title="Entrar">
             <svg
               className="header-icon profile-icon"
               viewBox="0 0 640 640"

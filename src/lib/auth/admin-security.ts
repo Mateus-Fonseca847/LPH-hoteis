@@ -9,7 +9,7 @@ export async function validateAdminTwoFactor(userId: string) {
     },
     select: {
       globalRole: true,
-      twoFactorEnabled: true,
+      emailTwoFactorEnabled: true,
     },
   });
 
@@ -24,10 +24,10 @@ export async function validateAdminTwoFactor(userId: string) {
     return { success: true as const };
   }
 
-  if (!user.twoFactorEnabled) {
+  if (!user.emailTwoFactorEnabled) {
     return {
       success: false as const,
-      message: "Ative o 2FA para acessar a area administrativa.",
+      message: "Ative o 2FA por e-mail para acessar a area administrativa.",
     };
   }
 

@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { isHotelFavorited, toggleFavoriteHotel, type FavoriteHotel } from "@/lib/hotel-favorites";
+import {
+  isHotelFavorited,
+  subscribeToFavoriteHotels,
+  toggleFavoriteHotel,
+  type FavoriteHotel,
+} from "@/lib/hotel-favorites";
 
 type HotelPageActionsProps = {
   hotel: FavoriteHotel;
@@ -11,6 +16,15 @@ type HotelPageActionsProps = {
 export function HotelPageActions({ hotel }: HotelPageActionsProps) {
   const [isSaved, setIsSaved] = useState(() => isHotelFavorited(hotel.slug));
   const [feedback, setFeedback] = useState("");
+
+  useEffect(() => {
+    const syncSavedState = () => {
+      setIsSaved(isHotelFavorited(hotel.slug));
+    };
+
+    syncSavedState();
+    return subscribeToFavoriteHotels(syncSavedState);
+  }, [hotel.slug]);
 
   async function handleShare() {
     const url = typeof window !== "undefined" ? window.location.href : "";

@@ -6,6 +6,7 @@ export const authenticatedUserSelect = {
   email: true,
   globalRole: true,
   isActive: true,
+  emailTwoFactorEnabled: true,
   twoFactorEnabled: true,
 } as const;
 

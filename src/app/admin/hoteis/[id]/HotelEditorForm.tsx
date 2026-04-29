@@ -729,7 +729,7 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
                 </span>
                 <span className="admin-amenity-card__content">
                   <strong>{amenity.label}</strong>
-                  <small>{amenity.id}</small>
+                  <small>Comodidade do hotel</small>
                 </span>
                 <span className="admin-amenity-card__check" aria-hidden="true">
                   <svg viewBox="0 0 24 24">
@@ -743,7 +743,7 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
           {legacyAmenities.length ? (
             <div className="admin-legacy-amenities">
               <small>
-                Comodidades legadas preservadas automaticamente até revisão:{" "}
+                Comodidades já cadastradas preservadas automaticamente:{" "}
                 {legacyAmenities.map((amenity) => amenity.label).join(", ")}.
               </small>
               {legacyAmenities.map((amenity) => (
@@ -751,7 +751,7 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
               ))}
             </div>
           ) : (
-            <small>Seleção visual com 30 comodidades padronizadas.</small>
+            <small>Escolha as comodidades exibidas no perfil público.</small>
           )}
         </div>
       </section>

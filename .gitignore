@@ -13,3 +13,6 @@ dist/
 tsconfig.tsbuildinfo
 .next-dev.log
 .next-dev.err.log
+.public-flow-next*.log
+.admin-flow-next*.log
+public/uploads/

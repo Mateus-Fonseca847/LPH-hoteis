@@ -368,7 +368,7 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
               <label className="admin-form-field">
                 <span>Intervalo</span>
                 <input value={getRangeLabel(form.startDate, form.endDate)} readOnly />
-                <small>Limite máximo: 180 dias por operação.</small>
+                <small>Limite máximo: 180 dias por ação.</small>
               </label>
 
               <label className="admin-form-field">

@@ -157,7 +157,7 @@ function formatRoomCapacity(room: HotelPageRoom) {
 
 function formatRoomStartingPrice(priceCents: number | null) {
   if (priceCents === null) {
-    return "Consultar valores";
+    return "Valores sob consulta";
   }
 
   return `A partir de ${new Intl.NumberFormat("pt-BR", {
@@ -304,8 +304,8 @@ export default async function HotelPage({ params }: HotelPageProps) {
                   <span>★</span>
                 </div>
                 <div className="hotel-rating-copy">
-                  <strong>Avaliações em breve</strong>
-                  <span>Perfil público recém-atualizado na coleção LPH.</span>
+                  <strong>Perfil atualizado</strong>
+                  <span>Informações revisadas para consulta direta com a equipe LPH.</span>
                 </div>
               </div>
 
@@ -422,8 +422,8 @@ export default async function HotelPage({ params }: HotelPageProps) {
           </article>
         </section>
 
-        <section className="section hotel-content-grid reveal is-visible">
-          <article className="hotel-content-card">
+        <section className="section hotel-rooms-section reveal is-visible">
+          <article className="hotel-content-card hotel-rooms-card">
             <div className="section-heading hotel-section-heading">
               <h2>Opções de quarto</h2>
             </div>
@@ -517,19 +517,6 @@ export default async function HotelPage({ params }: HotelPageProps) {
                 </p>
               </div>
             )}
-          </article>
-
-          <article className="hotel-content-card">
-            <div className="section-heading hotel-section-heading">
-              <h2>Avaliações</h2>
-            </div>
-            <div className="hotel-empty-state">
-              <strong>Sem avaliações públicas por enquanto</strong>
-              <p>
-                Este perfil já está ativo e novas avaliações poderão aparecer aqui conforme a
-                operação evoluir.
-              </p>
-            </div>
           </article>
         </section>
 

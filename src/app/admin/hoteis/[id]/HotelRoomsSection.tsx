@@ -384,7 +384,7 @@ function formatCapacity(room: AuthorizedHotelRoom) {
   const parts = [`${room.capacityAdults} adulto${room.capacityAdults > 1 ? "s" : ""}`];
 
   if (room.capacityChildren > 0) {
-    parts.push(`${room.capacityChildren} crianca${room.capacityChildren > 1 ? "s" : ""}`);
+    parts.push(`${room.capacityChildren} criança${room.capacityChildren > 1 ? "s" : ""}`);
   }
 
   return parts.join(" + ");
@@ -530,7 +530,7 @@ function RoomFormCard({
         <section className="admin-room-form-block admin-room-form-block--split">
           <div className="admin-room-form-panel admin-room-form-panel--basic">
             <div className="admin-room-form-block-heading">
-              <strong>Dados basicos</strong>
+              <strong>Dados básicos</strong>
             </div>
 
             <div className="admin-room-basic-grid">
@@ -559,7 +559,7 @@ function RoomFormCard({
               </label>
 
               <label className="admin-form-field">
-                <span>Criancas</span>
+                <span>Crianças</span>
                 <input
                   type="number"
                   min="0"
@@ -573,7 +573,7 @@ function RoomFormCard({
               </label>
 
               <label className="admin-form-field">
-                <span>Tamanho em m2</span>
+                <span>Tamanho em m²</span>
                 <input
                   type="number"
                   min="1"
@@ -596,7 +596,7 @@ function RoomFormCard({
                 id={`${mode}-room-image-upload`}
                 accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
                 title="Selecionar imagem do quarto"
-                auxiliaryText="PNG, JPG ou WebP ate o limite permitido."
+                auxiliaryText="PNG, JPG ou WebP até o limite permitido."
                 fileName={selectedImageFile?.name || ""}
                 onChange={(files) => {
                   setSelectedImageFile(files?.[0] ?? null);
@@ -616,7 +616,7 @@ function RoomFormCard({
                 </div>
               ) : (
                 <div className="admin-room-image-placeholder">
-                  A imagem do quarto aparecera aqui apos o envio.
+                  A imagem do quarto aparecerá aqui após o envio.
                 </div>
               )}
 
@@ -649,11 +649,11 @@ function RoomFormCard({
 
         <section className="admin-room-form-block">
           <div className="admin-room-form-block-heading">
-            <strong>Descricao</strong>
+            <strong>Descrição</strong>
           </div>
 
           <label className="admin-form-field admin-room-description-field">
-            <span>Descricao</span>
+            <span>Descrição</span>
             <textarea
               rows={5}
               value={values.description}
@@ -713,7 +713,7 @@ function RoomFormCard({
                 );
               })}
             </div>
-            <small>Selecione os tipos de cama disponiveis no quarto.</small>
+            <small>Selecione os tipos de cama disponíveis no quarto.</small>
             {errors.beds ? <small className="admin-form-error">{errors.beds}</small> : null}
           </div>
         </section>
@@ -752,7 +752,7 @@ function RoomFormCard({
                 );
               })}
             </div>
-            <small>Selecione as comodidades disponiveis dentro do quarto.</small>
+            <small>Selecione as comodidades disponíveis dentro do quarto.</small>
             {errors.amenities ? (
               <small className="admin-form-error">{errors.amenities}</small>
             ) : null}
@@ -901,7 +901,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
         <div className="section-heading admin-subsection-heading">
           <h2>Quartos</h2>
           <p className="admin-rooms-copy">
-            Gerencie os quartos deste hotel com criacao, edicao e controle de status.
+            Gerencie os quartos deste hotel com criação, edição e controle de status.
           </p>
         </div>
 
@@ -952,7 +952,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
       {rooms.length === 0 ? (
         <div className="hotel-empty-state admin-history-empty">
           <strong>Nenhum quarto cadastrado.</strong>
-          <p>Adicione o primeiro quarto para comecar a operacao deste hotel.</p>
+          <p>Adicione o primeiro quarto para começar a operação deste hotel.</p>
         </div>
       ) : (
         <div className="admin-rooms-list">
@@ -982,7 +982,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
 
                   <div className="admin-room-meta-grid">
                     <span>{room.beds}</span>
-                    <span>{room.sizeM2 ? `${room.sizeM2} m2` : room.size}</span>
+                    <span>{room.sizeM2 ? `${room.sizeM2} m²` : room.size}</span>
                     <span>{room.amenities.length} comodidades</span>
                   </div>
 

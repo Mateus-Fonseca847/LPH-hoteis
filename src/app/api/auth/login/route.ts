@@ -19,7 +19,7 @@ import {
   setAuthSessionCookie,
   setPendingTwoFactorSessionCookie,
 } from "@/lib/auth/session";
-import { getTwoFactorLoginState } from "@/lib/auth/two-factor";
+import { requestTwoFactorEmailCodeForUser } from "@/lib/auth/email-two-factor";
 import { findUserByEmail } from "@/lib/auth/user";
 import { InternalServerError, createApiSuccessResponse } from "@/lib/errors/app-error";
 
@@ -111,19 +111,10 @@ export async function POST(request: Request) {
     clearFailedLoginAttempts({ email, ip });
 
     if (isAdminUser(user.globalRole)) {
-      const twoFactorState = getTwoFactorLoginState(user);
+      await clearAuthSessionCookie();
+      const twoFactorRequest = await requestTwoFactorEmailCodeForUser(user.id);
 
-      if (twoFactorState.mode === "error") {
-        await clearAuthSessionCookie();
-        throw twoFactorState.error;
-      }
-
-      if (twoFactorState.mode === "verify") {
-        console.info("[auth/login] Pending 2FA verification required.", {
-          userId: user.id,
-          email: user.email,
-        });
-
+      if (twoFactorRequest.retryAfterSeconds) {
         await setPendingTwoFactorSessionCookie({
           sub: user.id,
           globalRole: user.globalRole,
@@ -136,28 +127,26 @@ export async function POST(request: Request) {
         });
       }
 
-      console.info("[auth/login] Admin login without active 2FA.", {
-        userId: user.id,
-        email: user.email,
-      });
+      if (!twoFactorRequest.sent) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: LOGIN_FAILURE_MESSAGE,
+            code: "AUTHENTICATION_ERROR",
+          },
+          { status: 401 }
+        );
+      }
 
-      await clearAuthSessionCookie();
-      await setAuthSessionCookie({
+      await setPendingTwoFactorSessionCookie({
         sub: user.id,
         globalRole: user.globalRole,
-        twoFactorVerified: true,
         twoFactorSetupRequired: false,
       });
 
       return createApiSuccessResponse({
-        requiresTwoFactor: false,
+        requiresTwoFactor: true,
         requiresTwoFactorSetup: false,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          globalRole: user.globalRole,
-        },
       });
     }
 

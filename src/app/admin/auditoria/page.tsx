@@ -33,6 +33,8 @@ const auditActionLabels: Record<string, string> = {
   "hotel.room_rate.deactivated": "Tarifa desativada",
   "hotel.room_availability.updated": "Disponibilidade atualizada",
   "hotel.room_availability.bulk_upserted": "Disponibilidade atualizada em lote",
+  "account.email_2fa.enabled": "2FA por e-mail ativado",
+  "account.email_2fa.disabled": "2FA por e-mail desativado",
   "hotel.admin_user.created": "Administrador criado",
   "hotel.admin_user.activated": "Administrador ativado",
   "hotel.admin_user.deactivated": "Administrador desativado",
@@ -75,6 +77,10 @@ function getAuditEntity(action: string) {
 
   if (action.includes("admin_permission")) {
     return "Permissão";
+  }
+
+  if (action.includes("email_2fa")) {
+    return "SeguranÃ§a da conta";
   }
 
   if (action.includes("profile")) {

@@ -23,6 +23,20 @@ type AdminHotelListItem = {
   state: string;
 };
 
+function formatPermissionRole(role: string | null) {
+  if (!role) {
+    return "Acesso total";
+  }
+
+  const labels: Record<string, string> = {
+    owner: "Responsável",
+    admin: "Administrador",
+    editor: "Editor",
+  };
+
+  return labels[role] ?? role;
+}
+
 export default async function AdminHotelsPage() {
   let user;
 
@@ -141,7 +155,7 @@ export default async function AdminHotelsPage() {
 
               <div className="admin-hotel-card-meta">
                 <p>Status: {hotel.isPublished ? "Publicado" : "Rascunho"}</p>
-                <p>Permissão: {hotel.permissionRole ?? "total"}</p>
+                <p>Permissão: {formatPermissionRole(hotel.permissionRole)}</p>
                 <p>Completude: {hotel.completenessPercentage}%</p>
                 {hotel.completenessPending.length > 0 ? (
                   <p>Pendências: {hotel.completenessPending.slice(0, 3).join(", ")}</p>

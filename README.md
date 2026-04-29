@@ -29,9 +29,48 @@ DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/lph_hoteis?schema=public
 AUTH_SECRET="defina-um-segredo-longo-e-aleatorio-aqui"
 TWO_FACTOR_ENCRYPTION_KEY="defina-uma-chave-base64-com-32-bytes"
 UPLOAD_MAX_IMAGE_SIZE_BYTES="5242880"
+ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"
+SEED_STAGING_SUPER_ADMIN_EMAIL="super.admin.staging@lphhoteis.local"
+SEED_STAGING_SUPER_ADMIN_PASSWORD=""
+SEED_STAGING_HOTEL_ADMIN_EMAIL="hotel.admin.staging@lphhoteis.local"
+SEED_STAGING_HOTEL_ADMIN_PASSWORD=""
+SEED_STAGING_HOTEL_ADMIN_HOTEL_SLUG="lph-marina-santos"
 ```
 
 Nunca commite `.env`.
+
+## Deploy em staging
+
+Checklist de variaveis obrigatorias:
+
+- `DATABASE_URL`: PostgreSQL separado do ambiente local.
+- `AUTH_SECRET`: segredo longo e aleatorio para sessoes.
+- `TWO_FACTOR_ENCRYPTION_KEY`: chave base64 com 32 bytes.
+- `UPLOAD_MAX_IMAGE_SIZE_BYTES`: limite de upload em bytes.
+- `ALLOW_LOCAL_HOTEL_DATA_FALLBACK`: manter `false` em staging/producao.
+- `SEED_STAGING_SUPER_ADMIN_EMAIL` e `SEED_STAGING_SUPER_ADMIN_PASSWORD`: opcionais para criar o `super_admin` de homologacao via seed.
+- `SEED_STAGING_HOTEL_ADMIN_EMAIL`, `SEED_STAGING_HOTEL_ADMIN_PASSWORD` e `SEED_STAGING_HOTEL_ADMIN_HOTEL_SLUG`: opcionais para criar um `hotel_admin` limitado a um unico hotel.
+
+Passos recomendados:
+
+```bash
+npm ci
+npm run prisma:generate
+npx prisma migrate deploy
+npm run build
+npm run start
+```
+
+Antes de liberar para o cliente:
+
+- O banco de staging deve ter as migrations aplicadas.
+- O banco deve conter hoteis publicados para a home e paginas publicas.
+- Deve existir ao menos um usuario `super_admin` ativo para acessar `/admin`.
+- Se usar as variaveis `SEED_STAGING_*`, rode `npm run prisma:seed` apos as migrations; o primeiro login exigira ativacao de 2FA.
+- Credenciais `SEED_STAGING_*` sao apenas para homologacao/testes do cliente. Nao use esses usuarios nem essas senhas em producao.
+- `NODE_ENV` deve ser `production` no runtime de staging.
+- Nao use `.env` local, SQLite, seed ou mocks como fonte de dados do staging.
+- Uploads gravados em `public/uploads` dependem de disco persistente; em hospedagem serverless, use URLs externas ou configure armazenamento persistente antes de testar upload.
 
 ## Instalação e uso
 

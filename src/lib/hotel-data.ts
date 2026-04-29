@@ -172,7 +172,8 @@ function getNearbyPlaces(slug: string): HotelNearbyPlace[] {
 }
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
-const canUseDevelopmentFallback = process.env.NODE_ENV !== "production";
+const canUseDevelopmentFallback =
+  process.env.NODE_ENV === "development" && process.env.ALLOW_LOCAL_HOTEL_DATA_FALLBACK === "true";
 
 let warnedUnavailableDb = false;
 let schemaSupportPromise: Promise<boolean> | null = null;
