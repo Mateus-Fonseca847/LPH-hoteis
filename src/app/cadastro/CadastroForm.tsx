@@ -50,13 +50,13 @@ function validateForm(values: CadastroFormValues) {
   }
 
   if (!isStrongPassword) {
-      errors.password = "A senha ainda não atende aos requisitos mínimos.";
+    errors.password = "A senha ainda não atende aos requisitos mínimos.";
   }
 
   if (!values.confirmPassword) {
     errors.confirmPassword = "Confirme sua senha.";
   } else if (values.password !== values.confirmPassword) {
-      errors.confirmPassword = "As senhas informadas não conferem.";
+    errors.confirmPassword = "As senhas informadas não conferem.";
   }
 
   return errors;

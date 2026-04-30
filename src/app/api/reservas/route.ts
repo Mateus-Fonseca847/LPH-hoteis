@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-    throw new ValidationError("Dados da reserva inválidos.");
+      throw new ValidationError("Dados da reserva inválidos.");
     }
 
     const parsedPayload = parseCreateReservationPayload(body);
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     } = parsedPayload.data;
 
     if (checkIn < getTodayDateOnly()) {
-    throw new ValidationError("Check-in não pode estar no passado.");
+      throw new ValidationError("Check-in não pode estar no passado.");
     }
 
     const nights = calculateStayNights(checkIn, checkOut);
@@ -90,13 +90,13 @@ export async function POST(request: Request) {
     });
 
     if (!room) {
-    throw new ValidationError("Quarto indisponível para reserva.");
+      throw new ValidationError("Quarto indisponível para reserva.");
     }
 
     resolveHotelPaymentConfiguration(room.hotel.paymentSettings);
 
     if (!room.isAvailable || !canRoomAccommodateGuests(room, adults, children)) {
-    throw new ValidationError("O quarto selecionado não comporta essa ocupação.");
+      throw new ValidationError("O quarto selecionado não comporta essa ocupação.");
     }
 
     const roomSnapshot = {
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
     );
 
     if (availabilityStatus === "unavailable") {
-    throw new ValidationError("O quarto não está disponível para o período selecionado.");
+      throw new ValidationError("O quarto não está disponível para o período selecionado.");
     }
 
     const priceEstimate = getRoomStayPriceEstimate(
@@ -144,7 +144,7 @@ export async function POST(request: Request) {
     const totalPriceCents = priceEstimate?.totalPriceCents ?? nightlyPriceCents * nights;
 
     if (!Number.isInteger(nightlyPriceCents) || nightlyPriceCents <= 0) {
-    throw new ValidationError("Não foi possível calcular o valor da reserva.");
+      throw new ValidationError("Não foi possível calcular o valor da reserva.");
     }
 
     const reservation = await prisma.reservation.create({
@@ -176,7 +176,7 @@ export async function POST(request: Request) {
     const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL;
 
     if (!origin) {
-    throw new ValidationError("URL pública do site não configurada.");
+      throw new ValidationError("URL pública do site não configurada.");
     }
 
     const payment = await startReservationPayment({

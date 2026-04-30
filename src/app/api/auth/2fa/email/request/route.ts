@@ -7,8 +7,7 @@ import { createApiSuccessResponse } from "@/lib/errors/app-error";
 
 const GENERIC_RESPONSE_MESSAGE =
   "Se for possível validar este acesso, enviaremos um código para o e-mail cadastrado.";
-const PENDING_2FA_REQUIRED_MESSAGE =
-  "Login com 2FA pendente é necessário para reenviar o código.";
+const PENDING_2FA_REQUIRED_MESSAGE = "Login com 2FA pendente é necessário para reenviar o código.";
 const RATE_LIMIT_MESSAGE = "Muitas tentativas. Aguarde antes de solicitar um novo código.";
 
 function createStandardErrorResponse({

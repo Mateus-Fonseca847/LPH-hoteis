@@ -19,7 +19,7 @@ export async function POST(request: Request, context: RouteContext) {
     const parsedParams = parseHotelRouteParams({ hotelId: id });
 
     if (!parsedParams.success) {
-    throw new ValidationError(parsedParams.error.issues[0]?.message || "Identificador inválido.");
+      throw new ValidationError(parsedParams.error.issues[0]?.message || "Identificador inválido.");
     }
 
     const hotelId = parsedParams.data.hotelId;
@@ -41,7 +41,7 @@ export async function POST(request: Request, context: RouteContext) {
     });
 
     if (!hotel) {
-    throw new NotFoundError("Hotel não encontrado.");
+      throw new NotFoundError("Hotel não encontrado.");
     }
 
     const formData = await request.formData();
@@ -61,7 +61,7 @@ export async function POST(request: Request, context: RouteContext) {
   } catch (error) {
     return createHotelWriteApiErrorResponse(
       error,
-    "Não foi possível concluir o upload da imagem do quarto."
+      "Não foi possível concluir o upload da imagem do quarto."
     );
   }
 }

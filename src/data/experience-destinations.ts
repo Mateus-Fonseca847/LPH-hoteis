@@ -34,7 +34,7 @@ export const experienceDestinations: Record<ExperienceKey, ExperienceDestination
   musica: [
     {
       title: "Noites de Bossa no Rio",
-    description: "Hospede-se perto de bares, casas de shows e experiências musicais cariocas.",
+      description: "Hospede-se perto de bares, casas de shows e experiências musicais cariocas.",
       image:
         "https://images.unsplash.com/photo-1504609773096-104ff2c73ba4?auto=format&fit=crop&w=1200&q=80",
       alt: "Vista noturna urbana com clima musical no Rio de Janeiro",

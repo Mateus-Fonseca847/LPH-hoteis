@@ -11,8 +11,24 @@ out/
 coverage
 dist/
 tsconfig.tsbuildinfo
-.next-dev.log
-.next-dev.err.log
-.public-flow-next*.log
-.admin-flow-next*.log
+
+# Logs
+*.log
+*.out.log
+*.err.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local dev/test run logs
+.*-test*.log
+.*-debug*.log
+.*-dev*.log
+.*-header*.log
+.*-flow-next*.log
+.dev-*.log
+.studio-*.log
+dev-*.log
+start-*.log
 public/uploads/

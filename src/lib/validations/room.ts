@@ -26,7 +26,7 @@ const textField = (label: string, min: number, max: number) =>
       z
         .string()
         .min(min, `${label} deve ter pelo menos ${min} caracteres.`)
-    .max(max, `${label} deve ter no máximo ${max} caracteres.`)
+        .max(max, `${label} deve ter no máximo ${max} caracteres.`)
     );
 
 const multilineField = (label: string, min: number, max: number) =>
@@ -37,13 +37,13 @@ const multilineField = (label: string, min: number, max: number) =>
       z
         .string()
         .min(min, `${label} deve ter pelo menos ${min} caracteres.`)
-    .max(max, `${label} deve ter no máximo ${max} caracteres.`)
+        .max(max, `${label} deve ter no máximo ${max} caracteres.`)
     );
 
 const positiveIntField = (label: string, min: number, max: number) =>
   z
     .number({
-    error: `${label} inválido.`,
+      error: `${label} inválido.`,
     })
     .int(`${label} deve ser um numero inteiro.`)
     .min(min, `${label} deve ser no mínimo ${min}.`)
@@ -74,7 +74,7 @@ const roomAmenitySchema = textField("Comodidade do quarto", 2, 80);
 const roomAmenitiesSchema = z
   .array(roomAmenitySchema)
   .min(1, "Adicione pelo menos uma comodidade.")
-    .max(30, "Máximo de 30 comodidades.")
+  .max(30, "Máximo de 30 comodidades.")
   .superRefine((values, context) => {
     const result = canonicalizeRoomAmenityLabels(values);
 

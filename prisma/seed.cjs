@@ -41,9 +41,9 @@ function buildRates(basePriceCents, maxGuests, startOffset = 1) {
 
   return [
     {
-      name: "Tarifa flexivel",
+      name: "Tarifa flexível",
       description:
-        "Tarifa com cafe da manha incluido e alteracao permitida conforme disponibilidade.",
+        "Tarifa com café da manhã incluído e alteração permitida conforme disponibilidade.",
       priceCents: basePriceCents,
       currency: "BRL",
       startDate: addDays(today, startOffset),
@@ -57,7 +57,7 @@ function buildRates(basePriceCents, maxGuests, startOffset = 1) {
     {
       name: "Tarifa antecipada",
       description:
-        "Condicao promocional para reservas planejadas, com pagamento antecipado e menor tarifa.",
+        "Condição promocional para reservas planejadas, com pagamento antecipado e menor tarifa.",
       priceCents: Math.round(basePriceCents * 0.88),
       currency: "BRL",
       startDate: addDays(today, startOffset + 7),
@@ -94,7 +94,7 @@ function room({
     capacityAdults: adults,
     capacityChildren: children,
     beds,
-    size: `${sizeM2} m2`,
+    size: `${sizeM2} m²`,
     sizeM2,
     amenities,
     priceFrom: priceFrom.toFixed(2),
@@ -112,7 +112,7 @@ const hotels = [
     shortDescription:
       "Hotel urbano de frente para a marina, com rotina pratica para lazer e viagens corporativas.",
     fullDescription:
-      "O LPH Marina Santos combina vista para o canal, ambientes claros e servicos pensados para estadias curtas ou prolongadas. A operacao atende bem quem precisa circular pela Baixada Santista sem abrir mao de conforto, boa gastronomia e apoio de concierge.",
+      "O LPH Marina Santos combina vista para o canal, ambientes claros e serviços pensados para estadias curtas ou prolongadas. A operação atende bem quem precisa circular pela Baixada Santista sem abrir mão de conforto, boa gastronomia e apoio de concierge.",
     city: "Santos",
     state: "SP",
     address: "Avenida Almirante Saldanha, 410 - Ponta da Praia, Santos - SP",
@@ -129,44 +129,44 @@ const hotels = [
     galleryImages: [
       {
         url: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=80",
-        alt: "Piscina externa com espreguicadeiras e fachada do hotel",
+        alt: "Piscina externa com espreguiçadeiras e fachada do hotel",
       },
       {
         url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1400&q=80",
-        alt: "Suite clara com cama ampla e varanda",
+        alt: "Suíte clara com cama ampla e varanda",
       },
       {
         url: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1400&q=80",
-        alt: "Recepcao contemporanea com area de espera",
+        alt: "Recepção contemporânea com área de espera",
       },
     ],
     amenities: [
       "Piscina com deck",
       "Restaurante autoral",
       "Wi-Fi de alta velocidade",
-      "Sala de reunioes",
+      "Sala de reuniões",
       "Estacionamento com manobrista",
       "Concierge",
     ],
     policies: [
       {
         title: "Cancelamento",
-        description: "Cancelamento sem custo ate 72 horas antes da chegada.",
+        description: "Cancelamento sem custo até 72 horas antes da chegada.",
       },
       {
-        title: "Criancas",
-        description: "Criancas sao bem-vindas e podem usar cama extra mediante confirmacao.",
+        title: "Crianças",
+        description: "Crianças são bem-vindas e podem usar cama extra mediante confirmação.",
       },
       {
         title: "Estacionamento",
-        description: "Vagas sujeitas a disponibilidade, com cobranca diaria informada no check-in.",
+        description: "Vagas sujeitas a disponibilidade, com cobrança diária informada no check-in.",
       },
     ],
     rooms: [
       room({
         name: "Executivo Marina",
         description:
-          "Quarto funcional com bancada de trabalho, boa iluminacao natural e vista lateral para a marina.",
+          "Quarto funcional com bancada de trabalho, boa iluminação natural e vista lateral para a marina.",
         imageUrl:
           "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80",
         adults: 2,
@@ -177,16 +177,16 @@ const hotels = [
         units: 8,
       }),
       room({
-        name: "Suite Frente Mar",
+        name: "Suíte Frente Mar",
         description:
-          "Acomodacao mais ampla com sala compacta, varanda mobiliada e enxoval premium.",
+          "Acomodação mais ampla com sala compacta, varanda mobiliada e enxoval premium.",
         imageUrl:
           "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&q=80",
         adults: 2,
         children: 1,
-        beds: "1x Cama king | 1x Sofa-cama",
+        beds: "1x Cama king | 1x Sofá-cama",
         sizeM2: 42,
-        amenities: ["Varanda", "Vista para a marina", "Cafeteira", "Roupao"],
+        amenities: ["Varanda", "Vista para a marina", "Cafeteira", "Roupão"],
         priceFrom: 760,
         units: 4,
       }),
@@ -194,11 +194,11 @@ const hotels = [
   },
   {
     slug: "lph-serra-dos-araucarias",
-    name: "LPH Serra dos Araucarias",
+    name: "LPH Serra dos Araucárias",
     shortDescription:
-      "Refugio serrano com clima reservado, lareira e estrutura para fins de semana de descanso.",
+      "Refúgio serrano com clima reservado, lareira e estrutura para fins de semana de descanso.",
     fullDescription:
-      "O LPH Serra dos Araucarias oferece uma experiencia acolhedora na Serra Gaucha, com quartos silenciosos, restaurante de ingredientes locais e areas sociais voltadas ao descanso. A proposta equilibra conforto, natureza e atendimento proximo.",
+      "O LPH Serra dos Araucárias oferece uma experiência acolhedora na Serra Gaúcha, com quartos silenciosos, restaurante de ingredientes locais e áreas sociais voltadas ao descanso. A proposta equilibra conforto, natureza e atendimento próximo.",
     city: "Gramado",
     state: "RS",
     address: "Estrada Linha Bonita, 1280 - Zona Rural, Gramado - RS",
@@ -223,7 +223,7 @@ const hotels = [
       },
       {
         url: "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1400&q=80",
-        alt: "Lounge com poltronas e iluminacao quente",
+        alt: "Lounge com poltronas e iluminação quente",
       },
     ],
     amenities: [
@@ -231,47 +231,47 @@ const hotels = [
       "Restaurante regional",
       "Spa compacto",
       "Trilhas guiadas",
-      "Cafe colonial",
+      "Café colonial",
       "Estacionamento",
     ],
     policies: [
       {
         title: "Cancelamento",
-        description: "Cancelamento gratuito ate 7 dias antes da hospedagem.",
+        description: "Cancelamento gratuito até 7 dias antes da hospedagem.",
       },
       {
         title: "Pets",
-        description: "Pets de pequeno porte sao aceitos em categorias selecionadas.",
+        description: "Pets de pequeno porte são aceitos em categorias selecionadas.",
       },
       {
-        title: "Silencio",
-        description: "Areas externas seguem horario de silencio a partir das 22h.",
+        title: "Silêncio",
+        description: "Áreas externas seguem horário de silêncio a partir das 22h.",
       },
     ],
     rooms: [
       room({
-        name: "Chale Jardim",
-        description: "Quarto com varanda para o jardim, calefacao e composicao ideal para casais.",
+        name: "Chalé Jardim",
+        description: "Quarto com varanda para o jardim, calefação e composição ideal para casais.",
         imageUrl:
           "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
         adults: 2,
         beds: "1x Cama king",
         sizeM2: 31,
-        amenities: ["Calefacao", "Varanda", "Smart TV", "Amenities premium"],
+        amenities: ["Calefação", "Varanda", "Smart TV", "Amenities premium"],
         priceFrom: 690,
         units: 6,
       }),
       room({
-        name: "Suite Familia Serra",
+        name: "Suíte Família Serra",
         description:
-          "Suite com dois ambientes, sofa-cama e espaco adicional para familias em estadias de lazer.",
+          "Suíte com dois ambientes, sofá-cama e espaço adicional para famílias em estadias de lazer.",
         imageUrl:
           "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
         adults: 2,
         children: 2,
         beds: "1x Cama queen | 2x Cama de solteiro",
         sizeM2: 46,
-        amenities: ["Dois ambientes", "Berco sob pedido", "Frigobar", "Vista para o bosque"],
+        amenities: ["Dois ambientes", "Berço sob pedido", "Frigobar", "Vista para o bosque"],
         priceFrom: 940,
         units: 5,
       }),
@@ -283,10 +283,10 @@ const hotels = [
     shortDescription:
       "Hotel executivo nos Jardins, com quartos silenciosos e apoio para agendas intensas.",
     fullDescription:
-      "O LPH Jardins Business foi desenhado para quem precisa de localizacao central em Sao Paulo, check-in agil e ambientes confortaveis para trabalhar ou descansar. A estrutura inclui coworking reservado, room service e conexao facil aos principais corredores da cidade.",
-    city: "Sao Paulo",
+      "O LPH Jardins Business foi desenhado para quem precisa de localização central em São Paulo, check-in ágil e ambientes confortáveis para trabalhar ou descansar. A estrutura inclui coworking reservado, room service e conexão fácil aos principais corredores da cidade.",
+    city: "São Paulo",
     state: "SP",
-    address: "Alameda Lorena, 870 - Jardins, Sao Paulo - SP",
+    address: "Alameda Lorena, 870 - Jardins, São Paulo - SP",
     phone: "(11) 3123-8700",
     email: "reservas.jardins@lphhoteis.com.br",
     whatsapp: "(11) 99712-8700",
@@ -300,7 +300,7 @@ const hotels = [
     galleryImages: [
       {
         url: "https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?auto=format&fit=crop&w=1400&q=80",
-        alt: "Suite urbana com decoracao contemporanea",
+        alt: "Suíte urbana com decoração contemporânea",
       },
       {
         url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1400&q=80",
@@ -308,7 +308,7 @@ const hotels = [
       },
       {
         url: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1400&q=80",
-        alt: "Lobby com recepcao e area de espera",
+        alt: "Lobby com recepção e área de espera",
       },
     ],
     amenities: [
@@ -322,41 +322,41 @@ const hotels = [
     policies: [
       {
         title: "Cancelamento",
-        description: "Cancelamento sem custo ate 48 horas antes do check-in.",
+        description: "Cancelamento sem custo até 48 horas antes do check-in.",
       },
       {
         title: "Check-in antecipado",
-        description: "Disponivel mediante ocupacao do dia e confirmacao previa.",
+        description: "Disponível mediante ocupação do dia e confirmação prévia.",
       },
       {
-        title: "Nao fumantes",
-        description: "Todos os quartos e areas internas sao ambientes nao fumantes.",
+        title: "Não fumantes",
+        description: "Todos os quartos e áreas internas são ambientes não fumantes.",
       },
     ],
     rooms: [
       room({
         name: "Studio Executivo",
         description:
-          "Quarto compacto e silencioso com bancada ampla, cadeira ergonomica e cama queen.",
+          "Quarto compacto e silencioso com bancada ampla, cadeira ergonômica e cama queen.",
         imageUrl:
           "https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?auto=format&fit=crop&w=1200&q=80",
         adults: 2,
         beds: "1x Cama queen",
         sizeM2: 24,
-        amenities: ["Mesa de trabalho", "Cadeira ergonomica", "Cofre", "Smart TV"],
+        amenities: ["Mesa de trabalho", "Cadeira ergonômica", "Cofre", "Smart TV"],
         priceFrom: 610,
         units: 12,
       }),
       room({
         name: "Corner Premium",
         description:
-          "Categoria de canto com area de estar, vista urbana e isolamento acustico reforcado.",
+          "Categoria de canto com área de estar, vista urbana e isolamento acústico reforçado.",
         imageUrl:
           "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1200&q=80",
         adults: 2,
         beds: "1x Cama king",
         sizeM2: 36,
-        amenities: ["Area de estar", "Cafeteira", "Isolamento acustico", "Roupao"],
+        amenities: ["Área de estar", "Cafeteira", "Isolamento acústico", "Roupão"],
         priceFrom: 830,
         units: 7,
       }),
@@ -366,9 +366,9 @@ const hotels = [
     slug: "lph-boa-viagem-praia",
     name: "LPH Boa Viagem Praia",
     shortDescription:
-      "Hotel proximo ao mar em Recife, com estrutura leve para familias e viagens a trabalho.",
+      "Hotel próximo ao mar em Recife, com estrutura leve para famílias e viagens a trabalho.",
     fullDescription:
-      "O LPH Boa Viagem Praia entrega uma estadia pratica a poucos passos da orla, com piscina, restaurante e quartos preparados para diferentes perfis de viagem. A equipe apoia consultas de disponibilidade, eventos pequenos e roteiros locais.",
+      "O LPH Boa Viagem Praia entrega uma estadia prática a poucos passos da orla, com piscina, restaurante e quartos preparados para diferentes perfis de viagem. A equipe apoia consultas de disponibilidade, eventos pequenos e roteiros locais.",
     city: "Recife",
     state: "PE",
     address: "Avenida Boa Viagem, 1890 - Boa Viagem, Recife - PE",
@@ -385,21 +385,21 @@ const hotels = [
     galleryImages: [
       {
         url: "https://images.unsplash.com/photo-1455587734955-081b22074882?auto=format&fit=crop&w=1400&q=80",
-        alt: "Area externa de hotel proxima ao litoral",
+        alt: "Área externa de hotel próxima ao litoral",
       },
       {
         url: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=80",
-        alt: "Piscina com espreguicadeiras e vegetacao",
+        alt: "Piscina com espreguiçadeiras e vegetação",
       },
       {
         url: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1400&q=80",
-        alt: "Lobby de hotel com recepcao moderna",
+        alt: "Lobby de hotel com recepção moderna",
       },
     ],
     amenities: [
       "Piscina",
-      "Servico de praia",
-      "Espaco kids",
+      "Serviço de praia",
+      "Espaço kids",
       "Restaurante",
       "Wi-Fi",
       "Sala para eventos pequenos",
@@ -407,22 +407,22 @@ const hotels = [
     policies: [
       {
         title: "Cancelamento",
-        description: "Cancelamento gratuito ate 5 dias antes da chegada.",
+        description: "Cancelamento gratuito até 5 dias antes da chegada.",
       },
       {
-        title: "Cafe da manha",
-        description: "Cafe da manha incluido nas tarifas publicas demonstrativas.",
+        title: "Café da manhã",
+        description: "Café da manhã incluído nas tarifas públicas demonstrativas.",
       },
       {
-        title: "Areas de lazer",
-        description: "Piscina e espaco kids funcionam diariamente ate as 22h.",
+        title: "Áreas de lazer",
+        description: "Piscina e espaço kids funcionam diariamente até as 22h.",
       },
     ],
     rooms: [
       room({
         name: "Superior Orla",
         description:
-          "Quarto com cama queen, decoracao clara e vista lateral para a praia de Boa Viagem.",
+          "Quarto com cama queen, decoração clara e vista lateral para a praia de Boa Viagem.",
         imageUrl:
           "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80",
         adults: 2,
@@ -433,16 +433,16 @@ const hotels = [
         units: 9,
       }),
       room({
-        name: "Familia Praia",
+        name: "Família Praia",
         description:
-          "Acomodacao com cama queen e bicama, indicada para familias que buscam praticidade.",
+          "Acomodação com cama queen e bicama, indicada para famílias que buscam praticidade.",
         imageUrl:
           "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
         adults: 2,
         children: 2,
         beds: "1x Cama queen | 1x Beliche",
         sizeM2: 39,
-        amenities: ["Bicama", "Berco sob pedido", "Smart TV", "Espaco para malas"],
+        amenities: ["Bicama", "Berço sob pedido", "Smart TV", "Espaço para malas"],
         priceFrom: 720,
         units: 6,
       }),
@@ -450,14 +450,14 @@ const hotels = [
   },
   {
     slug: "lph-lago-sul-brasilia",
-    name: "LPH Lago Sul Brasilia",
+    name: "LPH Lago Sul Brasília",
     shortDescription:
-      "Hospedagem discreta em Brasilia, com facil acesso ao aeroporto e areas institucionais.",
+      "Hospedagem discreta em Brasília, com fácil acesso ao aeroporto e áreas institucionais.",
     fullDescription:
-      "O LPH Lago Sul Brasilia atende viajantes que procuram tranquilidade, deslocamentos rapidos e um servico objetivo. Os quartos priorizam conforto acustico, as areas comuns recebem pequenas reunioes e o restaurante trabalha com menu enxuto durante todo o dia.",
-    city: "Brasilia",
+      "O LPH Lago Sul Brasília atende viajantes que procuram tranquilidade, deslocamentos rápidos e um serviço objetivo. Os quartos priorizam conforto acústico, as áreas comuns recebem pequenas reuniões e o restaurante trabalha com menu enxuto durante todo o dia.",
+    city: "Brasília",
     state: "DF",
-    address: "SHIS QI 12, Conjunto 3 - Lago Sul, Brasilia - DF",
+    address: "SHIS QI 12, Conjunto 3 - Lago Sul, Brasília - DF",
     phone: "(61) 3344-2211",
     email: "reservas.lagosul@lphhoteis.com.br",
     whatsapp: "(61) 99876-5500",
@@ -471,7 +471,7 @@ const hotels = [
     galleryImages: [
       {
         url: "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1400&q=80",
-        alt: "Area social com poltronas e iluminacao suave",
+        alt: "Área social com poltronas e iluminação suave",
       },
       {
         url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1400&q=80",
@@ -479,12 +479,12 @@ const hotels = [
       },
       {
         url: "https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?auto=format&fit=crop&w=1400&q=80",
-        alt: "Suite executiva com design contemporaneo",
+        alt: "Suíte executiva com design contemporâneo",
       },
     ],
     amenities: [
       "Transfer executivo",
-      "Sala de reunioes",
+      "Sala de reuniões",
       "Piscina com deck",
       "Lavanderia",
       "Restaurante",
@@ -493,22 +493,22 @@ const hotels = [
     policies: [
       {
         title: "Cancelamento",
-        description: "Cancelamento sem custo ate 72 horas antes da chegada.",
+        description: "Cancelamento sem custo até 72 horas antes da chegada.",
       },
       {
         title: "Transfer",
-        description: "Transfer deve ser solicitado com antecedencia minima de 24 horas.",
+        description: "Transfer deve ser solicitado com antecedência mínima de 24 horas.",
       },
       {
-        title: "Servicos extras",
-        description: "Consumos adicionais sao conferidos e fechados no check-out.",
+        title: "Serviços extras",
+        description: "Consumos adicionais são conferidos e fechados no check-out.",
       },
     ],
     rooms: [
       room({
         name: "Business Prime",
         description:
-          "Quarto para agenda executiva, com cama queen, mesa de trabalho e isolamento acustico.",
+          "Quarto para agenda executiva, com cama queen, mesa de trabalho e isolamento acústico.",
         imageUrl:
           "https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?auto=format&fit=crop&w=1200&q=80",
         adults: 2,
@@ -519,16 +519,16 @@ const hotels = [
         units: 10,
       }),
       room({
-        name: "Suite Lago",
+        name: "Suíte Lago",
         description:
-          "Suite com sala compacta, cama king e varanda voltada para a area verde do hotel.",
+          "Suíte com sala compacta, cama king e varanda voltada para a área verde do hotel.",
         imageUrl:
           "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&q=80",
         adults: 2,
         children: 1,
-        beds: "1x Cama king | 1x Sofa-cama",
+        beds: "1x Cama king | 1x Sofá-cama",
         sizeM2: 40,
-        amenities: ["Varanda", "Sala compacta", "Cafeteira", "Roupao"],
+        amenities: ["Varanda", "Sala compacta", "Cafeteira", "Roupão"],
         priceFrom: 870,
         units: 5,
       }),
@@ -550,7 +550,7 @@ const legacyDemoSlugs = [
 function getSeedUserConfig() {
   return {
     superAdmin: {
-      name: "Super Admin Staging",
+      name: "Administrador Geral LPH",
       email:
         process.env.SEED_STAGING_SUPER_ADMIN_EMAIL?.trim().toLowerCase() ||
         process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase() ||
@@ -560,7 +560,7 @@ function getSeedUserConfig() {
         process.env.SEED_ADMIN_PASSWORD?.trim(),
     },
     hotelAdmin: {
-      name: "Hotel Admin Staging",
+      name: "Administrador do Hotel",
       email:
         process.env.SEED_STAGING_HOTEL_ADMIN_EMAIL?.trim().toLowerCase() ||
         "hotel.admin.staging@lphhoteis.local",
@@ -624,7 +624,7 @@ async function upsertSeedAdmin() {
   });
 
   if (!hotel) {
-    throw new Error(`Hotel do hotel_admin de staging nao encontrado: ${hotelAdmin.hotelSlug}`);
+    throw new Error(`Hotel do hotel_admin de staging não encontrado: ${hotelAdmin.hotelSlug}`);
   }
 
   const hotelAdminPasswordHash = await bcrypt.hash(hotelAdmin.password, SALT_ROUNDS);

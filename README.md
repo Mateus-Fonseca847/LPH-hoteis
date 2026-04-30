@@ -22,34 +22,44 @@ Plataforma web da rede LPH para catálogo público de hotéis e operação admin
 
 ## Variáveis de ambiente
 
-Crie `.env` com base em `.env.example`.
+Crie `.env` com base em `.env.example`. Nunca commite `.env`, chaves reais ou credenciais.
 
 ```env
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/lph_hoteis?schema=public"
-AUTH_SECRET="defina-um-segredo-longo-e-aleatorio-aqui"
-TWO_FACTOR_ENCRYPTION_KEY="defina-uma-chave-base64-com-32-bytes"
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?schema=public"
+AUTH_SECRET=""
+TWO_FACTOR_ENCRYPTION_KEY=""
+PAYMENT_SECRETS_ENCRYPTION_KEY=""
 UPLOAD_MAX_IMAGE_SIZE_BYTES="5242880"
+EMAIL_PROVIDER="resend"
+EMAIL_FROM="LPH Testes <onboarding@resend.dev>"
+RESEND_API_KEY=""
+NEXT_PUBLIC_APP_URL="https://staging.seu-dominio.com"
+MERCADO_PAGO_ACCESS_TOKEN=""
+MERCADO_PAGO_SANDBOX="true"
+MERCADO_PAGO_WEBHOOK_URL=""
+MERCADO_PAGO_WEBHOOK_SECRET=""
 ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"
-SEED_STAGING_SUPER_ADMIN_EMAIL="super.admin.staging@lphhoteis.local"
-SEED_STAGING_SUPER_ADMIN_PASSWORD=""
-SEED_STAGING_HOTEL_ADMIN_EMAIL="hotel.admin.staging@lphhoteis.local"
-SEED_STAGING_HOTEL_ADMIN_PASSWORD=""
-SEED_STAGING_HOTEL_ADMIN_HOTEL_SLUG="lph-marina-santos"
 ```
 
-Nunca commite `.env`.
+## Staging / Homologação
 
-## Deploy em staging
+Configure as variáveis na plataforma, não no repositório. Para homologação, use banco, e-mails e credenciais de pagamento separados de produção.
 
-Checklist de variaveis obrigatorias:
+Variáveis obrigatórias para staging:
 
-- `DATABASE_URL`: PostgreSQL separado do ambiente local.
-- `AUTH_SECRET`: segredo longo e aleatorio para sessoes.
-- `TWO_FACTOR_ENCRYPTION_KEY`: chave base64 com 32 bytes.
-- `UPLOAD_MAX_IMAGE_SIZE_BYTES`: limite de upload em bytes.
-- `ALLOW_LOCAL_HOTEL_DATA_FALLBACK`: manter `false` em staging/producao.
-- `SEED_STAGING_SUPER_ADMIN_EMAIL` e `SEED_STAGING_SUPER_ADMIN_PASSWORD`: opcionais para criar o `super_admin` de homologacao via seed.
-- `SEED_STAGING_HOTEL_ADMIN_EMAIL`, `SEED_STAGING_HOTEL_ADMIN_PASSWORD` e `SEED_STAGING_HOTEL_ADMIN_HOTEL_SLUG`: opcionais para criar um `hotel_admin` limitado a um unico hotel.
+- `DATABASE_URL`: PostgreSQL de homologação, separado do ambiente local e de produção.
+- `AUTH_SECRET`: segredo longo e aleatório para assinar sessões/cookies.
+- `TWO_FACTOR_ENCRYPTION_KEY`: chave base64 de 32 bytes. Gere com `openssl rand -base64 32`.
+- `UPLOAD_MAX_IMAGE_SIZE_BYTES`: limite de upload em bytes. Exemplo: `5242880` para 5 MB.
+- `ALLOW_LOCAL_HOTEL_DATA_FALLBACK`: manter `false` em staging. O app não deve usar dados locais quando o banco falhar.
+
+Variáveis recomendadas conforme recursos ativos:
+
+- `PAYMENT_SECRETS_ENCRYPTION_KEY`: chave base64 de 32 bytes para credenciais de pagamento por hotel.
+- `EMAIL_PROVIDER`, `EMAIL_FROM`, `RESEND_API_KEY`: envio real de e-mails transacionais.
+- `NEXT_PUBLIC_APP_URL`: URL pública de homologação, usada em retornos de checkout.
+- `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_SANDBOX`, `MERCADO_PAGO_WEBHOOK_URL`, `MERCADO_PAGO_WEBHOOK_SECRET`: pagamentos em sandbox.
+- `SEED_STAGING_*`: opcionais para criar usuários administrativos de teste via seed.
 
 Passos recomendados:
 
@@ -64,13 +74,92 @@ npm run start
 Antes de liberar para o cliente:
 
 - O banco de staging deve ter as migrations aplicadas.
-- O banco deve conter hoteis publicados para a home e paginas publicas.
-- Deve existir ao menos um usuario `super_admin` ativo para acessar `/admin`.
-- Se usar as variaveis `SEED_STAGING_*`, rode `npm run prisma:seed` apos as migrations; o primeiro login exigira ativacao de 2FA.
-- Credenciais `SEED_STAGING_*` sao apenas para homologacao/testes do cliente. Nao use esses usuarios nem essas senhas em producao.
+- O banco deve conter hotéis publicados para a home e páginas públicas.
+- Deve existir ao menos um usuário `super_admin` ativo para acessar `/admin`.
+- Se usar as variáveis `SEED_STAGING_*`, rode `npm run prisma:seed` após as migrations; o primeiro login exigirá ativação de 2FA.
+- Credenciais `SEED_STAGING_*` são apenas para homologação/testes do cliente. Não use esses usuários nem essas senhas em produção.
 - `NODE_ENV` deve ser `production` no runtime de staging.
-- Nao use `.env` local, SQLite, seed ou mocks como fonte de dados do staging.
+- Não use `.env` local, SQLite, seed ou mocks como fonte de dados do staging.
+- Com `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"`, a aplicação falha de forma explícita se `DATABASE_URL` estiver ausente.
+- A autenticação falha de forma explícita se `AUTH_SECRET` estiver ausente.
+- A ativação/validação de 2FA falha de forma explícita se `TWO_FACTOR_ENCRYPTION_KEY` estiver ausente ou não for base64 de 32 bytes.
 - Uploads gravados em `public/uploads` dependem de disco persistente; em hospedagem serverless, use URLs externas ou configure armazenamento persistente antes de testar upload.
+
+## Deploy na Railway
+
+1. Conecte o repositório GitHub no Railway e crie o serviço da aplicação.
+2. Adicione um serviço PostgreSQL no mesmo projeto Railway.
+3. No serviço da aplicação, configure `DATABASE_URL` usando a URL interna do PostgreSQL da Railway.
+4. Configure as demais variáveis de ambiente listadas em `.env.example`.
+5. Defina `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"` em homologação.
+6. Configure o Pre-deploy Command como:
+
+```bash
+npm run prisma:migrate:deploy
+```
+
+7. Use o Build Command padrão do projeto:
+
+```bash
+npm run build
+```
+
+8. Use o Start Command:
+
+```bash
+npm start
+```
+
+Scripts de produção:
+
+- `npm run build`: gera o Prisma Client e compila o Next.js.
+- `npm start`: inicia o Next.js em produção.
+- `npm run prisma:generate`: gera o Prisma Client manualmente, se necessário.
+- `npm run prisma:migrate:deploy`: aplica migrations em ambientes de deploy.
+
+Não use banco local em homologação.
+
+## Prisma e migrations
+
+Use estes comandos conforme o ambiente:
+
+- Desenvolvimento local: `npm run prisma:migrate` (`prisma migrate dev`) cria e aplica novas migrations durante o desenvolvimento.
+- Staging/produção: `npm run prisma:generate` e depois `npm run prisma:migrate:deploy` (`prisma migrate deploy`) aplicam somente migrations já versionadas.
+- Não use `prisma db push` em staging ou produção. Ele altera o schema direto no banco e não preserva o histórico auditável de migrations.
+
+Comando recomendado para staging:
+
+```bash
+npm run prisma:generate
+npm run prisma:migrate:deploy
+```
+
+## Seed de homologação
+
+Após aplicar as migrations em staging, rode o seed apenas quando quiser preparar ou restaurar dados de demonstração:
+
+```bash
+npm run prisma:seed
+```
+
+Antes de rodar, configure pelo menos:
+
+- `SEED_STAGING_SUPER_ADMIN_PASSWORD`: senha forte para o super admin.
+- `SEED_STAGING_HOTEL_ADMIN_PASSWORD`: senha forte para o admin do hotel.
+- `SEED_STAGING_SUPER_ADMIN_EMAIL`: opcional; define o e-mail do super admin.
+- `SEED_STAGING_HOTEL_ADMIN_EMAIL`: opcional; define o e-mail do admin do hotel.
+- `SEED_STAGING_HOTEL_ADMIN_HOTEL_SLUG`: opcional; define o hotel vinculado ao admin.
+
+O seed popula:
+
+- hotéis publicados com textos, imagens, comodidades e políticas;
+- quartos ativos com capacidade, camas, tamanho, imagens e comodidades;
+- tarifas ativas em reais, salvas em centavos;
+- disponibilidade futura para teste de consulta;
+- um `super_admin`, quando a senha de seed estiver configurada;
+- um `hotel_admin` vinculado a um hotel, quando a senha de seed estiver configurada.
+
+Use o seed somente em homologação/desenvolvimento. Não use para popular produção.
 
 ## Instalação e uso
 

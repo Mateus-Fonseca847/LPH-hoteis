@@ -230,7 +230,7 @@ function getFallbackHotelPageData(slug: string) {
 async function hasCompatibleHotelSchema() {
   if (!hasDatabaseConfig()) {
     if (!canUseDevelopmentFallback) {
-      throw new Error("DATABASE_URL is required.");
+      throw new Error("DATABASE_URL não configurada.");
     }
 
     return false;

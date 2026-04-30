@@ -78,7 +78,7 @@ function getPaymentId(payload: MercadoPagoWebhookPayload, request: Request) {
   const paymentId = queryPaymentId || (payloadPaymentId ? String(payloadPaymentId) : "");
 
   if (!paymentId) {
-      throw new ValidationError("Pagamento não informado no webhook.");
+    throw new ValidationError("Pagamento não informado no webhook.");
   }
 
   return paymentId;
@@ -90,7 +90,7 @@ function isPaymentEvent(payload: MercadoPagoWebhookPayload) {
 
 function getReservationEmailInput(reservation: Awaited<ReturnType<typeof getReservationForEmail>>) {
   if (!reservation) {
-      throw new ValidationError("Reserva não encontrada.");
+    throw new ValidationError("Reserva não encontrada.");
   }
 
   return {
@@ -141,7 +141,7 @@ async function notifyPaidReservation(reservationId: string) {
   try {
     await sendGuestReservationEmail(emailInput);
   } catch (error) {
-      console.error("[mercado-pago/webhook] Falha ao enviar e-mail para o hóspede.", {
+    console.error("[mercado-pago/webhook] Falha ao enviar e-mail para o hóspede.", {
       reservationId,
       error,
     });
@@ -227,7 +227,7 @@ export async function POST(request: Request) {
     const payload = (await request.json().catch(() => null)) as MercadoPagoWebhookPayload | null;
 
     if (!payload) {
-    throw new ValidationError("Payload do webhook inválido.");
+      throw new ValidationError("Payload do webhook inválido.");
     }
 
     const paymentId = getPaymentId(payload, request);

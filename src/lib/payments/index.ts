@@ -29,7 +29,7 @@ function getConfiguredAccessToken(encryptedAccessToken?: string | null) {
     const token = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
 
     if (!token) {
-    throw new ValidationError("Mercado Pago não está configurado para este hotel.");
+      throw new ValidationError("Mercado Pago não está configurado para este hotel.");
     }
 
     return token;

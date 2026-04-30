@@ -8,7 +8,7 @@ export async function validateAdminTwoFactor(userId: string) {
   if (!session?.sub || session.sub !== userId || session.twoFactorVerified !== true) {
     return {
       success: false as const,
-    message: "Confirme o código de 2FA para continuar.",
+      message: "Confirme o código de 2FA para continuar.",
     };
   }
 
