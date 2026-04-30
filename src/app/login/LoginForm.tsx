@@ -16,6 +16,11 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState(
+    searchParams.get("cadastro") === "sucesso"
+      ? "Conta criada com sucesso. Faça login para continuar."
+      : ""
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function getRedirectTo() {
@@ -25,6 +30,7 @@ export function LoginForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setInfo("");
     setIsSubmitting(true);
 
     try {
@@ -38,7 +44,7 @@ export function LoginForm() {
       const data = (await response.json()) as LoginResponse;
 
       if (!response.ok) {
-        setError(data.error ?? "Credenciais invalidas.");
+        setError(data.error ?? "Credenciais inválidas.");
         return;
       }
 
@@ -86,6 +92,7 @@ export function LoginForm() {
         />
       </div>
 
+      {info ? <p className="auth-help">{info}</p> : null}
       {error ? <p className="auth-error">{error}</p> : null}
 
       <button className="card-cta-button auth-submit" type="submit" disabled={isSubmitting}>

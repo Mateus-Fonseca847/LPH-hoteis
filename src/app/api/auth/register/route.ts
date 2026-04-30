@@ -7,6 +7,9 @@ import { prisma } from "@/lib/prisma";
 import { parseSignupPayload } from "@/lib/validations/signup";
 
 const SIGNUP_FAILURE_MESSAGE = "Não foi possível criar a conta com os dados informados.";
+const DUPLICATE_EMAIL_MESSAGE = "Este e-mail já está cadastrado.";
+const VALIDATION_MESSAGE = "Revise os dados informados.";
+const SIGNUP_SUCCESS_MESSAGE = "Conta criada com sucesso. Faça login para continuar.";
 
 function isUniqueConstraintError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -19,13 +22,13 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      throw new ValidationError("Dados de cadastro inválidos.");
+      throw new ValidationError(VALIDATION_MESSAGE);
     }
 
     const parsedPayload = parseSignupPayload(body);
 
     if (!parsedPayload.success) {
-      throw new ValidationError(parsedPayload.error);
+      throw new ValidationError(VALIDATION_MESSAGE);
     }
 
     const { name, email, password } = parsedPayload.data;
@@ -39,7 +42,7 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
-      throw new ValidationError(SIGNUP_FAILURE_MESSAGE);
+      throw new ValidationError(DUPLICATE_EMAIL_MESSAGE);
     }
 
     const passwordHash = await hashPassword(password);
@@ -59,15 +62,15 @@ export async function POST(request: Request) {
 
     return createApiSuccessResponse(
       {
-        message: "Conta criada com sucesso. Acesse com seu e-mail e senha.",
-        redirectTo: "/login",
+        message: SIGNUP_SUCCESS_MESSAGE,
+        redirectTo: "/login?cadastro=sucesso",
       },
       201
     );
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return createAuthApiErrorResponse(
-        new ValidationError(SIGNUP_FAILURE_MESSAGE),
+        new ValidationError(DUPLICATE_EMAIL_MESSAGE),
         SIGNUP_FAILURE_MESSAGE
       );
     }

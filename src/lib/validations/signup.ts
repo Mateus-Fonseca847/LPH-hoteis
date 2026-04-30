@@ -36,7 +36,7 @@ export const signupPayloadSchema = z
   .strict()
   .refine((data) => data.password === data.confirmPassword, {
     path: ["confirmPassword"],
-    message: "As senhas informadas não conferem.",
+    message: "A confirmação de senha não confere.",
   });
 
 export type SignupPayload = z.infer<typeof signupPayloadSchema>;

@@ -46,7 +46,7 @@ function validateForm(values: CadastroFormValues) {
   }
 
   if (!isValidEmail(email)) {
-    errors.email = "Informe um e-mail valido.";
+    errors.email = "Informe um e-mail válido.";
   }
 
   if (!isStrongPassword) {
@@ -56,7 +56,7 @@ function validateForm(values: CadastroFormValues) {
   if (!values.confirmPassword) {
     errors.confirmPassword = "Confirme sua senha.";
   } else if (values.password !== values.confirmPassword) {
-    errors.confirmPassword = "As senhas informadas não conferem.";
+    errors.confirmPassword = "A confirmação de senha não confere.";
   }
 
   return errors;
@@ -97,12 +97,23 @@ export function CadastroForm() {
       });
       const data = (await response.json()) as {
         error?: string;
+        code?: string;
         redirectTo?: string;
       };
 
       if (!response.ok) {
+        if (data.error === "Este e-mail já está cadastrado.") {
+          setErrors({
+            email: data.error,
+          });
+          return;
+        }
+
         setErrors({
-          form: data.error ?? "Não foi possível criar sua conta.",
+          form:
+            data.code === "VALIDATION_ERROR"
+              ? "Revise os dados informados."
+              : "Não foi possível criar sua conta. Tente novamente em alguns instantes.",
         });
         return;
       }
@@ -111,7 +122,7 @@ export function CadastroForm() {
       router.refresh();
     } catch {
       setErrors({
-        form: "Não foi possível criar sua conta. Tente novamente.",
+        form: "Não foi possível criar sua conta. Tente novamente em alguns instantes.",
       });
     } finally {
       setIsSubmitting(false);
@@ -172,9 +183,9 @@ export function CadastroForm() {
         />
         <ul id="password-rules" className="auth-requirements">
           <li className={passwordChecks.minLength ? "is-met" : ""}>Mínimo de 8 caracteres</li>
-          <li className={passwordChecks.hasUppercase ? "is-met" : ""}>Uma letra maiuscula</li>
-          <li className={passwordChecks.hasLowercase ? "is-met" : ""}>Uma letra minuscula</li>
-          <li className={passwordChecks.hasNumber ? "is-met" : ""}>Um numero</li>
+          <li className={passwordChecks.hasUppercase ? "is-met" : ""}>Uma letra maiúscula</li>
+          <li className={passwordChecks.hasLowercase ? "is-met" : ""}>Uma letra minúscula</li>
+          <li className={passwordChecks.hasNumber ? "is-met" : ""}>Um número</li>
         </ul>
         {errors.password ? <small className="auth-error">{errors.password}</small> : null}
       </div>

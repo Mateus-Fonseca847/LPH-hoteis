@@ -28,17 +28,27 @@ Crie `.env` com base em `.env.example`. Nunca commite `.env`, chaves reais ou cr
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?schema=public"
 AUTH_SECRET=""
 TWO_FACTOR_ENCRYPTION_KEY=""
-PAYMENT_SECRETS_ENCRYPTION_KEY=""
+NODE_ENV="production"
 UPLOAD_MAX_IMAGE_SIZE_BYTES="5242880"
 EMAIL_PROVIDER="resend"
 EMAIL_FROM="LPH Testes <onboarding@resend.dev>"
 RESEND_API_KEY=""
 NEXT_PUBLIC_APP_URL="https://staging.seu-dominio.com"
+PAYMENT_SECRETS_ENCRYPTION_KEY=""
 MERCADO_PAGO_ACCESS_TOKEN=""
 MERCADO_PAGO_SANDBOX="true"
 MERCADO_PAGO_WEBHOOK_URL=""
 MERCADO_PAGO_WEBHOOK_SECRET=""
+STRIPE_SECRET_KEY=""
+STRIPE_WEBHOOK_SECRET=""
 ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"
+SEED_STAGING_SUPER_ADMIN_EMAIL="super.admin.staging@lphhoteis.local"
+SEED_STAGING_SUPER_ADMIN_PASSWORD=""
+SEED_STAGING_HOTEL_ADMIN_EMAIL="hotel.admin.staging@lphhoteis.local"
+SEED_STAGING_HOTEL_ADMIN_PASSWORD=""
+SEED_STAGING_HOTEL_ADMIN_HOTEL_SLUG="lph-marina-santos"
+SEED_ADMIN_EMAIL=""
+SEED_ADMIN_PASSWORD=""
 ```
 
 ## Staging / Homologação
@@ -50,6 +60,7 @@ Variáveis obrigatórias para staging:
 - `DATABASE_URL`: PostgreSQL de homologação, separado do ambiente local e de produção.
 - `AUTH_SECRET`: segredo longo e aleatório para assinar sessões/cookies.
 - `TWO_FACTOR_ENCRYPTION_KEY`: chave base64 de 32 bytes. Gere com `openssl rand -base64 32`.
+- `NODE_ENV`: em deploy de staging, use `production`.
 - `UPLOAD_MAX_IMAGE_SIZE_BYTES`: limite de upload em bytes. Exemplo: `5242880` para 5 MB.
 - `ALLOW_LOCAL_HOTEL_DATA_FALLBACK`: manter `false` em staging. O app não deve usar dados locais quando o banco falhar.
 
@@ -59,7 +70,9 @@ Variáveis recomendadas conforme recursos ativos:
 - `EMAIL_PROVIDER`, `EMAIL_FROM`, `RESEND_API_KEY`: envio real de e-mails transacionais.
 - `NEXT_PUBLIC_APP_URL`: URL pública de homologação, usada em retornos de checkout.
 - `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_SANDBOX`, `MERCADO_PAGO_WEBHOOK_URL`, `MERCADO_PAGO_WEBHOOK_SECRET`: pagamentos em sandbox.
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`: ainda são lidas pelo webhook legado de Stripe.
 - `SEED_STAGING_*`: opcionais para criar usuários administrativos de teste via seed.
+- `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`: aliases legados ainda aceitos pelo seed.
 
 Passos recomendados:
 

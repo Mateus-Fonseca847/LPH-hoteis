@@ -7,6 +7,7 @@ import {
   parseLoginRequestBody,
 } from "@/lib/auth/auth-route";
 import { isAdminUser } from "@/lib/auth";
+import { getTwoFactorLoginState } from "@/lib/auth/two-factor";
 import {
   clearFailedLoginAttempts,
   getClientIp,
@@ -112,9 +113,33 @@ export async function POST(request: Request) {
     }
 
     clearFailedLoginAttempts({ email, ip });
+    await clearAuthSessionCookie();
 
     if (isAdminUser(user.globalRole)) {
-      await clearAuthSessionCookie();
+      const twoFactorLoginState = getTwoFactorLoginState(user);
+
+      if (twoFactorLoginState.mode === "error") {
+        return createAuthApiErrorResponse(twoFactorLoginState.error, LOGIN_FAILURE_MESSAGE);
+      }
+
+      if (twoFactorLoginState.mode === "bypass") {
+        await setAuthSessionCookie({
+          sub: user.id,
+          globalRole: user.globalRole,
+          twoFactorVerified: true,
+          twoFactorSetupRequired: false,
+        });
+
+        return createApiSuccessResponse({
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            globalRole: user.globalRole,
+          },
+        });
+      }
+
       const twoFactorRequest = await requestTwoFactorEmailCodeForUser(user.id);
 
       if (twoFactorRequest.retryAfterSeconds) {
@@ -153,7 +178,6 @@ export async function POST(request: Request) {
       });
     }
 
-    await clearAuthSessionCookie();
     await setAuthSessionCookie({
       sub: user.id,
       globalRole: user.globalRole,

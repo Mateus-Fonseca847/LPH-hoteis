@@ -1,6 +1,7 @@
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 
 import { sendTwoFactorCodeEmail } from "@/lib/email";
+import { getTwoFactorLoginState } from "@/lib/auth/two-factor";
 import { prisma } from "@/lib/prisma";
 
 export type EmailAuthCodePurpose = "login_2fa" | "email_verification" | "password_reset";
@@ -138,11 +139,24 @@ export async function requestTwoFactorEmailCodeForUser(
       id: true,
       name: true,
       email: true,
+      globalRole: true,
+      twoFactorEnabled: true,
+      twoFactorSecret: true,
     },
   });
 
   if (!user) {
     return { sent: false };
+  }
+
+  const twoFactorState = getTwoFactorLoginState(user);
+
+  if (twoFactorState.mode === "bypass") {
+    return { sent: false };
+  }
+
+  if (twoFactorState.mode === "error") {
+    throw twoFactorState.error;
   }
 
   const now = new Date();
