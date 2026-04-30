@@ -7,7 +7,6 @@ import {
   parseLoginRequestBody,
 } from "@/lib/auth/auth-route";
 import { isAdminUser } from "@/lib/auth";
-import { getTwoFactorLoginState } from "@/lib/auth/two-factor";
 import {
   clearFailedLoginAttempts,
   getClientIp,
@@ -25,7 +24,7 @@ import { findUserByEmail } from "@/lib/auth/user";
 import { EmailSendError } from "@/lib/email";
 import { InternalServerError, createApiSuccessResponse } from "@/lib/errors/app-error";
 
-const INVALID_CREDENTIALS_MESSAGE = "Não foi possível concluir o login com essas credenciais.";
+const INVALID_CREDENTIALS_MESSAGE = "Não foi possível concluir o login com os dados informados.";
 const LOGIN_FAILURE_MESSAGE = "Não foi possível concluir o login.";
 const TWO_FACTOR_EMAIL_FAILURE_MESSAGE =
   "Não foi possível enviar o código de verificação. Tente novamente em alguns instantes.";
@@ -96,6 +95,20 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!user.isActive) {
+      console.warn("[auth/login] Inactive user attempted login.", { email, userId: user.id, ip });
+      recordFailedLoginAttempt({ email, ip });
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error: INVALID_CREDENTIALS_MESSAGE,
+          code: "AUTHENTICATION_ERROR",
+        },
+        { status: 401 }
+      );
+    }
+
     const isValidPassword = await verifyPassword(password, user.passwordHash);
 
     if (!isValidPassword) {
@@ -116,13 +129,7 @@ export async function POST(request: Request) {
     await clearAuthSessionCookie();
 
     if (isAdminUser(user.globalRole)) {
-      const twoFactorLoginState = getTwoFactorLoginState(user);
-
-      if (twoFactorLoginState.mode === "error") {
-        return createAuthApiErrorResponse(twoFactorLoginState.error, LOGIN_FAILURE_MESSAGE);
-      }
-
-      if (twoFactorLoginState.mode === "bypass") {
+      if (!user.emailTwoFactorEnabled) {
         await setAuthSessionCookie({
           sub: user.id,
           globalRole: user.globalRole,

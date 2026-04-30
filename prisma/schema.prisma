@@ -158,8 +158,11 @@ model User {
   globalRole            GlobalRole        @default(user)
   isActive              Boolean           @default(true)
   emailVerifiedAt       DateTime?
+  /// Controls the current login 2FA flow by e-mail.
   emailTwoFactorEnabled Boolean           @default(false)
+  /// Legacy authenticator-app/TOTP flag. It does not control the current login flow.
   twoFactorEnabled      Boolean           @default(false)
+  /// Legacy authenticator-app/TOTP secret.
   twoFactorSecret       String?
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt

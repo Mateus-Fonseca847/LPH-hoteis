@@ -2189,14 +2189,16 @@ button {
 }
 
 .auth-page {
-  min-height: calc(100vh - 32px);
+  min-height: calc(100dvh - 40px);
   display: grid;
 }
 
 .auth-section {
   display: grid;
-  place-items: center;
+  align-items: center;
+  justify-items: center;
   min-height: 100%;
+  padding-block: clamp(32px, 8dvh, 76px);
 }
 
 .auth-card {
@@ -5439,6 +5441,16 @@ button {
   .page-shell {
     width: min(100vw - 20px, 100%);
     padding-top: 10px;
+  }
+
+  .auth-page {
+    min-height: auto;
+  }
+
+  .auth-section {
+    min-height: calc(100svh - 20px);
+    align-items: start;
+    padding-block: clamp(24px, 8svh, 48px) 32px;
   }
 
   .site-header,

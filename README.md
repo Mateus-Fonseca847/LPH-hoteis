@@ -211,6 +211,7 @@ npm run quality
 
 ## Arquitetura
 
+- A entrada da aplicação é o App Router em `src/app`; não há HTML/CSS/JS estático legado na raiz.
 - `src/app`: rotas públicas, rotas administrativas e APIs.
 - `src/components`: componentes reutilizáveis da home e páginas públicas.
 - `src/lib`: autenticação, autorização, validações, auditoria, upload, erros e Prisma.
@@ -365,7 +366,11 @@ As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
 - Sessão usa cookie `HttpOnly`.
 - Cookie usa `Secure` em produção.
 - `SameSite` configurado.
-- Administradores precisam de 2FA.
+- O fluxo atual de login administrativo usa 2FA por e-mail.
+- `emailTwoFactorEnabled` controla a exigência de código por e-mail no login.
+- `twoFactorEnabled` e `twoFactorSecret` são campos legados de app autenticador/TOTP e não controlam o login atual.
+- Usuários comuns e administradores com `emailTwoFactorEnabled=false` entram apenas com e-mail e senha.
+- Administradores com `emailTwoFactorEnabled=true` recebem um código de 6 dígitos por e-mail antes de acessar o painel.
 - Usuário desativado não autentica como usuário válido.
 - Escritas administrativas exigem autenticação e autorização no backend.
 - Escritas ligadas a hotel validam permissão por hotel.
