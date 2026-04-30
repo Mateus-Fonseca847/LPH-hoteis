@@ -57,7 +57,7 @@ export function TwoFactorEmailForm({ redirectTo }: TwoFactorEmailFormProps) {
     setInfo("");
 
     if (code.length !== 6) {
-      setError("Informe o codigo de 6 digitos.");
+      setError("Informe o código de 6 dígitos.");
       return;
     }
 
@@ -74,14 +74,14 @@ export function TwoFactorEmailForm({ redirectTo }: TwoFactorEmailFormProps) {
       const data = (await response.json()) as VerifyResponse;
 
       if (!response.ok) {
-        setError(data.error ?? "Codigo invalido.");
+        setError(data.error ?? "Código inválido.");
         return;
       }
 
       router.push(redirectTo);
       router.refresh();
     } catch {
-      setError("Nao foi possivel verificar o codigo.");
+      setError("Não foi possível verificar o código.");
     } finally {
       setIsVerifying(false);
     }
@@ -106,13 +106,13 @@ export function TwoFactorEmailForm({ redirectTo }: TwoFactorEmailFormProps) {
       setResendCooldown(nextCooldown);
 
       if (!response.ok) {
-        setError(data.error ?? "Muitas tentativas. Aguarde para solicitar um novo codigo.");
+        setError(data.error ?? "Muitas tentativas. Aguarde para solicitar um novo código.");
         return;
       }
 
-      setInfo(data.message ?? "Se possivel, enviaremos um novo codigo para o e-mail cadastrado.");
+      setInfo(data.message ?? "Se possível, enviaremos um novo código para o e-mail cadastrado.");
     } catch {
-      setError("Nao foi possivel reenviar o codigo.");
+      setError("Não foi possível reenviar o código.");
     } finally {
       setIsResending(false);
     }
@@ -121,7 +121,7 @@ export function TwoFactorEmailForm({ redirectTo }: TwoFactorEmailFormProps) {
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
       <div className="auth-field">
-        <label htmlFor="two-factor-code">Codigo de 6 digitos</label>
+        <label htmlFor="two-factor-code">Código de 6 dígitos</label>
         <input
           id="two-factor-code"
           inputMode="numeric"
@@ -135,14 +135,14 @@ export function TwoFactorEmailForm({ redirectTo }: TwoFactorEmailFormProps) {
       </div>
 
       <p id="two-factor-help" className="auth-help">
-        O codigo expira em poucos minutos. Se ele vencer, solicite um novo envio.
+        O código expira em poucos minutos. Se ele vencer, solicite um novo envio.
       </p>
 
       {info ? <p className="auth-help">{info}</p> : null}
       {error ? <p className="auth-error">{error}</p> : null}
 
       <button className="card-cta-button auth-submit" type="submit" disabled={isVerifying}>
-        {isVerifying ? "Verificando..." : "Verificar codigo"}
+        {isVerifying ? "Verificando..." : "Verificar código"}
       </button>
 
       <button
@@ -154,8 +154,8 @@ export function TwoFactorEmailForm({ redirectTo }: TwoFactorEmailFormProps) {
         {isResending
           ? "Reenviando..."
           : resendCooldown > 0
-            ? `Reenviar codigo em ${resendCooldown}s`
-            : "Reenviar codigo"}
+            ? `Reenviar código em ${resendCooldown}s`
+            : "Reenviar código"}
       </button>
     </form>
   );

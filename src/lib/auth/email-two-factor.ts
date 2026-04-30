@@ -1,6 +1,6 @@
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 
-import { sendTwoFactorEmailCode } from "@/lib/email";
+import { sendTwoFactorCodeEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 export type EmailAuthCodePurpose = "login_2fa" | "email_verification" | "password_reset";
@@ -31,7 +31,7 @@ function getCodePepper() {
   const secret = process.env.AUTH_SECRET?.trim();
 
   if (!secret) {
-    throw new Error("AUTH_SECRET nao configurado.");
+    throw new Error("AUTH_SECRET não configurado.");
   }
 
   return secret;
@@ -187,19 +187,16 @@ export async function requestTwoFactorEmailCodeForUser(
   });
 
   try {
-    await sendTwoFactorEmailCode({
+    await sendTwoFactorCodeEmail({
       to: user.email,
       name: user.name,
       code,
       expiresInMinutes: CODE_EXPIRES_IN_MINUTES,
     });
   } catch (error) {
-    await prisma.emailAuthCode.update({
+    await prisma.emailAuthCode.delete({
       where: {
         id: createdCode.id,
-      },
-      data: {
-        usedAt: new Date(),
       },
     });
 

@@ -70,11 +70,11 @@ export function formatRoomStartingPrice(priceCents: number | null) {
 
 export function getRoomAvailabilityLabel(status: StayAvailabilityStatus) {
   if (status === "available") {
-    return "Disponivel";
+    return "Disponível";
   }
 
   if (status === "unavailable") {
-    return "Indisponivel";
+    return "Indisponível";
   }
 
   return "Consultar disponibilidade";

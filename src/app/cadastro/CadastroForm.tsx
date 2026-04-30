@@ -50,13 +50,13 @@ function validateForm(values: CadastroFormValues) {
   }
 
   if (!isStrongPassword) {
-    errors.password = "A senha ainda nao atende aos requisitos minimos.";
+      errors.password = "A senha ainda não atende aos requisitos mínimos.";
   }
 
   if (!values.confirmPassword) {
     errors.confirmPassword = "Confirme sua senha.";
   } else if (values.password !== values.confirmPassword) {
-    errors.confirmPassword = "As senhas informadas nao conferem.";
+      errors.confirmPassword = "As senhas informadas não conferem.";
   }
 
   return errors;
@@ -102,7 +102,7 @@ export function CadastroForm() {
 
       if (!response.ok) {
         setErrors({
-          form: data.error ?? "Nao foi possivel criar sua conta.",
+          form: data.error ?? "Não foi possível criar sua conta.",
         });
         return;
       }
@@ -111,7 +111,7 @@ export function CadastroForm() {
       router.refresh();
     } catch {
       setErrors({
-        form: "Nao foi possivel criar sua conta. Tente novamente.",
+        form: "Não foi possível criar sua conta. Tente novamente.",
       });
     } finally {
       setIsSubmitting(false);
@@ -171,7 +171,7 @@ export function CadastroForm() {
           required
         />
         <ul id="password-rules" className="auth-requirements">
-          <li className={passwordChecks.minLength ? "is-met" : ""}>Minimo de 8 caracteres</li>
+          <li className={passwordChecks.minLength ? "is-met" : ""}>Mínimo de 8 caracteres</li>
           <li className={passwordChecks.hasUppercase ? "is-met" : ""}>Uma letra maiuscula</li>
           <li className={passwordChecks.hasLowercase ? "is-met" : ""}>Uma letra minuscula</li>
           <li className={passwordChecks.hasNumber ? "is-met" : ""}>Um numero</li>

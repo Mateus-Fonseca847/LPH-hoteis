@@ -10,6 +10,7 @@ import { HotelGallery } from "@/components/HotelGallery";
 import { HotelPageActions } from "@/components/HotelPageActions";
 import { HotelRegionDetailsSection } from "@/components/HotelRegionDetailsSection";
 import { getHotelPageData } from "@/lib/hotel-data";
+import { prisma } from "@/lib/prisma";
 import { parseBedsValue, ROOM_BED_OPTIONS } from "@/lib/room-options";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,11 @@ export const dynamic = "force-dynamic";
 type HotelPageProps = {
   params: Promise<{
     slug: string;
+  }>;
+  searchParams?: Promise<{
+    checkout?: string;
+    session_id?: string;
+    reservation?: string;
   }>;
 };
 
@@ -259,8 +265,9 @@ function getRoomAmenityHighlights(room: HotelPageRoom) {
   };
 }
 
-export default async function HotelPage({ params }: HotelPageProps) {
+export default async function HotelPage({ params, searchParams }: HotelPageProps) {
   const { slug } = await params;
+  const checkoutParams = searchParams ? await searchParams : {};
   const hotel = await getHotelPageData(slug);
 
   if (!hotel) {
@@ -290,6 +297,33 @@ export default async function HotelPage({ params }: HotelPageProps) {
   const accessibility = buildAccessibility(hotel);
   const faq = buildFaq(hotel);
   const policySections = buildPolicySections(hotel);
+  const paidReservation = checkoutParams.session_id
+    ? await prisma.reservation.findUnique({
+        where: {
+          stripeCheckoutSessionId: checkoutParams.session_id,
+        },
+        select: {
+          id: true,
+          status: true,
+        },
+      })
+    : null;
+  const checkoutNotice =
+    checkoutParams.checkout === "success"
+      ? {
+          title: paidReservation?.status === "paid" ? "Pagamento aprovado" : "Pagamento recebido",
+          description:
+            paidReservation?.status === "paid"
+              ? `Reserva ${paidReservation.id} confirmada com pagamento aprovado. O hotel e o hóspede receberão os e-mails de confirmação.`
+              : "Aguardando confirmação automática do pagamento. Você receberá a confirmação por e-mail.",
+        }
+      : checkoutParams.checkout === "cancelled"
+        ? {
+            title: "Pagamento não concluído",
+            description:
+              "Nenhuma cobrança foi confirmada. Abra a consulta de disponibilidade para tentar novamente.",
+          }
+        : null;
   return (
     <div className="page-shell">
       <Header />
@@ -301,6 +335,13 @@ export default async function HotelPage({ params }: HotelPageProps) {
               Voltar à lista de hotéis
             </Link>
           </div>
+
+          {checkoutNotice ? (
+            <div className="hotel-checkout-notice" role="status">
+              <strong>{checkoutNotice.title}</strong>
+              <p>{checkoutNotice.description}</p>
+            </div>
+          ) : null}
 
           <div className="hotel-hero-layout">
             <div className="hotel-hero-copy">
@@ -341,9 +382,9 @@ export default async function HotelPage({ params }: HotelPageProps) {
               <div className="hotel-page-actions">
                 <HotelAvailabilityModalTrigger
                   className="card-cta-button hotel-page-cta"
+                  hotelSlug={hotel.slug}
+                  hotelId={hotel.id}
                   hotelName={hotel.name}
-                  hotelEmail={hotel.email}
-                  hotelWhatsapp={hotel.whatsapp}
                   rooms={availabilityRooms}
                 />
               </div>
@@ -450,7 +491,7 @@ export default async function HotelPage({ params }: HotelPageProps) {
             {hotel.rooms.length ? (
               <div className="hotel-rooms-grid">
                 {hotel.rooms.map((room) => (
-                  <article key={room.id} className="hotel-room-card">
+                  <article id={`quarto-${room.id}`} key={room.id} className="hotel-room-card">
                     <div className="hotel-room-media">
                       <Image
                         src={room.imageUrl}
@@ -522,9 +563,9 @@ export default async function HotelPage({ params }: HotelPageProps) {
                         </div>
                         <HotelAvailabilityModalTrigger
                           className="hotel-room-cta"
+                          hotelSlug={hotel.slug}
+                          hotelId={hotel.id}
                           hotelName={hotel.name}
-                          hotelEmail={hotel.email}
-                          hotelWhatsapp={hotel.whatsapp}
                           roomName={room.name}
                           rooms={availabilityRooms}
                         />
@@ -588,15 +629,14 @@ export default async function HotelPage({ params }: HotelPageProps) {
             <span className="hotel-page-eyebrow">Reserva</span>
             <h2>Pronto para consultar sua estadia?</h2>
             <p className="hotel-description hotel-description--compact">
-              Fale com a equipe do {hotel.name} para verificar disponibilidade, categorias e
-              condições para as suas datas.
+              Consulte disponibilidade, escolha o quarto e avance a reserva pelo site.
             </p>
           </div>
           <HotelAvailabilityModalTrigger
             className="card-cta-button hotel-page-cta"
+            hotelSlug={hotel.slug}
+            hotelId={hotel.id}
             hotelName={hotel.name}
-            hotelEmail={hotel.email}
-            hotelWhatsapp={hotel.whatsapp}
             rooms={availabilityRooms}
           />
         </section>

@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import {
   disableEmailTwoFactorAction,
   enableEmailTwoFactorAction,
+  sendTestEmailAction,
   type AccountSecurityActionState,
 } from "./actions";
 
@@ -35,6 +36,12 @@ export function AccountSecurityForm({ emailTwoFactorEnabled, isAdmin }: AccountS
     });
   }
 
+  function handleSendTestEmail() {
+    startTransition(async () => {
+      setState(await sendTestEmailAction());
+    });
+  }
+
   return (
     <div className="admin-security-actions">
       <button
@@ -55,9 +62,18 @@ export function AccountSecurityForm({ emailTwoFactorEnabled, isAdmin }: AccountS
         Desativar 2FA por e-mail
       </button>
 
+      <button
+        type="button"
+        className="admin-secondary-button"
+        onClick={handleSendTestEmail}
+        disabled={isPending}
+      >
+        Enviar e-mail de teste
+      </button>
+
       {isAdmin ? (
         <p className="admin-availability-note">
-          Administradores devem manter 2FA por e-mail ativo. A desativacao exige uma politica
+          Administradores devem manter 2FA por e-mail ativo. A desativação exige uma política
           explicita do sistema.
         </p>
       ) : null}

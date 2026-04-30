@@ -8,9 +8,11 @@ import { prisma } from "@/lib/prisma";
 
 import { HotelEditorForm } from "./HotelEditorForm";
 import { HotelAvailabilitySection } from "./HotelAvailabilitySection";
+import { HotelPaymentSettingsForm } from "./HotelPaymentSettingsForm";
 import { HotelRatesSection } from "./HotelRatesSection";
 import { HotelRoomsSection } from "./HotelRoomsSection";
 import { updateHotelProfileAction } from "./actions";
+import { updateHotelPaymentSettingsAction } from "./payment-actions";
 
 type AdminHotelDetailPageProps = {
   params: Promise<{
@@ -21,6 +23,10 @@ type AdminHotelDetailPageProps = {
 function formatAuditAction(action: string) {
   if (action === "hotel.profile.updated") {
     return "Perfil atualizado";
+  }
+
+  if (action === "hotel.payment_settings.updated") {
+    return "Pagamentos atualizados";
   }
 
   return action;
@@ -117,6 +123,7 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
           },
         },
       },
+      paymentSettings: true,
     },
   });
 
@@ -125,6 +132,26 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
   }
 
   const saveAction = updateHotelProfileAction.bind(null, hotel.id);
+  const savePaymentSettingsAction = updateHotelPaymentSettingsAction.bind(null, hotel.id);
+  const paymentSettings = hotel.paymentSettings
+    ? {
+        provider: hotel.paymentSettings.provider,
+        isEnabled: hotel.paymentSettings.isEnabled,
+        receiverLabel: hotel.paymentSettings.receiverLabel,
+        publicKey: hotel.paymentSettings.publicKey,
+        hasAccessToken: Boolean(hotel.paymentSettings.encryptedAccessToken),
+        pixKey: hotel.paymentSettings.pixKey,
+        payoutDocument: hotel.paymentSettings.payoutDocument,
+      }
+    : {
+        provider: "manual" as const,
+        isEnabled: false,
+        receiverLabel: `${hotel.name} - teste`,
+        publicKey: null,
+        hasAccessToken: false,
+        pixKey: null,
+        payoutDocument: null,
+      };
 
   return (
     <section className="section admin-section">
@@ -134,6 +161,11 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
       </div>
 
       <HotelEditorForm action={saveAction} hotel={hotel} />
+      <HotelPaymentSettingsForm
+        action={savePaymentSettingsAction}
+        settings={paymentSettings}
+        isConfigured={Boolean(hotel.paymentSettings)}
+      />
       <HotelRoomsSection
         hotelId={hotel.id}
         initialRooms={hotel.rooms.map((room) => ({

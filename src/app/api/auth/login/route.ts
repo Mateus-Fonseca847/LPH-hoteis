@@ -21,10 +21,13 @@ import {
 } from "@/lib/auth/session";
 import { requestTwoFactorEmailCodeForUser } from "@/lib/auth/email-two-factor";
 import { findUserByEmail } from "@/lib/auth/user";
+import { EmailSendError } from "@/lib/email";
 import { InternalServerError, createApiSuccessResponse } from "@/lib/errors/app-error";
 
-const INVALID_CREDENTIALS_MESSAGE = "Nao foi possivel concluir o login com essas credenciais.";
-const LOGIN_FAILURE_MESSAGE = "Nao foi possivel concluir o login.";
+const INVALID_CREDENTIALS_MESSAGE = "Não foi possível concluir o login com essas credenciais.";
+const LOGIN_FAILURE_MESSAGE = "Não foi possível concluir o login.";
+const TWO_FACTOR_EMAIL_FAILURE_MESSAGE =
+  "Não foi possível enviar o código de verificação. Tente novamente em alguns instantes.";
 
 function isPrismaRuntimeError(error: unknown) {
   return (
@@ -44,7 +47,7 @@ export async function POST(request: Request) {
     } catch {
       throw createValidationErrorFromResult({
         error: {
-          issues: [{ message: "Payload invalido." }],
+          issues: [{ message: "Payload inválido." }],
         },
       });
     }
@@ -168,6 +171,17 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[auth/login] Failed to complete login.", error);
+
+    if (error instanceof EmailSendError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: TWO_FACTOR_EMAIL_FAILURE_MESSAGE,
+          code: "AUTHENTICATION_ERROR",
+        },
+        { status: 503 }
+      );
+    }
 
     if (isPrismaRuntimeError(error)) {
       return createAuthApiErrorResponse(

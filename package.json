@@ -24,6 +24,8 @@
     "otpauth": "^9.5.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "resend": "^6.12.2",
+    "stripe": "^22.1.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

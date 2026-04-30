@@ -121,9 +121,9 @@ export default async function AdminHomePage() {
           href="/admin/seguranca"
           className="hotel-content-card admin-overview-card admin-link-card"
         >
-          <span>SeguranÃ§a</span>
+          <span>Segurança</span>
           <strong>2FA por e-mail</strong>
-          <p>Verificar a polÃ­tica de autenticaÃ§Ã£o em duas etapas da conta.</p>
+          <p>Verificar a política de autenticação em duas etapas da conta.</p>
         </Link>
       </div>
 

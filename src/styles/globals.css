@@ -725,21 +725,21 @@ button {
   height: 100dvh;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 24px;
+  padding: clamp(24px, 3vw, 40px);
   background: rgba(10, 27, 52, 0.58);
   backdrop-filter: blur(5px);
 }
 
 .hotel-availability-modal {
   position: relative;
-  width: min(100%, 1120px);
-  max-height: calc(100dvh - 48px);
-  min-height: min(760px, calc(100dvh - 48px));
+  width: min(96vw, 1360px);
+  max-height: calc(100dvh - clamp(48px, 6vw, 80px));
+  min-height: min(860px, calc(100dvh - clamp(48px, 6vw, 80px)));
   overflow: auto;
   overscroll-behavior: contain;
   display: grid;
   gap: 22px;
-  padding: clamp(22px, 3vw, 34px);
+  padding: clamp(24px, 3vw, 42px);
   border: 1px solid rgba(30, 30, 30, 0.08);
   border-radius: 30px;
   background: var(--surface);
@@ -838,7 +838,7 @@ button {
 
 .availability-flow-stepper ol {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   margin: 0;
   padding: 0;
@@ -1308,6 +1308,41 @@ button {
   color: var(--brand);
 }
 
+.availability-modal-room-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.availability-modal-room-card__details-link {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(6, 41, 79, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--brand);
+  font-weight: 900;
+  padding: 0 16px;
+  text-align: center;
+  white-space: nowrap;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.availability-modal-room-card__details-link:hover,
+.availability-modal-room-card__details-link:focus-visible {
+  border-color: rgba(6, 41, 79, 0.28);
+  background: rgba(6, 41, 79, 0.07);
+  outline: 3px solid rgba(6, 41, 79, 0.12);
+  outline-offset: 2px;
+  transform: translateY(-1px);
+}
+
 .availability-modal-room-card__cta {
   display: inline-flex;
   min-height: 40px;
@@ -1432,9 +1467,12 @@ button {
   align-items: center;
   justify-content: center;
   justify-self: end;
+  border: 0;
   border-radius: 999px;
   background: var(--brand);
   color: var(--surface);
+  cursor: pointer;
+  font: inherit;
   font-weight: 950;
   padding: 0 22px;
   text-align: center;
@@ -1456,6 +1494,289 @@ button {
   pointer-events: none;
   background: rgba(30, 30, 30, 0.08);
   color: var(--muted);
+}
+
+.availability-confirmation-cta:disabled {
+  cursor: not-allowed;
+  background: rgba(30, 30, 30, 0.12);
+  color: var(--muted);
+  transform: none;
+  box-shadow: none;
+}
+
+.availability-site-reservation-next {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid rgba(6, 41, 79, 0.12);
+  border-radius: 18px;
+  background: rgba(6, 41, 79, 0.06);
+}
+
+.availability-site-reservation-next h3 {
+  margin: 0;
+  color: var(--brand);
+}
+
+.availability-site-reservation-next p {
+  margin: 0;
+}
+
+.availability-payment-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.availability-payment-method {
+  min-height: 132px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 16px;
+  border: 1px solid rgba(30, 30, 30, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text);
+  text-align: left;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.availability-payment-method:hover,
+.availability-payment-method:focus-visible {
+  border-color: rgba(6, 41, 79, 0.28);
+  background: rgba(6, 41, 79, 0.05);
+  box-shadow: 0 12px 24px rgba(6, 41, 79, 0.08);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.availability-payment-method.is-selected {
+  border-color: rgba(6, 41, 79, 0.42);
+  background: rgba(6, 41, 79, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(6, 41, 79, 0.12);
+}
+
+.availability-payment-method__icon {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(6, 41, 79, 0.08);
+  color: var(--brand);
+}
+
+.availability-payment-method__icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.availability-payment-method__icon .availability-payment-pix-icon {
+  fill: none;
+  stroke: none;
+}
+
+.availability-payment-method__icon .availability-payment-pix-icon path {
+  fill: rgb(147, 254, 214);
+  stroke: none;
+}
+
+.availability-payment-method strong,
+.availability-payment-method small {
+  display: block;
+}
+
+.availability-payment-method strong {
+  color: var(--brand);
+  font-family: var(--font-sora), sans-serif;
+  line-height: 1.2;
+}
+
+.availability-payment-method small {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.availability-guest-step {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+  align-content: start;
+  padding: 18px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 22px;
+  background: rgba(247, 245, 241, 0.72);
+}
+
+.availability-guest-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.availability-reservation-summary {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.availability-reservation-summary h3 {
+  margin: 0;
+  color: var(--brand);
+}
+
+.availability-reservation-form {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.availability-reservation-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--brand);
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
+.availability-reservation-form input {
+  min-height: 46px;
+  width: 100%;
+  border: 1px solid rgba(30, 30, 30, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  font: inherit;
+  padding: 0 14px;
+}
+
+.availability-reservation-form input:focus {
+  border-color: rgba(6, 41, 79, 0.36);
+  box-shadow: 0 0 0 3px rgba(6, 41, 79, 0.1);
+  outline: none;
+}
+
+.availability-reservation-form label > span {
+  color: #9b1c1c;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.availability-reservation-error {
+  margin: 0;
+  color: #9b1c1c;
+  font-weight: 850;
+}
+
+.availability-payment-loading,
+.availability-payment-instructions {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(6, 41, 79, 0.12);
+  border-radius: 16px;
+  background: rgba(6, 41, 79, 0.04);
+}
+
+.availability-payment-loading > span {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(6, 41, 79, 0.18);
+  border-top-color: var(--brand);
+  border-radius: 999px;
+  animation: availability-payment-spin 0.8s linear infinite;
+}
+
+.availability-payment-loading strong,
+.availability-payment-instructions strong {
+  color: var(--brand);
+  font-family: var(--font-sora), sans-serif;
+}
+
+.availability-payment-loading p,
+.availability-payment-instructions p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.availability-payment-instructions img {
+  width: min(220px, 100%);
+  height: auto;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.availability-payment-code {
+  display: grid;
+  gap: 10px;
+}
+
+.availability-payment-code code {
+  display: block;
+  max-height: 120px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid rgba(30, 30, 30, 0.1);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.availability-payment-code button {
+  min-height: 42px;
+  justify-self: start;
+  padding: 0 16px;
+  border: 1px solid rgba(6, 41, 79, 0.18);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--brand);
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.availability-payment-code button:hover,
+.availability-payment-code button:focus-visible {
+  border-color: rgba(6, 41, 79, 0.36);
+  box-shadow: 0 8px 18px rgba(6, 41, 79, 0.08);
+  outline: none;
+}
+
+@keyframes availability-payment-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.availability-reservation-success {
+  display: grid;
+  gap: 10px;
 }
 
 .card-cta-button:hover {
@@ -2526,6 +2847,11 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 12px;
+}
+
+.admin-payment-settings-form {
+  display: grid;
+  gap: 18px;
 }
 
 .admin-toggle-field input {
@@ -3966,6 +4292,22 @@ button {
   font-weight: 700;
 }
 
+.hotel-checkout-notice {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 24px;
+  padding: 14px 16px;
+  border: 1px solid rgba(6, 41, 79, 0.16);
+  border-radius: 18px;
+  background: rgba(6, 41, 79, 0.06);
+  color: var(--brand);
+}
+
+.hotel-checkout-notice strong,
+.hotel-checkout-notice p {
+  margin: 0;
+}
+
 .hotel-section-heading {
   margin-bottom: 20px;
 }
@@ -5214,6 +5556,7 @@ button {
     max-height: calc(100dvh - 16px);
     min-height: calc(100dvh - 16px);
     border-radius: 22px;
+    padding: clamp(18px, 5vw, 24px);
   }
 
   .hotel-availability-modal-header,
@@ -5245,6 +5588,7 @@ button {
   }
 
   .availability-flow-stepper ol {
+    grid-template-columns: repeat(5, minmax(42px, 1fr));
     gap: 6px;
   }
 
@@ -5316,8 +5660,18 @@ button {
     width: 100%;
   }
 
+  .availability-modal-room-card__actions,
+  .availability-modal-room-card__details-link {
+    width: 100%;
+  }
+
   .availability-confirmation-room,
-  .availability-confirmation-details {
+  .availability-confirmation-details,
+  .availability-guest-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .availability-payment-methods {
     grid-template-columns: 1fr;
   }
 

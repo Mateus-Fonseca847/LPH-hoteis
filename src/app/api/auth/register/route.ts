@@ -6,7 +6,7 @@ import { createApiSuccessResponse, ValidationError } from "@/lib/errors/app-erro
 import { prisma } from "@/lib/prisma";
 import { parseSignupPayload } from "@/lib/validations/signup";
 
-const SIGNUP_FAILURE_MESSAGE = "Nao foi possivel criar a conta com os dados informados.";
+const SIGNUP_FAILURE_MESSAGE = "Não foi possível criar a conta com os dados informados.";
 
 function isUniqueConstraintError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      throw new ValidationError("Dados de cadastro invalidos.");
+      throw new ValidationError("Dados de cadastro inválidos.");
     }
 
     const parsedPayload = parseSignupPayload(body);

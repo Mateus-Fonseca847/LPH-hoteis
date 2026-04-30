@@ -6,9 +6,10 @@ import { requestTwoFactorEmailCodeForUser } from "@/lib/auth/email-two-factor";
 import { createApiSuccessResponse } from "@/lib/errors/app-error";
 
 const GENERIC_RESPONSE_MESSAGE =
-  "Se for possivel validar este acesso, enviaremos um codigo para o e-mail cadastrado.";
-const PENDING_2FA_REQUIRED_MESSAGE = "Login com 2FA pendente e necessario para reenviar codigo.";
-const RATE_LIMIT_MESSAGE = "Muitas tentativas. Aguarde antes de solicitar um novo codigo.";
+  "Se for possível validar este acesso, enviaremos um código para o e-mail cadastrado.";
+const PENDING_2FA_REQUIRED_MESSAGE =
+  "Login com 2FA pendente é necessário para reenviar o código.";
+const RATE_LIMIT_MESSAGE = "Muitas tentativas. Aguarde antes de solicitar um novo código.";
 
 function createStandardErrorResponse({
   error,
@@ -77,6 +78,6 @@ export async function POST() {
       message: GENERIC_RESPONSE_MESSAGE,
     });
   } catch (error) {
-    return createAuthApiErrorResponse(error, "Nao foi possivel enviar o codigo de verificacao.");
+    return createAuthApiErrorResponse(error, "Não foi possível enviar o código de verificação.");
   }
 }

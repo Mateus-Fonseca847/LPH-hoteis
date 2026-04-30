@@ -67,7 +67,7 @@ export default async function TwoFactorPage({ searchParams }: TwoFactorPageProps
             <span className="hotel-page-eyebrow">Acesso seguro</span>
             <h1>Verificação em duas etapas</h1>
             <p className="auth-copy">
-              Enviamos um codigo de seguranca para {maskEmail(user.email)}. Informe o codigo para
+              Enviamos um código de segurança para {maskEmail(user.email)}. Informe o código para
               concluir o acesso ao painel administrativo.
             </p>
             <TwoFactorEmailForm redirectTo={redirectTo} />

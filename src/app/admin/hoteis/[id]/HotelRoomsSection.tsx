@@ -408,7 +408,7 @@ async function uploadRoomImage(hotelId: string, file: File) {
   } | null;
 
   if (!response.ok || !payload?.ok || !payload.image?.url) {
-    throw new Error(payload?.error || "Nao foi possivel enviar a imagem do quarto.");
+    throw new Error(payload?.error || "Não foi possível enviar a imagem do quarto.");
   }
 
   return payload.image.url;
@@ -476,7 +476,7 @@ function RoomFormCard({
     } catch (error) {
       setImageUploadFeedbackType("error");
       setImageUploadFeedback(
-        error instanceof Error ? error.message : "Nao foi possivel enviar a imagem do quarto."
+        error instanceof Error ? error.message : "Não foi possível enviar a imagem do quarto."
       );
     } finally {
       setIsUploadingImage(false);
@@ -809,7 +809,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
     const result = await listHotelRoomsAction(hotelId);
 
     if (result.status === "error") {
-      throw new Error(result.message || "Nao foi possivel atualizar a lista de quartos.");
+      throw new Error(result.message || "Não foi possível atualizar a lista de quartos.");
     }
 
     setRooms(result.rooms);
@@ -830,7 +830,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
         const result = await task();
 
         if (result.status === "error") {
-          throw new Error(result.message || "Nao foi possivel concluir a operacao.");
+          throw new Error(result.message || "Não foi possível concluir a operação.");
         }
 
         await refreshRooms();
@@ -840,7 +840,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
       } catch (error) {
         setFeedbackType("error");
         setFeedback(
-          error instanceof Error ? error.message : "Nao foi possivel concluir a operacao."
+          error instanceof Error ? error.message : "Não foi possível concluir a operação."
         );
       } finally {
         setPendingRoomId(null);

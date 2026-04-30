@@ -17,9 +17,9 @@ export const ROOM_BED_OPTIONS: RoomBedOption[] = [
   { id: "queen", label: "Cama queen" },
   { id: "king", label: "Cama king" },
   { id: "bunk", label: "Beliche" },
-  { id: "sofa-bed", label: "Sofa-cama" },
+  { id: "sofa-bed", label: "Sofá-cama" },
   { id: "child", label: "Cama infantil" },
-  { id: "crib", label: "Berco" },
+  { id: "crib", label: "Berço" },
   { id: "futon", label: "Futon" },
   { id: "extra", label: "Cama extra" },
 ];
@@ -43,18 +43,18 @@ export const ROOM_AMENITY_OPTIONS: RoomAmenityOption[] = [
   { id: "premium-linens", label: "Roupas de cama premium" },
   { id: "extra-pillows", label: "Travesseiros extras" },
   { id: "blackout", label: "Cortinas blackout" },
-  { id: "soundproofing", label: "Isolamento acustico" },
-  { id: "daily-housekeeping", label: "Servico de limpeza diario" },
+  { id: "soundproofing", label: "Isolamento acústico" },
+  { id: "daily-housekeeping", label: "Serviço de limpeza diário" },
   { id: "bath-amenities", label: "Amenities de banho" },
   { id: "coffee-maker", label: "Cafeteira" },
-  { id: "electric-kettle", label: "Chaleira eletrica" },
+  { id: "electric-kettle", label: "Chaleira elétrica" },
   { id: "microwave", label: "Micro-ondas", aliases: ["micro ondas"] },
   { id: "kitchenette", label: "Cozinha compacta" },
-  { id: "living-area", label: "Area de estar" },
-  { id: "sofa", label: "Sofa" },
-  { id: "bedside-outlets", label: "Tomadas proximas a cama" },
+  { id: "living-area", label: "Área de estar" },
+  { id: "sofa", label: "Sofá" },
+  { id: "bedside-outlets", label: "Tomadas próximas à cama" },
   { id: "elevator-access", label: "Acesso por elevador" },
-  { id: "accessible-room", label: "Quarto acessivel" },
+  { id: "accessible-room", label: "Quarto acessível" },
 ];
 
 function normalizeOptionText(value: string) {
@@ -144,7 +144,7 @@ export function canonicalizeBedsValue(value: string) {
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
       return {
         success: false as const,
-        error: "Quantidade de camas invalida.",
+        error: "Quantidade de camas inválida.",
       };
     }
 
@@ -156,14 +156,14 @@ export function canonicalizeBedsValue(value: string) {
     if (!option) {
       return {
         success: false as const,
-        error: "Tipo de cama invalido.",
+        error: "Tipo de cama inválido.",
       };
     }
 
     if (selectedBeds[option.id] > 0) {
       return {
         success: false as const,
-        error: "Nao repita o mesmo tipo de cama.",
+        error: "Não repita o mesmo tipo de cama.",
       };
     }
 
@@ -217,14 +217,14 @@ export function canonicalizeRoomAmenityLabels(values: string[]) {
     if (!option) {
       return {
         success: false as const,
-        error: "Comodidade do quarto invalida.",
+        error: "Comodidade do quarto inválida.",
       };
     }
 
     if (normalizedIds.has(option.id)) {
       return {
         success: false as const,
-        error: "Nao repita a mesma comodidade do quarto.",
+        error: "Não repita a mesma comodidade do quarto.",
       };
     }
 

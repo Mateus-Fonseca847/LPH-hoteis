@@ -4,3 +4,21 @@
   type: 'TypeError',
   page: '/hoteis/lph-marina-santos/disponibilidade'
 }
+ ⚠ ./src/styles/globals.css.webpack[javascript/auto]!=!./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./src/styles/globals.css
+Warning
+
+(1028:3) autoprefixer: start value has mixed support, consider using flex-start instead
+
+Import trace for requested module:
+./src/styles/globals.css.webpack[javascript/auto]!=!./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./src/styles/globals.css
+./src/styles/globals.css
+ ⚠ ./src/styles/globals.css.webpack[javascript/auto]!=!./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./src/styles/globals.css
+Warning
+
+(1028:3) autoprefixer: start value has mixed support, consider using flex-start instead
+
+Import trace for requested module:
+./src/styles/globals.css.webpack[javascript/auto]!=!./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./src/styles/globals.css
+./src/styles/globals.css
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: invalid block type
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: invalid block type

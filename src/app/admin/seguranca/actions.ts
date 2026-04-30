@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { isAdminUser, requireAdminRouteSession } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
 import { AuthorizationError, getErrorMessage } from "@/lib/errors/app-error";
 import { getRequestIpAddress } from "@/lib/hotel-write";
 import { prisma } from "@/lib/prisma";
@@ -84,7 +85,7 @@ export async function enableEmailTwoFactorAction(): Promise<AccountSecurityActio
       });
 
       if (!currentUser) {
-        throw new AuthorizationError("Usuario autenticado nao encontrado.");
+        throw new AuthorizationError("Usuário autenticado não encontrado.");
       }
 
       const updatedUser = await tx.user.update({
@@ -113,7 +114,7 @@ export async function enableEmailTwoFactorAction(): Promise<AccountSecurityActio
   } catch (error) {
     return {
       status: "error",
-      message: getErrorMessage(error, "Nao foi possivel ativar o 2FA por e-mail."),
+      message: getErrorMessage(error, "Não foi possível ativar o 2FA por e-mail."),
     };
   }
 }
@@ -128,12 +129,54 @@ export async function disableEmailTwoFactorAction(): Promise<AccountSecurityActi
 
     return {
       status: "error",
-      message: "Desativacao indisponivel para este perfil.",
+      message: "Desativação indisponível para este perfil.",
     };
   } catch (error) {
     return {
       status: "error",
-      message: getErrorMessage(error, "Nao foi possivel desativar o 2FA por e-mail."),
+      message: getErrorMessage(error, "Não foi possível desativar o 2FA por e-mail."),
+    };
+  }
+}
+
+export async function sendTestEmailAction(): Promise<AccountSecurityActionState> {
+  try {
+    const actor = await requireAdminRouteSession("/admin/seguranca");
+
+    if (!isAdminUser(actor.globalRole)) {
+      throw new AuthorizationError("Acesso administrativo negado.");
+    }
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: actor.id,
+        isActive: true,
+      },
+      select: {
+        name: true,
+        email: true,
+      },
+    });
+
+    if (!user) {
+      throw new AuthorizationError("Usuário autenticado não encontrado.");
+    }
+
+    await sendEmail({
+      to: user.email,
+      subject: "Teste de envio LPH",
+      text: "Este é um teste de envio do sistema LPH.",
+      html: `<p>Este é um teste de envio do sistema LPH.</p>`,
+    });
+
+    return {
+      status: "success",
+      message: `E-mail de teste enviado para ${user.email}.`,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: getErrorMessage(error, "Não foi possível enviar o e-mail de teste."),
     };
   }
 }

@@ -14,7 +14,7 @@ function getTwoFactorEncryptionKey() {
   const rawKey = process.env.TWO_FACTOR_ENCRYPTION_KEY;
 
   if (!rawKey) {
-    throw new Error("TWO_FACTOR_ENCRYPTION_KEY nao configurada.");
+    throw new Error("TWO_FACTOR_ENCRYPTION_KEY não configurada.");
   }
 
   const normalized = rawKey.trim();
@@ -44,7 +44,7 @@ export function decryptTwoFactorSecret(encryptedSecret: string) {
   const [ivPart, authTagPart, encryptedPart] = encryptedSecret.split(".");
 
   if (!ivPart || !authTagPart || !encryptedPart) {
-    throw new Error("Segredo de 2FA invalido.");
+    throw new Error("Segredo de 2FA inválido.");
   }
 
   const decipher = createDecipheriv(
@@ -179,11 +179,11 @@ export async function generateTwoFactorSetup(userId: string) {
   });
 
   if (!user) {
-    throw new Error("Usuario nao encontrado.");
+    throw new Error("Usuário não encontrado.");
   }
 
   if (user.twoFactorEnabled) {
-    throw new Error("O 2FA ja foi ativado para este usuario.");
+    throw new Error("O 2FA já foi ativado para este usuário.");
   }
 
   let secret = "";
@@ -270,16 +270,16 @@ export async function activateTwoFactorForUser(userId: string, token: string) {
   });
 
   if (!user) {
-    throw new Error("Usuario nao encontrado.");
+    throw new Error("Usuário não encontrado.");
   }
 
   if (user.twoFactorEnabled) {
-    throw new ConflictError("O 2FA ja foi ativado para este usuario.");
+    throw new ConflictError("O 2FA já foi ativado para este usuário.");
   }
 
   if (!user.twoFactorSecret?.trim()) {
     throw new InternalServerError(
-      "A configuracao do 2FA nao foi preparada para este usuario. Gere uma nova chave antes de ativar.",
+      "A configuração do 2FA não foi preparada para este usuário. Gere uma nova chave antes de ativar.",
       true
     );
   }
@@ -288,7 +288,7 @@ export async function activateTwoFactorForUser(userId: string, token: string) {
 
   if (!secret || !validateTotpSecret(secret, user.email)) {
     throw new InternalServerError(
-      "A configuracao do 2FA deste usuario esta invalida. Gere uma nova chave antes de ativar.",
+      "A configuração do 2FA deste usuário está inválida. Gere uma nova chave antes de ativar.",
       true
     );
   }
@@ -296,7 +296,7 @@ export async function activateTwoFactorForUser(userId: string, token: string) {
   const isValid = isValidTotpToken(secret, user.email, token);
 
   if (!isValid) {
-    throw new Error("Codigo de autenticacao invalido.");
+    throw new Error("Código de autenticação inválido.");
   }
 
   await prisma.user.update({

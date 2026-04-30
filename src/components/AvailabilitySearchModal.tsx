@@ -8,15 +8,35 @@ import {
   getCompatibleRoomAvailabilityResults,
   type AvailabilityResultRoom,
 } from "@/lib/availability-results";
+import { getGuestDocumentError, normalizeGuestDocument } from "@/lib/guest-document";
 import { formatPriceInBRL } from "@/lib/stay-query";
 
 type AvailabilitySearchModalProps = {
+  hotelSlug?: string;
+  hotelId: string;
   hotelName: string;
-  hotelEmail: string;
-  hotelWhatsapp: string;
   roomName?: string;
   rooms: AvailabilityResultRoom[];
   onClose: () => void;
+};
+
+type CreateReservationResponse = {
+  ok: boolean;
+  error?: string;
+  checkoutUrl?: string | null;
+  payment?: PaymentStartDetails | null;
+  reservation?: {
+    id: string;
+    status: string;
+    totalPriceLabel: string;
+  };
+};
+
+type GuestFormErrors = {
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
+  guestDocument?: string;
 };
 
 const MIN_ADULTS = 1;
@@ -38,9 +58,58 @@ type AvailabilityFlowStepperProps = {
   onBackToSearch: () => void;
 };
 
-type AvailabilityFlowStep = 1 | 2 | 3;
+type AvailabilityFlowStep = 1 | 2 | 3 | 4 | 5;
+type PaymentMethod = "pix" | "credit_card" | "debit_card" | "boleto";
 
-const AVAILABILITY_FLOW_STEPS = ["Datas e viajantes", "Escolha do quarto", "Confirmação"] as const;
+type PaymentStartDetails = {
+  method: PaymentMethod;
+  checkoutUrl?: string | null;
+  pix?: {
+    qrCodeImageUrl?: string | null;
+    copyPaste?: string | null;
+  } | null;
+  boleto?: {
+    url?: string | null;
+    digitableLine?: string | null;
+    expiresAt?: string | null;
+  } | null;
+};
+
+type PaymentMethodOption = {
+  id: PaymentMethod;
+  name: string;
+  description: string;
+};
+
+const AVAILABILITY_FLOW_STEPS = [
+  "Datas e viajantes",
+  "Escolha do quarto",
+  "Dados do hóspede",
+  "Pagamento",
+  "Confirmação",
+] as const;
+const PAYMENT_METHOD_OPTIONS: PaymentMethodOption[] = [
+  {
+    id: "pix",
+    name: "Pix",
+    description: "Pagamento instantâneo via QR Code ou copia e cola.",
+  },
+  {
+    id: "credit_card",
+    name: "Cartão de crédito",
+    description: "Pague com cartão de crédito de forma segura.",
+  },
+  {
+    id: "debit_card",
+    name: "Cartão de débito",
+    description: "Pague com cartão de débito, quando disponível.",
+  },
+  {
+    id: "boleto",
+    name: "Boleto",
+    description: "Gere um boleto para pagamento dentro do prazo.",
+  },
+];
 const FOCUSABLE_SELECTOR = [
   "a[href]",
   "button:not([disabled])",
@@ -110,7 +179,7 @@ function formatMonthLabel(month: Date) {
 
 function formatDateLabel(date: Date | null) {
   if (!date) {
-    return "Nao selecionado";
+    return "Não selecionado";
   }
 
   return new Intl.DateTimeFormat("pt-BR", {
@@ -128,13 +197,6 @@ function formatDateInput(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function formatDateShort(date: Date) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-  }).format(date);
-}
-
 function getNights(checkIn: Date | null, checkOut: Date | null) {
   if (!checkIn || !checkOut || !isAfterDay(checkOut, checkIn)) {
     return 0;
@@ -143,59 +205,75 @@ function getNights(checkIn: Date | null, checkOut: Date | null) {
   return Math.round((startOfDay(checkOut).getTime() - startOfDay(checkIn).getTime()) / 86400000);
 }
 
-function buildStayContactMessage({
-  hotelName,
-  roomName,
-  checkIn,
-  checkOut,
-  nights,
-  adults,
-  children,
-  totalPriceCents,
+function validateGuestData({
+  guestName,
+  guestEmail,
+  guestPhone,
+  guestDocument,
 }: {
-  hotelName: string;
-  roomName: string;
-  checkIn: Date;
-  checkOut: Date;
-  nights: number;
-  adults: number;
-  children: number;
-  totalPriceCents?: number;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  guestDocument: string;
 }) {
-  const childrenText =
-    children > 0 ? ` e ${children} ${children === 1 ? "crianca" : "criancas"}` : "";
-  const priceText =
-    typeof totalPriceCents === "number"
-      ? ` Valor estimado: ${formatPriceInBRL(totalPriceCents)}.`
-      : "";
+  const errors: GuestFormErrors = {};
+  const trimmedName = guestName.trim();
+  const trimmedEmail = guestEmail.trim();
+  const trimmedPhone = guestPhone.trim();
 
+  if (trimmedName.length < 3) {
+    errors.guestName = "Informe o nome completo.";
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    errors.guestEmail = "Informe um e-mail válido.";
+  }
+
+  if (trimmedPhone.replace(/\D/g, "").length < 8) {
+    errors.guestPhone = "Informe um telefone válido.";
+  }
+
+  if (!normalizeGuestDocument(guestDocument)) {
+    errors.guestDocument = getGuestDocumentError(guestDocument);
+  }
+
+  return errors;
+}
+
+function PixIcon() {
   return (
-    `Ola! Gostaria de consultar disponibilidade no ${hotelName}` +
-    ` para o quarto ${roomName}, de ${formatDateShort(checkIn)} a ${formatDateShort(checkOut)}` +
-    ` (${nights} ${nights === 1 ? "noite" : "noites"}), para ${adults} ${
-      adults === 1 ? "adulto" : "adultos"
-    }${childrenText}.` +
-    priceText +
-    " Poderiam confirmar a disponibilidade? Entendo que a reserva ainda precisa ser confirmada pela equipe."
+    <svg
+      className="availability-payment-pix-icon"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 640 640"
+      aria-hidden="true"
+    >
+      <path
+        fill="rgb(147, 254, 214)"
+        d="M306.4 356.5C311.8 351.1 321.1 351.1 326.5 356.5L403.5 433.5C417.7 447.7 436.6 455.5 456.6 455.5L471.7 455.5L374.6 552.6C344.3 582.1 295.1 582.1 264.8 552.6L167.3 455.2L176.6 455.2C196.6 455.2 215.5 447.4 229.7 433.2L306.4 356.5zM326.5 282.9C320.1 288.4 311.9 288.5 306.4 282.9L229.7 206.2C215.5 191.1 196.6 184.2 176.6 184.2L167.3 184.2L264.7 86.8C295.1 56.5 344.3 56.5 374.6 86.8L471.8 183.9L456.6 183.9C436.6 183.9 417.7 191.7 403.5 205.9L326.5 282.9zM176.6 206.7C190.4 206.7 203.1 212.3 213.7 222.1L290.4 298.8C297.6 305.1 307 309.6 316.5 309.6C325.9 309.6 335.3 305.1 342.5 298.8L419.5 221.8C429.3 212.1 442.8 206.5 456.6 206.5L494.3 206.5L552.6 264.8C582.9 295.1 582.9 344.3 552.6 374.6L494.3 432.9L456.6 432.9C442.8 432.9 429.3 427.3 419.5 417.5L342.5 340.5C328.6 326.6 304.3 326.6 290.4 340.6L213.7 417.2C203.1 427 190.4 432.6 176.6 432.6L144.8 432.6L86.8 374.6C56.5 344.3 56.5 295.1 86.8 264.8L144.8 206.7L176.6 206.7z"
+      />
+    </svg>
   );
 }
 
-function buildWhatsAppHref(phone: string, message: string) {
-  const digits = phone.replace(/\D/g, "");
-
-  return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(message)}` : null;
-}
-
-function buildEmailHref(email: string, hotelName: string, message: string) {
-  if (!email.trim()) {
-    return null;
+function PaymentMethodIcon({ method }: { method: PaymentMethod }) {
+  if (method === "pix") {
+    return <PixIcon />;
   }
 
-  const subject = `Consulta de disponibilidade - ${hotelName}`;
+  if (method === "boleto") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h3M15 16h1" />
+      </svg>
+    );
+  }
 
-  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(
-    message
-  )}`;
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 7h16v10H4zM4 10h16M8 14h4" />
+    </svg>
+  );
 }
 
 function TravelerStepper({ label, value, min, max, onChange }: TravelerStepperProps) {
@@ -252,7 +330,7 @@ function AvailabilityFlowStepper({ currentStep, onBackToSearch }: AvailabilityFl
           const content = (
             <>
               <span className="availability-flow-step__marker">
-                {isCompleted ? "OK" : stepNumber}
+                {isCompleted ? <span aria-hidden="true">✓</span> : stepNumber}
               </span>
               <span className="availability-flow-step__label">{label}</span>
             </>
@@ -280,9 +358,9 @@ function AvailabilityFlowStepper({ currentStep, onBackToSearch }: AvailabilityFl
 }
 
 export function AvailabilitySearchModal({
+  hotelSlug,
+  hotelId,
   hotelName,
-  hotelEmail,
-  hotelWhatsapp,
   roomName,
   rooms,
   onClose,
@@ -299,6 +377,17 @@ export function AvailabilitySearchModal({
   const [checkOut, setCheckOut] = useState<Date | null>(null);
   const [currentStep, setCurrentStep] = useState<AvailabilityFlowStep>(1);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestDocument, setGuestDocument] = useState("");
+  const [guestDocumentTouched, setGuestDocumentTouched] = useState(false);
+  const [guestFormErrors, setGuestFormErrors] = useState<GuestFormErrors>({});
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [reservationError, setReservationError] = useState("");
+  const [paymentDetails, setPaymentDetails] = useState<PaymentStartDetails | null>(null);
+  const [createdReservationId, setCreatedReservationId] = useState<string | null>(null);
+  const [isSubmittingReservation, setIsSubmittingReservation] = useState(false);
   const canGoToPreviousMonth = startOfMonth(visibleMonth).getTime() > startOfMonth(today).getTime();
   const monthDays = getMonthDays(visibleMonth);
   const nights = getNights(checkIn, checkOut);
@@ -314,6 +403,17 @@ export function AvailabilitySearchModal({
         })
       : [];
   const selectedRoomResult = roomResults.find(({ room }) => room.id === selectedRoomId) ?? null;
+  const selectedPriceEstimate = selectedRoomResult?.priceEstimate ?? null;
+  const selectedNightlyPriceCents =
+    selectedPriceEstimate?.nightlyPriceCents ??
+    selectedRoomResult?.room.lowestActiveRateCents ??
+    null;
+  const selectedTotalPriceCents =
+    selectedPriceEstimate?.totalPriceCents ??
+    (selectedNightlyPriceCents ? selectedNightlyPriceCents * nights : null);
+  const selectedTotalPriceLabel = selectedTotalPriceCents
+    ? formatPriceInBRL(selectedTotalPriceCents)
+    : "Calculado no checkout";
   const validationMessage = !checkIn
     ? "Selecione a data de check-in para continuar."
     : !checkOut
@@ -323,23 +423,6 @@ export function AvailabilitySearchModal({
         : adults < MIN_ADULTS
           ? "Informe pelo menos 1 adulto."
           : "";
-  const selectedRoomContactMessage =
-    selectedRoomResult && checkIn && checkOut
-      ? buildStayContactMessage({
-          hotelName,
-          roomName: selectedRoomResult.room.name,
-          checkIn,
-          checkOut,
-          nights,
-          adults,
-          children,
-          totalPriceCents: selectedRoomResult.priceEstimate?.totalPriceCents,
-        })
-      : null;
-  const selectedRoomWhatsappHref = selectedRoomContactMessage
-    ? buildWhatsAppHref(hotelWhatsapp, selectedRoomContactMessage)
-    : null;
-
   useEffect(() => {
     const previouslyFocusedElement =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -363,7 +446,7 @@ export function AvailabilitySearchModal({
         (element) =>
           !element.hasAttribute("disabled") &&
           element.getAttribute("aria-hidden") !== "true" &&
-          element.offsetParent !== null
+          element.getClientRects().length > 0
       );
 
       if (!focusableElements.length) {
@@ -418,12 +501,38 @@ export function AvailabilitySearchModal({
       setCheckOut(null);
       setCurrentStep(1);
       setSelectedRoomId(null);
+      setSelectedPaymentMethod(null);
+      setPaymentDetails(null);
+      setCreatedReservationId(null);
+      setReservationError("");
       return;
     }
 
     setCheckOut(date);
     setCurrentStep(1);
     setSelectedRoomId(null);
+    setSelectedPaymentMethod(null);
+    setPaymentDetails(null);
+    setCreatedReservationId(null);
+    setReservationError("");
+  }
+
+  function handleAdultsChange(value: number) {
+    setAdults(value);
+    setSelectedRoomId(null);
+    setSelectedPaymentMethod(null);
+    setPaymentDetails(null);
+    setCreatedReservationId(null);
+    setReservationError("");
+  }
+
+  function handleChildrenChange(value: number) {
+    setChildren(value);
+    setSelectedRoomId(null);
+    setSelectedPaymentMethod(null);
+    setPaymentDetails(null);
+    setCreatedReservationId(null);
+    setReservationError("");
   }
 
   function handleProceed() {
@@ -435,14 +544,204 @@ export function AvailabilitySearchModal({
   }
 
   function handlePreviousStep() {
-    if (currentStep === 2) {
-      setCurrentStep(1);
+    if (currentStep === 1) {
       return;
     }
 
-    if (currentStep === 3) {
-      setCurrentStep(2);
+    if (currentStep === 2) {
+      setCurrentStep(1);
+      setCreatedReservationId(null);
+      setReservationError("");
+      return;
     }
+
+    setCurrentStep((current) => Math.max(2, current - 1) as AvailabilityFlowStep);
+    setReservationError("");
+    setPaymentDetails(null);
+  }
+
+  function handleGuestDataProceed() {
+    const errors = validateGuestData({
+      guestName,
+      guestEmail,
+      guestPhone,
+      guestDocument,
+    });
+
+    setGuestFormErrors(errors);
+    setGuestDocumentTouched(true);
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    setReservationError("");
+    setPaymentDetails(null);
+    setCurrentStep(4);
+  }
+
+  async function handleReservationSubmit() {
+    if (!checkIn || !checkOut || !selectedRoomResult || isSubmittingReservation) {
+      return;
+    }
+
+    const errors = validateGuestData({
+      guestName,
+      guestEmail,
+      guestPhone,
+      guestDocument,
+    });
+
+    setGuestFormErrors(errors);
+    setGuestDocumentTouched(true);
+
+    if (Object.keys(errors).length > 0) {
+      setCurrentStep(3);
+      return;
+    }
+
+    setReservationError("");
+    setIsSubmittingReservation(true);
+
+    try {
+      const response = await fetch("/api/reservas", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          hotelId,
+          roomId: selectedRoomResult.room.id,
+          guestName,
+          guestEmail,
+          guestPhone,
+          guestDocument: normalizeGuestDocument(guestDocument) || guestDocument.trim(),
+          checkIn: formatDateInput(checkIn),
+          checkOut: formatDateInput(checkOut),
+          adults,
+          children,
+          paymentMethod: selectedPaymentMethod,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as CreateReservationResponse | null;
+
+      if (!response.ok || !payload?.ok || !payload.reservation) {
+        throw new Error("payment_start_failed");
+      }
+
+      const payment = payload.payment ?? null;
+      const checkoutUrl = payment?.checkoutUrl || payload.checkoutUrl;
+
+      if (checkoutUrl) {
+        setCreatedReservationId(payload.reservation.id);
+        window.location.assign(checkoutUrl);
+        return;
+      }
+
+      if (
+        payment?.pix?.copyPaste ||
+        payment?.pix?.qrCodeImageUrl ||
+        payment?.boleto?.url ||
+        payment?.boleto?.digitableLine
+      ) {
+        setPaymentDetails(payment);
+        setCreatedReservationId(payload.reservation.id);
+        return;
+      }
+
+      throw new Error("payment_start_failed");
+    } catch {
+      setReservationError("Não foi possível iniciar o pagamento. Tente novamente.");
+    } finally {
+      setIsSubmittingReservation(false);
+    }
+  }
+
+  async function handleCopyPaymentCode(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      setReservationError("Não foi possível copiar o código automaticamente.");
+    }
+  }
+
+  function renderPaymentInstructions() {
+    if (!paymentDetails) {
+      return null;
+    }
+
+    if (
+      paymentDetails.method === "pix" &&
+      (paymentDetails.pix?.copyPaste || paymentDetails.pix?.qrCodeImageUrl)
+    ) {
+      return (
+        <div className="availability-payment-instructions" role="status">
+          <strong>Pagamento Pix gerado</strong>
+          <p>
+            Use o QR Code ou copie o código Pix abaixo. A reserva só será confirmada após a
+            aprovação do pagamento.
+          </p>
+          {paymentDetails.pix.qrCodeImageUrl ? (
+            <Image
+              src={paymentDetails.pix.qrCodeImageUrl}
+              alt="QR Code Pix para pagamento"
+              width={220}
+              height={220}
+              unoptimized
+            />
+          ) : null}
+          {paymentDetails.pix.copyPaste ? (
+            <div className="availability-payment-code">
+              <code>{paymentDetails.pix.copyPaste}</code>
+              <button
+                type="button"
+                onClick={() => handleCopyPaymentCode(paymentDetails.pix?.copyPaste || "")}
+              >
+                Copiar código
+              </button>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (
+      paymentDetails.method === "boleto" &&
+      (paymentDetails.boleto?.url || paymentDetails.boleto?.digitableLine)
+    ) {
+      return (
+        <div className="availability-payment-instructions" role="status">
+          <strong>Boleto gerado</strong>
+          <p>
+            Pague o boleto dentro do prazo. A reserva só será confirmada após a compensação do
+            pagamento.
+          </p>
+          {paymentDetails.boleto.digitableLine ? (
+            <div className="availability-payment-code">
+              <code>{paymentDetails.boleto.digitableLine}</code>
+              <button
+                type="button"
+                onClick={() => handleCopyPaymentCode(paymentDetails.boleto?.digitableLine || "")}
+              >
+                Copiar linha
+              </button>
+            </div>
+          ) : null}
+          {paymentDetails.boleto.url ? (
+            <a
+              className="availability-confirmation-cta"
+              href={paymentDetails.boleto.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Abrir boleto
+            </a>
+          ) : null}
+        </div>
+      );
+    }
+
+    return null;
   }
 
   const modalContent = (
@@ -461,7 +760,7 @@ export function AvailabilitySearchModal({
             <span className="hotel-page-eyebrow">Disponibilidade</span>
             <h2 id={titleId}>Consultar disponibilidade</h2>
             <p id={descriptionId}>
-              Selecione o periodo e os viajantes para consultar opcoes no {hotelName}
+              Selecione o período e os viajantes para consultar opções no {hotelName}
               {context}.
             </p>
           </div>
@@ -500,7 +799,7 @@ export function AvailabilitySearchModal({
             <section className="availability-search-modal-panel">
               <div className="availability-search-modal-panel-heading">
                 <h3>Viajantes</h3>
-                <span>Adultos e criancas</span>
+                <span>Adultos e crianças</span>
               </div>
               <div className="availability-traveler-list">
                 <TravelerStepper
@@ -508,19 +807,19 @@ export function AvailabilitySearchModal({
                   value={adults}
                   min={MIN_ADULTS}
                   max={MAX_ADULTS}
-                  onChange={setAdults}
+                  onChange={handleAdultsChange}
                 />
                 <TravelerStepper
-                  label="Criancas"
+                  label="Crianças"
                   value={children}
                   min={MIN_CHILDREN}
                   max={MAX_CHILDREN}
-                  onChange={setChildren}
+                  onChange={handleChildrenChange}
                 />
               </div>
 
               <div className="availability-search-modal-panel-heading">
-                <h3>Periodo</h3>
+                <h3>Período</h3>
                 <span>Escolha check-in e check-out</span>
               </div>
               <div className="availability-calendar">
@@ -529,7 +828,7 @@ export function AvailabilitySearchModal({
                     type="button"
                     onClick={() => setVisibleMonth((current) => addMonths(current, -1))}
                     disabled={!canGoToPreviousMonth}
-                    aria-label="Mes anterior"
+                    aria-label="Mês anterior"
                   >
                     Anterior
                   </button>
@@ -537,9 +836,9 @@ export function AvailabilitySearchModal({
                   <button
                     type="button"
                     onClick={() => setVisibleMonth((current) => addMonths(current, 1))}
-                    aria-label="Proximo mes"
+                    aria-label="Próximo mês"
                   >
-                    Proximo
+                    Próximo
                   </button>
                 </div>
 
@@ -585,7 +884,7 @@ export function AvailabilitySearchModal({
               <section className="availability-search-modal-panel">
                 <div className="availability-search-modal-panel-heading">
                   <h3>Resumo</h3>
-                  <span>Selecao atual</span>
+                  <span>Seleção atual</span>
                 </div>
                 <div className="availability-traveler-summary">
                   <div>
@@ -601,7 +900,7 @@ export function AvailabilitySearchModal({
                     <strong>{adults}</strong>
                   </div>
                   <div>
-                    <span>Criancas</span>
+                    <span>Crianças</span>
                     <strong>{children}</strong>
                   </div>
                 </div>
@@ -648,7 +947,7 @@ export function AvailabilitySearchModal({
                 <strong>{adults}</strong>
               </div>
               <div>
-                <span>Criancas</span>
+                <span>Crianças</span>
                 <strong>{children}</strong>
               </div>
             </div>
@@ -656,27 +955,17 @@ export function AvailabilitySearchModal({
             {roomResults.length ? (
               <div className="availability-modal-room-list">
                 {roomResults.map(({ room, availabilityStatus, priceEstimate, capacityLabel }) => {
-                  const contactMessage = buildStayContactMessage({
-                    hotelName,
-                    roomName: room.name,
-                    checkIn,
-                    checkOut,
-                    nights,
-                    adults,
-                    children,
-                    totalPriceCents: priceEstimate?.totalPriceCents,
-                  });
-                  const whatsappHref = buildWhatsAppHref(hotelWhatsapp, contactMessage);
-                  const emailHref = buildEmailHref(hotelEmail, hotelName, contactMessage);
-                  const fallbackHref = whatsappHref ?? emailHref;
-                  const fallbackLabel = whatsappHref
-                    ? "Consultar pelo WhatsApp"
-                    : "Consultar por e-mail";
+                  const fallbackTotalPriceCents = room.lowestActiveRateCents
+                    ? room.lowestActiveRateCents * nights
+                    : null;
+                  const roomDetailsHref = hotelSlug
+                    ? `/hoteis/${hotelSlug}#quarto-${room.id}`
+                    : null;
                   const statusLabel =
                     availabilityStatus === "available"
-                      ? "Disponivel"
+                      ? "Disponível"
                       : availabilityStatus === "unavailable"
-                        ? "Indisponivel"
+                        ? "Indisponível"
                         : "Consultar disponibilidade";
 
                   return (
@@ -742,37 +1031,43 @@ export function AvailabilitySearchModal({
                                 ? `Total estimado: ${formatPriceInBRL(
                                     priceEstimate.totalPriceCents
                                   )}`
-                                : "Valores sujeitos a confirmacao pela equipe."}
+                                : fallbackTotalPriceCents
+                                  ? `Total estimado: ${formatPriceInBRL(fallbackTotalPriceCents)}`
+                                  : "Valor calculado no checkout."}
                             </span>
                           </div>
 
-                          {availabilityStatus === "available" ? (
-                            <button
-                              type="button"
-                              className="availability-modal-room-card__cta"
-                              onClick={() => {
-                                setSelectedRoomId(room.id);
-                                setCurrentStep(3);
-                              }}
-                            >
-                              Selecionar quarto
-                            </button>
-                          ) : availabilityStatus === "unknown" && fallbackHref ? (
-                            <a
-                              href={fallbackHref}
-                              className="availability-modal-room-card__cta"
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              {fallbackLabel}
-                            </a>
-                          ) : (
-                            <span className="availability-modal-room-card__cta is-disabled">
-                              {availabilityStatus === "unavailable"
-                                ? "Indisponivel"
-                                : "Contato indisponivel"}
-                            </span>
-                          )}
+                          <div className="availability-modal-room-card__actions">
+                            {roomDetailsHref ? (
+                              <a
+                                href={roomDetailsHref}
+                                className="availability-modal-room-card__details-link"
+                              >
+                                Ver página do quarto
+                              </a>
+                            ) : null}
+
+                            {availabilityStatus !== "unavailable" ? (
+                              <button
+                                type="button"
+                                className="availability-modal-room-card__cta"
+                                onClick={() => {
+                                  setSelectedRoomId(room.id);
+                                  setSelectedPaymentMethod(null);
+                                  setPaymentDetails(null);
+                                  setCreatedReservationId(null);
+                                  setReservationError("");
+                                  setCurrentStep(3);
+                                }}
+                              >
+                                Reservar agora
+                              </button>
+                            ) : (
+                              <span className="availability-modal-room-card__cta is-disabled">
+                                Indisponível
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </article>
@@ -787,93 +1082,239 @@ export function AvailabilitySearchModal({
             )}
           </section>
         ) : currentStep === 3 && checkIn && checkOut && selectedRoomResult ? (
+          <section className="availability-guest-step">
+            <div className="availability-results-header">
+              <div className="availability-search-modal-panel-heading">
+                <h3>Dados do hóspede</h3>
+                <span>Informe os dados para seguir ao pagamento</span>
+              </div>
+            </div>
+
+            <div className="availability-guest-layout">
+              <aside className="availability-reservation-summary">
+                <h3>Resumo da reserva</h3>
+                <div className="availability-confirmation-details">
+                  <div>
+                    <span>Hotel</span>
+                    <strong>{hotelName}</strong>
+                  </div>
+                  <div>
+                    <span>Quarto</span>
+                    <strong>{selectedRoomResult.room.name}</strong>
+                  </div>
+                  <div>
+                    <span>Check-in</span>
+                    <strong>{formatDateLabel(checkIn)}</strong>
+                  </div>
+                  <div>
+                    <span>Check-out</span>
+                    <strong>{formatDateLabel(checkOut)}</strong>
+                  </div>
+                  <div>
+                    <span>Noites</span>
+                    <strong>{nights}</strong>
+                  </div>
+                  <div>
+                    <span>Adultos</span>
+                    <strong>{adults}</strong>
+                  </div>
+                  <div>
+                    <span>Crianças</span>
+                    <strong>{children}</strong>
+                  </div>
+                  <div>
+                    <span>Valor total</span>
+                    <strong>{selectedTotalPriceLabel}</strong>
+                  </div>
+                </div>
+              </aside>
+
+              <form
+                className="availability-reservation-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleGuestDataProceed();
+                }}
+              >
+                <label>
+                  Nome completo
+                  <input
+                    type="text"
+                    value={guestName}
+                    onChange={(event) => {
+                      setGuestName(event.target.value);
+                      setGuestFormErrors((current) => ({ ...current, guestName: undefined }));
+                    }}
+                    required
+                    minLength={3}
+                    maxLength={120}
+                    autoComplete="name"
+                    aria-invalid={Boolean(guestFormErrors.guestName)}
+                  />
+                  {guestFormErrors.guestName ? <span>{guestFormErrors.guestName}</span> : null}
+                </label>
+
+                <label>
+                  E-mail
+                  <input
+                    type="email"
+                    value={guestEmail}
+                    onChange={(event) => {
+                      setGuestEmail(event.target.value);
+                      setGuestFormErrors((current) => ({ ...current, guestEmail: undefined }));
+                    }}
+                    required
+                    maxLength={180}
+                    autoComplete="email"
+                    aria-invalid={Boolean(guestFormErrors.guestEmail)}
+                  />
+                  {guestFormErrors.guestEmail ? <span>{guestFormErrors.guestEmail}</span> : null}
+                </label>
+
+                <label>
+                  Telefone
+                  <input
+                    type="tel"
+                    value={guestPhone}
+                    onChange={(event) => {
+                      setGuestPhone(event.target.value);
+                      setGuestFormErrors((current) => ({ ...current, guestPhone: undefined }));
+                    }}
+                    required
+                    minLength={8}
+                    maxLength={30}
+                    autoComplete="tel"
+                    aria-invalid={Boolean(guestFormErrors.guestPhone)}
+                  />
+                  {guestFormErrors.guestPhone ? <span>{guestFormErrors.guestPhone}</span> : null}
+                </label>
+
+                <label>
+                  CPF ou passaporte
+                  <input
+                    type="text"
+                    value={guestDocument}
+                    onChange={(event) => {
+                      setGuestDocument(event.target.value);
+                      setGuestFormErrors((current) => ({ ...current, guestDocument: undefined }));
+                    }}
+                    onBlur={() => {
+                      setGuestDocumentTouched(true);
+
+                      if (!normalizeGuestDocument(guestDocument)) {
+                        setGuestFormErrors((current) => ({
+                          ...current,
+                          guestDocument: getGuestDocumentError(guestDocument),
+                        }));
+                      } else {
+                        setGuestFormErrors((current) => ({ ...current, guestDocument: undefined }));
+                      }
+                    }}
+                    maxLength={40}
+                    autoComplete="off"
+                    placeholder="Digite seu CPF ou passaporte"
+                    inputMode="text"
+                    aria-invalid={Boolean(guestFormErrors.guestDocument)}
+                  />
+                  {guestDocumentTouched && guestFormErrors.guestDocument ? (
+                    <span>{guestFormErrors.guestDocument}</span>
+                  ) : null}
+                </label>
+
+                <button type="submit" className="availability-confirmation-cta">
+                  Ir para pagamento
+                </button>
+              </form>
+            </div>
+          </section>
+        ) : currentStep === 4 && checkIn && checkOut && selectedRoomResult ? (
           <section className="availability-confirmation-step">
             <div className="availability-results-header">
               <div className="availability-search-modal-panel-heading">
-                <h3>Confirmação</h3>
-                <span>Revise os dados antes de continuar pelo WhatsApp</span>
+                <h3>Escolha a forma de pagamento</h3>
               </div>
             </div>
 
             <div className="availability-confirmation-card">
-              <div className="availability-confirmation-room">
-                <div className="availability-confirmation-room__media">
-                  <Image
-                    src={selectedRoomResult.room.imageUrl}
-                    alt={`Quarto ${selectedRoomResult.room.name}`}
-                    fill
-                    sizes="(max-width: 560px) 100vw, 220px"
-                    unoptimized
-                  />
-                </div>
-                <div>
-                  <span>Quarto selecionado</span>
-                  <strong>{selectedRoomResult.room.name}</strong>
-                  <p>{selectedRoomResult.room.description}</p>
-                </div>
+              <div
+                className="availability-payment-methods"
+                role="radiogroup"
+                aria-label="Forma de pagamento"
+              >
+                {PAYMENT_METHOD_OPTIONS.map((option) => {
+                  const isSelected = selectedPaymentMethod === option.id;
+
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`availability-payment-method ${isSelected ? "is-selected" : ""}`}
+                      onClick={() => {
+                        setSelectedPaymentMethod(option.id);
+                        setPaymentDetails(null);
+                        setReservationError("");
+                      }}
+                      role="radio"
+                      aria-checked={isSelected}
+                    >
+                      <span className="availability-payment-method__icon">
+                        <PaymentMethodIcon method={option.id} />
+                      </span>
+                      <span>
+                        <strong>{option.name}</strong>
+                        <small>{option.description}</small>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
-              <div className="availability-confirmation-details">
-                <div>
-                  <span>Hotel</span>
-                  <strong>{hotelName}</strong>
+              {reservationError ? (
+                <p className="availability-reservation-error" role="alert">
+                  {reservationError}
+                </p>
+              ) : null}
+
+              {isSubmittingReservation ? (
+                <div className="availability-payment-loading" role="status">
+                  <span aria-hidden="true" />
+                  <strong>Criando reserva e iniciando pagamento...</strong>
+                  <p>Você será redirecionado para um checkout seguro quando tudo estiver pronto.</p>
                 </div>
-                <div>
-                  <span>Check-in</span>
-                  <strong>{formatDateLabel(checkIn)}</strong>
-                </div>
-                <div>
-                  <span>Check-out</span>
-                  <strong>{formatDateLabel(checkOut)}</strong>
-                </div>
-                <div>
-                  <span>Noites</span>
-                  <strong>{nights}</strong>
-                </div>
-                <div>
-                  <span>Adultos</span>
-                  <strong>{adults}</strong>
-                </div>
-                <div>
-                  <span>Crianças</span>
-                  <strong>{children}</strong>
-                </div>
-                {selectedRoomResult.priceEstimate ? (
-                  <>
-                    <div>
-                      <span>Preço por noite</span>
-                      <strong>
-                        {formatPriceInBRL(selectedRoomResult.priceEstimate.nightlyPriceCents)}
-                      </strong>
-                    </div>
-                    <div>
-                      <span>Total estimado</span>
-                      <strong>
-                        {formatPriceInBRL(selectedRoomResult.priceEstimate.totalPriceCents)}
-                      </strong>
-                    </div>
-                  </>
-                ) : null}
+              ) : null}
+
+              {renderPaymentInstructions()}
+
+              <button
+                type="button"
+                className="availability-confirmation-cta"
+                disabled={
+                  !selectedPaymentMethod || isSubmittingReservation || Boolean(paymentDetails)
+                }
+                onClick={handleReservationSubmit}
+              >
+                {isSubmittingReservation ? "Iniciando pagamento..." : "Ir para pagamento"}
+              </button>
+            </div>
+          </section>
+        ) : currentStep === 5 && checkIn && checkOut && selectedRoomResult ? (
+          <section className="availability-confirmation-step">
+            <div className="availability-results-header">
+              <div className="availability-search-modal-panel-heading">
+                <h3>Confirmação</h3>
+                <span>Acompanhe a confirmação do pagamento</span>
               </div>
+            </div>
 
-              <p className="availability-confirmation-notice">
-                A reserva ainda será confirmada pela equipe do hotel.
-              </p>
-
-              {selectedRoomWhatsappHref ? (
-                <a
-                  href={selectedRoomWhatsappHref}
-                  className="availability-confirmation-cta"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Continuar pelo WhatsApp
-                </a>
-              ) : (
-                <span className="availability-confirmation-cta is-disabled">
-                  WhatsApp indisponivel
-                </span>
-              )}
+            <div className="availability-confirmation-card">
+              <div className="availability-reservation-success" role="status">
+                <span className="hotel-page-eyebrow">Pagamento iniciado</span>
+                <h3>Reserva aguardando confirmação</h3>
+                <p>
+                  Código da reserva: <strong>{createdReservationId}</strong>
+                </p>
+                <p>A confirmação ocorre somente após aprovação do pagamento.</p>
+              </div>
             </div>
           </section>
         ) : (

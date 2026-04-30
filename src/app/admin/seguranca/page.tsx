@@ -60,8 +60,8 @@ export default async function AdminSecurityPage() {
           <strong>{status}</strong>
           <p>
             {user.emailTwoFactorEnabled
-              ? "Sua conta esta marcada para usar codigo por e-mail."
-              : "Ative o 2FA por e-mail para manter sua conta alinhada a politica administrativa."}
+              ? "Sua conta está marcada para usar código por e-mail."
+              : "Ative o 2FA por e-mail para manter sua conta alinhada à política administrativa."}
           </p>
         </article>
 
@@ -72,12 +72,12 @@ export default async function AdminSecurityPage() {
         </article>
 
         <article className="hotel-content-card admin-overview-card">
-          <span>Politica</span>
-          <strong>{isAdmin ? "Obrigatorio para admins" : "Opcional"}</strong>
+          <span>Política</span>
+          <strong>{isAdmin ? "Obrigatório para admins" : "Opcional"}</strong>
           <p>
             {isAdmin
-              ? "Admins precisam validar codigo enviado por e-mail antes de acessar o painel."
-              : "Usuarios comuns podem usar 2FA como camada adicional quando disponivel."}
+              ? "Admins precisam validar o código enviado por e-mail antes de acessar o painel."
+              : "Usuários comuns podem usar 2FA como camada adicional quando disponível."}
           </p>
         </article>
       </div>
@@ -86,7 +86,7 @@ export default async function AdminSecurityPage() {
         <div className="section-heading admin-subsection-heading">
           <h2>2FA por e-mail</h2>
           <p className="admin-rooms-copy">
-            Nenhum codigo ou segredo e exibido nesta area. As alteracoes administrativas sao
+            Nenhum código ou segredo é exibido nesta área. As alterações administrativas são
             registradas em auditoria.
           </p>
         </div>

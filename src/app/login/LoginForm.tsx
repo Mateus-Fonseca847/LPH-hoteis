@@ -52,7 +52,7 @@ export function LoginForm() {
       router.push(redirectTo);
       router.refresh();
     } catch {
-      setError("Nao foi possivel concluir o login.");
+      setError("Não foi possível concluir o login.");
     } finally {
       setIsSubmitting(false);
     }

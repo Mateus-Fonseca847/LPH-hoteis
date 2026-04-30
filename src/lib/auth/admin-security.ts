@@ -3,13 +3,21 @@ import { isAdminUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function validateAdminTwoFactor(userId: string) {
+  const session = await getAuthSession();
+
+  if (!session?.sub || session.sub !== userId || session.twoFactorVerified !== true) {
+    return {
+      success: false as const,
+    message: "Confirme o código de 2FA para continuar.",
+    };
+  }
+
   const user = await prisma.user.findUnique({
     where: {
       id: userId,
     },
     select: {
       globalRole: true,
-      emailTwoFactorEnabled: true,
     },
   });
 
@@ -22,22 +30,6 @@ export async function validateAdminTwoFactor(userId: string) {
 
   if (!isAdminUser(user.globalRole)) {
     return { success: true as const };
-  }
-
-  if (!user.emailTwoFactorEnabled) {
-    return {
-      success: false as const,
-      message: "Ative o 2FA por e-mail para acessar a area administrativa.",
-    };
-  }
-
-  const session = await getAuthSession();
-
-  if (!session?.sub || session.sub !== userId || session.twoFactorVerified !== true) {
-    return {
-      success: false as const,
-      message: "Confirme o codigo de 2FA para continuar.",
-    };
   }
 
   return { success: true as const };

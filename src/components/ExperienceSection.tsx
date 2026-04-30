@@ -44,7 +44,7 @@ export function ExperienceSection() {
       <div className="showcase-copy">
         <h2>Experiência sem complicação</h2>
         <p>
-          Escolha suas preferências e hospede-se perto daquilo que te faz feliz, com uma reserva
+          Escolha suas preferências e hospede-se perto do que faz você feliz, com uma reserva
           pensada para conforto do check-in ao check-out.
         </p>
 

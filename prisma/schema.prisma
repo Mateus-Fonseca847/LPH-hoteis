@@ -8,11 +8,11 @@ datasource db {
 }
 
 model Hotel {
-  id               String            @id @default(cuid())
+  id               String                @id @default(cuid())
   name             String
-  slug             String            @unique
+  slug             String                @unique
   shortDescription String
-  fullDescription  String            @db.Text
+  fullDescription  String                @db.Text
   city             String
   state            String
   address          String
@@ -22,17 +22,19 @@ model Hotel {
   coverImageUrl    String
   checkInTime      String
   checkOutTime     String
-  latitude         Decimal?          @db.Decimal(10, 7)
-  longitude        Decimal?          @db.Decimal(10, 7)
-  isPublished      Boolean           @default(true)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  latitude         Decimal?              @db.Decimal(10, 7)
+  longitude        Decimal?              @db.Decimal(10, 7)
+  isPublished      Boolean               @default(true)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
   images           HotelImage[]
   rooms            HotelRoom[]
   amenities        HotelAmenity[]
   policies         HotelPolicy[]
   permissions      HotelPermission[]
   auditLogs        HotelAuditLog[]
+  reservations     Reservation[]
+  paymentSettings  HotelPaymentSettings?
 
   @@index([slug])
   @@index([city])
@@ -62,6 +64,7 @@ model HotelRoom {
   hotel            Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   rates            RoomRate[]
   availability     RoomAvailability[]
+  reservations     Reservation[]
 
   @@index([hotelId])
   @@index([hotelId, isActive])
@@ -222,6 +225,64 @@ model HotelAuditLog {
   @@index([userId, createdAt])
 }
 
+model Reservation {
+  id                      String            @id @default(cuid())
+  hotelId                 String
+  roomId                  String
+  guestName               String
+  guestEmail              String
+  guestPhone              String
+  guestDocument           String?
+  checkIn                 DateTime
+  checkOut                DateTime
+  adults                  Int
+  children                Int               @default(0)
+  nights                  Int
+  nightlyPriceCents       Int
+  totalPriceCents         Int
+  currency                String            @default("BRL")
+  status                  ReservationStatus @default(pending)
+  paymentProvider         PaymentProvider?
+  paymentMethod           String?
+  paymentStatus           PaymentStatus     @default(pending)
+  providerPaymentId       String?           @unique
+  stripeCheckoutSessionId String?           @unique
+  stripePaymentIntentId   String?
+  paidAt                  DateTime?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  hotel                   Hotel             @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+  room                    HotelRoom         @relation(fields: [roomId], references: [id], onDelete: Restrict)
+
+  @@index([hotelId])
+  @@index([roomId])
+  @@index([status])
+  @@index([paymentProvider])
+  @@index([paymentMethod])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@index([hotelId, createdAt])
+  @@index([guestEmail])
+}
+
+model HotelPaymentSettings {
+  id                   String          @id @default(cuid())
+  hotelId              String          @unique
+  provider             PaymentProvider @default(manual)
+  isEnabled            Boolean         @default(false)
+  receiverLabel        String
+  publicKey            String?
+  encryptedAccessToken String?
+  pixKey               String?
+  payoutDocument       String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  hotel                Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([provider])
+  @@index([isEnabled])
+}
+
 enum GlobalRole {
   super_admin
   hotel_admin
@@ -238,4 +299,26 @@ enum EmailAuthCodePurpose {
   login_2fa
   email_verification
   password_reset
+}
+
+enum ReservationStatus {
+  pending
+  awaiting_payment
+  confirmed
+  paid
+  payment_failed
+  cancelled
+}
+
+enum PaymentProvider {
+  manual
+  mercado_pago
+}
+
+enum PaymentStatus {
+  pending
+  awaiting_payment
+  paid
+  payment_failed
+  cancelled
 }

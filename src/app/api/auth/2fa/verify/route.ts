@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
     if (!isAdminUser(session.globalRole as "super_admin" | "hotel_admin" | "user")) {
       return NextResponse.json(
-        { error: "2FA nao e obrigatorio para este usuario." },
+        { error: "2FA não é obrigatório para este usuário." },
         { status: 400 }
       );
     }
@@ -25,14 +25,14 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ error: "Informe o codigo recebido por e-mail." }, { status: 400 });
+      return NextResponse.json({ error: "Informe o código recebido por e-mail." }, { status: 400 });
     }
 
     const parsedBody = parseTwoFactorRequestBody(body);
 
     if (!parsedBody.success) {
       return NextResponse.json(
-        { error: parsedBody.error.issues[0]?.message || "Payload invalido." },
+        { error: parsedBody.error.issues[0]?.message || "Payload inválido." },
         { status: 400 }
       );
     }
@@ -45,19 +45,19 @@ export async function POST(request: Request) {
     if (!verification.valid) {
       if (verification.reason === "expired") {
         return NextResponse.json(
-          { error: "Codigo expirado. Solicite um novo codigo." },
+          { error: "Código expirado. Solicite um novo código." },
           { status: 401 }
         );
       }
 
       if (verification.reason === "too_many_attempts") {
         return NextResponse.json(
-          { error: "Muitas tentativas. Solicite um novo codigo." },
+          { error: "Muitas tentativas. Solicite um novo código." },
           { status: 429 }
         );
       }
 
-      return NextResponse.json({ error: "Codigo invalido." }, { status: 401 });
+      return NextResponse.json({ error: "Código inválido." }, { status: 401 });
     }
 
     await setAuthSessionCookie({
@@ -68,6 +68,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return createAuthApiErrorResponse(error, "Nao foi possivel validar o 2FA.");
+    return createAuthApiErrorResponse(error, "Não foi possível validar o 2FA.");
   }
 }

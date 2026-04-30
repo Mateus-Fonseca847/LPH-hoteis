@@ -7,18 +7,18 @@ import type { AvailabilityResultRoom } from "@/lib/availability-results";
 
 type HotelAvailabilityModalTriggerProps = {
   className: string;
+  hotelSlug?: string;
+  hotelId: string;
   hotelName: string;
-  hotelEmail: string;
-  hotelWhatsapp: string;
   roomName?: string;
   rooms: AvailabilityResultRoom[];
 };
 
 export function HotelAvailabilityModalTrigger({
   className,
+  hotelSlug,
+  hotelId,
   hotelName,
-  hotelEmail,
-  hotelWhatsapp,
   roomName,
   rooms,
 }: HotelAvailabilityModalTriggerProps) {
@@ -36,9 +36,9 @@ export function HotelAvailabilityModalTrigger({
 
       {isOpen ? (
         <AvailabilitySearchModal
+          hotelSlug={hotelSlug}
+          hotelId={hotelId}
           hotelName={hotelName}
-          hotelEmail={hotelEmail}
-          hotelWhatsapp={hotelWhatsapp}
           roomName={roomName}
           rooms={rooms}
           onClose={() => setIsOpen(false)}

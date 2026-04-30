@@ -80,7 +80,7 @@ function getAuditEntity(action: string) {
   }
 
   if (action.includes("email_2fa")) {
-    return "SeguranÃ§a da conta";
+    return "Segurança da conta";
   }
 
   if (action.includes("profile")) {
