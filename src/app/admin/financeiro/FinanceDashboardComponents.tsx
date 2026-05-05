@@ -415,6 +415,17 @@ export function RecentTransactionsList({ metrics }: { metrics: FinanceDashboardM
   );
 }
 
+function FinancialDashboardContentGrid({ metrics }: { metrics: FinanceDashboardMetrics }) {
+  return (
+    <div className="finance-dashboard-content-grid">
+      <RevenueOverTimeChart metrics={metrics} />
+      <RevenueCompositionChart metrics={metrics} />
+      <RecentTransactionsList metrics={metrics} />
+      <RevenueByHotelChart hotels={metrics.byHotel} />
+    </div>
+  );
+}
+
 export function FinancialDashboard({
   metrics,
   selectedPeriod,
@@ -448,15 +459,7 @@ export function FinancialDashboard({
 
       <FinancialKpiCards metrics={metrics} />
 
-      <div className="finance-dashboard-charts">
-        <RevenueOverTimeChart metrics={metrics} />
-        <RevenueCompositionChart metrics={metrics} />
-        <RevenueByHotelChart hotels={metrics.byHotel} />
-      </div>
-
-      <div className="finance-dashboard-analytics">
-        <RecentTransactionsList metrics={metrics} />
-      </div>
+      <FinancialDashboardContentGrid metrics={metrics} />
     </section>
   );
 }

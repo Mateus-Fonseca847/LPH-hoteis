@@ -2798,17 +2798,16 @@ button {
   line-height: 1.45;
 }
 
-.finance-dashboard-charts,
-.finance-dashboard-analytics {
+.finance-dashboard-content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
 
-.finance-dashboard-analytics {
-  grid-template-columns: 1fr;
-  align-items: stretch;
+.finance-dashboard-content-grid > * {
+  min-width: 0;
+  align-self: stretch;
 }
 
 .finance-chart-card {
@@ -2819,8 +2818,7 @@ button {
 }
 
 .finance-chart-card--wide {
-  min-height: 0;
-  grid-row: span 2;
+  min-height: 360px;
 }
 
 .finance-line-chart-stage {
@@ -6009,8 +6007,7 @@ button {
   .admin-finance-grid,
   .admin-dashboard-grid,
   .finance-dashboard-hero,
-  .finance-dashboard-charts,
-  .finance-dashboard-analytics,
+  .finance-dashboard-content-grid,
   .admin-hotels-grid,
   .admin-hotel-detail-grid,
   .admin-admin-meta,
