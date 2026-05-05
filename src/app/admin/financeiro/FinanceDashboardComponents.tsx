@@ -494,6 +494,12 @@ export function FinancialDashboard({
         hotels={hotels}
       />
 
+      {metrics.containsTestData ? (
+        <div className="finance-dashboard-test-warning" role="status">
+          Este painel contém movimentações financeiras de teste.
+        </div>
+      ) : null}
+
       <FinancialKpiCards metrics={metrics} />
 
       <div className="finance-dashboard-charts">

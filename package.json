@@ -13,6 +13,8 @@
     "lint": "eslint src next.config.ts prisma.config.ts",
     "quality": "npm run format:check && npm run lint && npm run prisma:validate && npm run build",
     "start": "next start",
+    "finance:test-data": "node scripts/seed-financial-test-data.cjs",
+    "finance:clear-test-data": "node scripts/clear-financial-test-data.cjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

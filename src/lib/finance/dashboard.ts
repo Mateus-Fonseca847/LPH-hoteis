@@ -85,6 +85,7 @@ export type FinanceDashboardMetrics = {
   recentTransactions: RecentFinancialTransaction[];
   trend: FinanceTrendPoint[];
   paymentMethods: PaymentMethodSummary[];
+  containsTestData: boolean;
 };
 
 type FinanceScope =
@@ -239,6 +240,7 @@ function emptyFinanceDashboard(scope: FinanceScope): FinanceDashboardMetrics {
     recentTransactions: [],
     trend: [],
     paymentMethods: [],
+    containsTestData: false,
   };
 }
 
@@ -253,80 +255,87 @@ export async function getFinanceDashboardMetrics(
     return emptyFinanceDashboard(scope);
   }
 
-  const [summary, hotelGroups, recentTransactions, chartTransactions] = await prisma.$transaction([
-    prisma.paymentTransaction.aggregate({
-      where,
-      _count: {
-        _all: true,
-      },
-      _sum: {
-        grossAmountCents: true,
-        platformFeeCents: true,
-        hotelNetAmountCents: true,
-      },
-    }),
-    prisma.paymentTransaction.groupBy({
-      by: ["hotelId"],
-      where,
-      orderBy: {
-        hotelId: "asc",
-      },
-      _count: {
-        id: true,
-      },
-      _sum: {
-        grossAmountCents: true,
-        platformFeeCents: true,
-        hotelNetAmountCents: true,
-      },
-    }),
-    prisma.paymentTransaction.findMany({
-      where,
-      orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
-      take: getRecentLimit(filters.recentLimit),
-      select: {
-        id: true,
-        reservationId: true,
-        hotelId: true,
-        provider: true,
-        paymentMethod: true,
-        status: true,
-        grossAmountCents: true,
-        platformFeeCents: true,
-        hotelNetAmountCents: true,
-        paidAt: true,
-        createdAt: true,
-        hotel: {
-          select: {
-            name: true,
-            slug: true,
-          },
+  const [summary, testDataCount, hotelGroups, recentTransactions, chartTransactions] =
+    await prisma.$transaction([
+      prisma.paymentTransaction.aggregate({
+        where,
+        _count: {
+          _all: true,
         },
-        reservation: {
-          select: {
-            guestName: true,
-            room: {
-              select: {
-                name: true,
+        _sum: {
+          grossAmountCents: true,
+          platformFeeCents: true,
+          hotelNetAmountCents: true,
+        },
+      }),
+      prisma.paymentTransaction.count({
+        where: {
+          ...where,
+          isTestData: true,
+        },
+      }),
+      prisma.paymentTransaction.groupBy({
+        by: ["hotelId"],
+        where,
+        orderBy: {
+          hotelId: "asc",
+        },
+        _count: {
+          id: true,
+        },
+        _sum: {
+          grossAmountCents: true,
+          platformFeeCents: true,
+          hotelNetAmountCents: true,
+        },
+      }),
+      prisma.paymentTransaction.findMany({
+        where,
+        orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+        take: getRecentLimit(filters.recentLimit),
+        select: {
+          id: true,
+          reservationId: true,
+          hotelId: true,
+          provider: true,
+          paymentMethod: true,
+          status: true,
+          grossAmountCents: true,
+          platformFeeCents: true,
+          hotelNetAmountCents: true,
+          paidAt: true,
+          createdAt: true,
+          hotel: {
+            select: {
+              name: true,
+              slug: true,
+            },
+          },
+          reservation: {
+            select: {
+              guestName: true,
+              room: {
+                select: {
+                  name: true,
+                },
               },
             },
           },
         },
-      },
-    }),
-    prisma.paymentTransaction.findMany({
-      where,
-      orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }],
-      select: {
-        grossAmountCents: true,
-        platformFeeCents: true,
-        hotelNetAmountCents: true,
-        paymentMethod: true,
-        paidAt: true,
-        createdAt: true,
-      },
-    }),
-  ]);
+      }),
+      prisma.paymentTransaction.findMany({
+        where,
+        orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }],
+        select: {
+          grossAmountCents: true,
+          platformFeeCents: true,
+          hotelNetAmountCents: true,
+          paymentMethod: true,
+          paidAt: true,
+          createdAt: true,
+        },
+      }),
+    ]);
 
   const hotelIds = hotelGroups.map((group) => group.hotelId);
   const hotels = hotelIds.length
@@ -458,5 +467,6 @@ export async function getFinanceDashboardMetrics(
         totalMovement: toFinanceAmount(value.totalMovementCents),
       }))
       .sort((left, right) => right.totalMovement.cents - left.totalMovement.cents),
+    containsTestData: testDataCount > 0,
   };
 }

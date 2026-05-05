@@ -2731,6 +2731,16 @@ button {
   gap: 8px;
 }
 
+.finance-dashboard-test-warning {
+  padding: 13px 16px;
+  border: 1px solid rgba(180, 126, 0, 0.22);
+  border-radius: 16px;
+  background: rgba(230, 194, 0, 0.1);
+  color: #6d5200;
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
 .finance-dashboard-kpis {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));

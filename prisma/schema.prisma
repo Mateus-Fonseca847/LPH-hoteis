@@ -253,6 +253,7 @@ model Reservation {
   stripeCheckoutSessionId String?             @unique
   stripePaymentIntentId   String?
   paidAt                  DateTime?
+  isTestData              Boolean             @default(false)
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
   hotel                   Hotel               @relation(fields: [hotelId], references: [id], onDelete: Restrict)
@@ -265,6 +266,7 @@ model Reservation {
   @@index([paymentProvider])
   @@index([paymentMethod])
   @@index([paymentStatus])
+  @@index([isTestData])
   @@index([createdAt])
   @@index([hotelId, createdAt])
   @@index([guestEmail])
@@ -282,6 +284,7 @@ model PaymentTransaction {
   hotelNetAmountCents Int
   currency            String          @default("BRL")
   paidAt              DateTime?
+  isTestData          Boolean         @default(false)
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
   reservation         Reservation     @relation(fields: [reservationId], references: [id], onDelete: Restrict)
@@ -291,6 +294,7 @@ model PaymentTransaction {
   @@index([provider])
   @@index([paymentMethod])
   @@index([status])
+  @@index([isTestData])
   @@index([paidAt])
   @@index([createdAt])
   @@index([hotelId, paidAt])
