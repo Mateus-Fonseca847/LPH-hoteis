@@ -2822,6 +2822,11 @@ button {
   min-height: 390px;
 }
 
+.finance-line-chart-stage {
+  position: relative;
+  isolation: isolate;
+}
+
 .finance-line-chart {
   width: 100%;
   height: auto;
@@ -2841,15 +2846,95 @@ button {
   stroke: var(--brand);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 3.2;
+  stroke-width: 3;
   vector-effect: non-scaling-stroke;
 }
 
-.finance-line-chart circle {
+.finance-line-chart__point {
+  cursor: pointer;
+  outline: none;
+}
+
+.finance-line-chart__point-hit {
+  fill: transparent;
+  stroke: transparent;
+}
+
+.finance-line-chart__point-dot {
   fill: var(--brand);
-  stroke: var(--surface);
-  stroke-width: 2.6;
+  stroke: var(--brand);
+  stroke-width: 1.6;
   vector-effect: non-scaling-stroke;
+  transition:
+    r 160ms ease,
+    stroke-width 160ms ease,
+    filter 160ms ease;
+}
+
+.finance-line-chart__point:hover .finance-line-chart__point-dot,
+.finance-line-chart__point:focus-visible .finance-line-chart__point-dot {
+  filter: drop-shadow(0 5px 10px rgba(6, 41, 79, 0.2));
+  stroke: var(--surface);
+  stroke-width: 2.4;
+}
+
+.finance-line-chart-tooltip {
+  position: absolute;
+  z-index: 2;
+  left: var(--tooltip-x);
+  top: var(--tooltip-y);
+  width: max-content;
+  min-width: 126px;
+  max-width: min(180px, calc(100% - 24px));
+  padding: 9px 11px;
+  pointer-events: none;
+  background: var(--surface);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14);
+  color: var(--text);
+}
+
+.finance-line-chart-tooltip--center {
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+.finance-line-chart-tooltip--start {
+  transform: translate(0, calc(-100% - 12px));
+}
+
+.finance-line-chart-tooltip--end {
+  transform: translate(-100%, calc(-100% - 12px));
+}
+
+.finance-line-chart-tooltip--below.finance-line-chart-tooltip--center {
+  transform: translate(-50%, 12px);
+}
+
+.finance-line-chart-tooltip--below.finance-line-chart-tooltip--start {
+  transform: translate(0, 12px);
+}
+
+.finance-line-chart-tooltip--below.finance-line-chart-tooltip--end {
+  transform: translate(-100%, 12px);
+}
+
+.finance-line-chart-tooltip span,
+.finance-line-chart-tooltip strong {
+  display: block;
+}
+
+.finance-line-chart-tooltip span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.finance-line-chart-tooltip strong {
+  margin-top: 2px;
+  color: var(--brand);
+  font-size: 0.98rem;
+  line-height: 1.2;
 }
 
 .finance-line-chart-labels {
