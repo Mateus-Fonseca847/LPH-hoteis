@@ -88,9 +88,6 @@ export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMet
     return { ...point, x, y };
   });
   const linePath = getSmoothLinePath(points, paddingY, chartHeight - paddingY);
-  const areaPath = points.length
-    ? `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`
-    : "";
   const activePoint = points.find((point) => point.key === activePointKey) ?? null;
   const visibleLabels = getVisibleLabels(points);
 
@@ -145,7 +142,6 @@ export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMet
                 </clipPath>
               </defs>
               <g clipPath="url(#finance-line-chart-clip)">
-                <path className="finance-line-chart__area" d={areaPath} />
                 <path
                   className="finance-line-chart__line"
                   d={linePath}

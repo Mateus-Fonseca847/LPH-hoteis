@@ -452,11 +452,9 @@ export function FinancialDashboard({
         <RevenueOverTimeChart metrics={metrics} />
         <RevenueCompositionChart metrics={metrics} />
         <RevenueByHotelChart hotels={metrics.byHotel} />
-        <PaymentMethodsChart metrics={metrics} />
       </div>
 
       <div className="finance-dashboard-analytics">
-        <HotelFinancialRanking hotels={metrics.byHotel} />
         <RecentTransactionsList metrics={metrics} />
       </div>
     </section>

@@ -2801,13 +2801,13 @@ button {
 .finance-dashboard-charts,
 .finance-dashboard-analytics {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.85fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
   gap: 18px;
   align-items: start;
 }
 
 .finance-dashboard-analytics {
-  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+  grid-template-columns: 1fr;
   align-items: stretch;
 }
 
@@ -2819,28 +2819,30 @@ button {
 }
 
 .finance-chart-card--wide {
-  min-height: 390px;
+  min-height: 0;
+  grid-row: span 2;
 }
 
 .finance-line-chart-stage {
   position: relative;
   isolation: isolate;
   overflow: hidden;
+  min-height: clamp(210px, 28vw, 280px);
+  max-height: 280px;
 }
 
 .finance-line-chart {
   width: 100%;
-  height: auto;
-  max-height: 260px;
+  height: 100%;
   display: block;
   aspect-ratio: 640 / 220;
-  padding: 4px 0 2px;
+  padding: 0;
   overflow: hidden;
   touch-action: manipulation;
 }
 
 .finance-line-chart__area {
-  fill: rgba(6, 41, 79, 0.08);
+  display: none;
 }
 
 .finance-line-chart__line {
