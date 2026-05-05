@@ -5,6 +5,7 @@ import {
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
+import { upsertPaidPaymentTransactionForReservation } from "@/lib/finance/payment-transactions";
 import { prisma } from "@/lib/prisma";
 import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
@@ -67,10 +68,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     select: {
       id: true,
       status: true,
+      paymentStatus: true,
     },
   });
 
-  if (!reservation || reservation.status === "paid") {
+  if (!reservation) {
+    return;
+  }
+
+  if (reservation.paymentStatus === "paid") {
+    await upsertPaidPaymentTransactionForReservation(reservation.id);
     return;
   }
 
@@ -90,6 +97,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     },
   });
 
+  await upsertPaidPaymentTransactionForReservation(reservation.id);
   await notifyPaidReservation(reservation.id);
 }
 

@@ -5,6 +5,7 @@ import {
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
+import { upsertPaidPaymentTransactionForReservation } from "@/lib/finance/payment-transactions";
 import { getMercadoPagoPayment } from "@/lib/payments/mercado-pago";
 import { prisma } from "@/lib/prisma";
 import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
@@ -183,6 +184,7 @@ async function handleApprovedPayment(paymentId: string) {
   }
 
   if (reservation.paymentStatus === "paid") {
+    await upsertPaidPaymentTransactionForReservation(reservation.id);
     return;
   }
 
@@ -199,6 +201,7 @@ async function handleApprovedPayment(paymentId: string) {
     },
   });
 
+  await upsertPaidPaymentTransactionForReservation(reservation.id);
   await notifyPaidReservation(reservation.id);
 }
 

@@ -8,33 +8,34 @@ datasource db {
 }
 
 model Hotel {
-  id               String                @id @default(cuid())
-  name             String
-  slug             String                @unique
-  shortDescription String
-  fullDescription  String                @db.Text
-  city             String
-  state            String
-  address          String
-  phone            String
-  email            String
-  whatsapp         String
-  coverImageUrl    String
-  checkInTime      String
-  checkOutTime     String
-  latitude         Decimal?              @db.Decimal(10, 7)
-  longitude        Decimal?              @db.Decimal(10, 7)
-  isPublished      Boolean               @default(true)
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-  images           HotelImage[]
-  rooms            HotelRoom[]
-  amenities        HotelAmenity[]
-  policies         HotelPolicy[]
-  permissions      HotelPermission[]
-  auditLogs        HotelAuditLog[]
-  reservations     Reservation[]
-  paymentSettings  HotelPaymentSettings?
+  id                  String                @id @default(cuid())
+  name                String
+  slug                String                @unique
+  shortDescription    String
+  fullDescription     String                @db.Text
+  city                String
+  state               String
+  address             String
+  phone               String
+  email               String
+  whatsapp            String
+  coverImageUrl       String
+  checkInTime         String
+  checkOutTime        String
+  latitude            Decimal?              @db.Decimal(10, 7)
+  longitude           Decimal?              @db.Decimal(10, 7)
+  isPublished         Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  images              HotelImage[]
+  rooms               HotelRoom[]
+  amenities           HotelAmenity[]
+  policies            HotelPolicy[]
+  permissions         HotelPermission[]
+  auditLogs           HotelAuditLog[]
+  reservations        Reservation[]
+  paymentTransactions PaymentTransaction[]
+  paymentSettings     HotelPaymentSettings?
 
   @@index([slug])
   @@index([city])
@@ -229,7 +230,7 @@ model HotelAuditLog {
 }
 
 model Reservation {
-  id                      String            @id @default(cuid())
+  id                      String              @id @default(cuid())
   hotelId                 String
   roomId                  String
   guestName               String
@@ -239,23 +240,24 @@ model Reservation {
   checkIn                 DateTime
   checkOut                DateTime
   adults                  Int
-  children                Int               @default(0)
+  children                Int                 @default(0)
   nights                  Int
   nightlyPriceCents       Int
   totalPriceCents         Int
-  currency                String            @default("BRL")
-  status                  ReservationStatus @default(pending)
+  currency                String              @default("BRL")
+  status                  ReservationStatus   @default(pending)
   paymentProvider         PaymentProvider?
   paymentMethod           String?
-  paymentStatus           PaymentStatus     @default(pending)
-  providerPaymentId       String?           @unique
-  stripeCheckoutSessionId String?           @unique
+  paymentStatus           PaymentStatus       @default(pending)
+  providerPaymentId       String?             @unique
+  stripeCheckoutSessionId String?             @unique
   stripePaymentIntentId   String?
   paidAt                  DateTime?
-  createdAt               DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
-  hotel                   Hotel             @relation(fields: [hotelId], references: [id], onDelete: Restrict)
-  room                    HotelRoom         @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  hotel                   Hotel               @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+  room                    HotelRoom           @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  paymentTransaction      PaymentTransaction?
 
   @@index([hotelId])
   @@index([roomId])
@@ -266,6 +268,33 @@ model Reservation {
   @@index([createdAt])
   @@index([hotelId, createdAt])
   @@index([guestEmail])
+}
+
+model PaymentTransaction {
+  id                  String          @id @default(cuid())
+  reservationId       String          @unique
+  hotelId             String
+  provider            PaymentProvider
+  paymentMethod       String?
+  status              PaymentStatus
+  grossAmountCents    Int
+  platformFeeCents    Int
+  hotelNetAmountCents Int
+  currency            String          @default("BRL")
+  paidAt              DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  reservation         Reservation     @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  hotel               Hotel           @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+
+  @@index([hotelId])
+  @@index([provider])
+  @@index([paymentMethod])
+  @@index([status])
+  @@index([paidAt])
+  @@index([createdAt])
+  @@index([hotelId, paidAt])
+  @@index([hotelId, status, paidAt])
 }
 
 model HotelPaymentSettings {
