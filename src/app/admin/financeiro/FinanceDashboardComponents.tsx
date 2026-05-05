@@ -189,15 +189,25 @@ export function FinancialKpiCards({ metrics }: { metrics: FinanceDashboardMetric
 
 export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMetrics }) {
   const maxValue = Math.max(...metrics.trend.map((point) => point.totalMovement.cents), 1);
+  const chartWidth = 100;
   const chartHeight = 180;
+  const paddingX = 4;
+  const paddingY = 14;
+  const plotWidth = chartWidth - paddingX * 2;
+  const plotHeight = chartHeight - paddingY * 2;
   const points = metrics.trend.map((point, index) => {
-    const x = metrics.trend.length === 1 ? 50 : (index / (metrics.trend.length - 1)) * 100;
-    const y = chartHeight - (point.totalMovement.cents / maxValue) * (chartHeight - 20) - 10;
+    const x =
+      metrics.trend.length === 1
+        ? chartWidth / 2
+        : paddingX + (index / (metrics.trend.length - 1)) * plotWidth;
+    const y = chartHeight - paddingY - (point.totalMovement.cents / maxValue) * plotHeight;
 
     return { ...point, x, y };
   });
   const polyline = points.map((point) => `${point.x},${point.y}`).join(" ");
-  const area = points.length ? `0,${chartHeight} ${polyline} 100,${chartHeight}` : "";
+  const area = points.length
+    ? `${paddingX},${chartHeight - paddingY} ${polyline} ${chartWidth - paddingX},${chartHeight - paddingY}`
+    : "";
 
   return (
     <article className="hotel-content-card finance-chart-card finance-chart-card--wide">
@@ -212,7 +222,7 @@ export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMet
         <>
           <svg
             className="finance-line-chart"
-            viewBox={`0 0 100 ${chartHeight}`}
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             role="img"
             aria-label="Evolução da movimentação financeira"
             preserveAspectRatio="none"
@@ -340,7 +350,7 @@ export function PaymentMethodsChart({ metrics }: { metrics: FinanceDashboardMetr
         <div>
           <h3>Por método</h3>
         </div>
-        <p>Valor e quantidade por forma de pagamento.</p>
+        <p>Valor movimentado por forma de pagamento.</p>
       </div>
 
       {metrics.paymentMethods.length ? (
@@ -352,7 +362,6 @@ export function PaymentMethodsChart({ metrics }: { metrics: FinanceDashboardMetr
               <div className="finance-method-row" key={method.method}>
                 <div>
                   <strong>{method.label}</strong>
-                  <span>{method.transactionCount} transação(ões)</span>
                 </div>
                 <i aria-hidden="true">
                   <span style={{ width: `${width}%` } as CSSProperties} />
@@ -417,7 +426,7 @@ export function HotelFinancialRanking({ hotels }: { hotels: HotelFinanceSummary[
 
 export function RecentTransactionsList({ metrics }: { metrics: FinanceDashboardMetrics }) {
   return (
-    <article className="hotel-content-card admin-finance-table-card">
+    <article className="hotel-content-card admin-finance-table-card admin-finance-table-card--recent">
       <div className="admin-finance-chart__header">
         <div>
           <h3>Movimentações recentes</h3>
@@ -426,39 +435,37 @@ export function RecentTransactionsList({ metrics }: { metrics: FinanceDashboardM
       </div>
 
       {metrics.recentTransactions.length ? (
-        <div className="admin-finance-table-wrap">
-          <table className="admin-finance-table admin-finance-table--recent">
-            <thead>
-              <tr>
-                <th scope="col">Data</th>
-                <th scope="col">Hotel</th>
-                <th scope="col">Quarto</th>
-                <th scope="col">Hóspede</th>
-                <th scope="col">Método</th>
-                <th scope="col">Status</th>
-                <th scope="col">Valor bruto</th>
-                <th scope="col">Comissão</th>
-                <th scope="col">Líquido hotel</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.recentTransactions.map((transaction) => (
-                <tr key={transaction.id}>
-                  <td>{formatAdminDateTime(transaction.paidAt ?? transaction.createdAt)}</td>
-                  <th scope="row">{transaction.hotelName}</th>
-                  <td>{transaction.roomName}</td>
-                  <td>{transaction.guestName}</td>
-                  <td>{formatPaymentMethod(transaction.paymentMethod)}</td>
-                  <td>
-                    <span className="admin-finance-status">Pago</span>
-                  </td>
-                  <td>{transaction.totalMovement.formatted}</td>
-                  <td>{transaction.platformRevenue.formatted}</td>
-                  <td>{transaction.hotelNetEstimated.formatted}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="finance-recent-list">
+          {metrics.recentTransactions.map((transaction) => (
+            <article className="finance-recent-item" key={transaction.id}>
+              <div className="finance-recent-item__header">
+                <span>{formatAdminDateTime(transaction.paidAt ?? transaction.createdAt)}</span>
+                <span className="admin-finance-status">Pago</span>
+              </div>
+              <strong>{transaction.hotelName}</strong>
+              <p>
+                {transaction.roomName} · {transaction.guestName}
+              </p>
+              <dl>
+                <div>
+                  <dt>Método</dt>
+                  <dd>{formatPaymentMethod(transaction.paymentMethod)}</dd>
+                </div>
+                <div>
+                  <dt>Valor bruto</dt>
+                  <dd>{transaction.totalMovement.formatted}</dd>
+                </div>
+                <div>
+                  <dt>Comissão</dt>
+                  <dd>{transaction.platformRevenue.formatted}</dd>
+                </div>
+                <div>
+                  <dt>Líquido hotel</dt>
+                  <dd>{transaction.hotelNetEstimated.formatted}</dd>
+                </div>
+              </dl>
+            </article>
+          ))}
         </div>
       ) : (
         <EmptyFinanceState>
