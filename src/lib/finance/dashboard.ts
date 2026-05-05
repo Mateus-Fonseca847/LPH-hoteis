@@ -15,6 +15,7 @@ export type FinanceDashboardActor = {
 export type FinanceDashboardFilters = {
   from?: Date;
   to?: Date;
+  hotelId?: string;
   recentLimit?: number;
 };
 
@@ -52,6 +53,22 @@ export type RecentFinancialTransaction = {
   hotelNetEstimated: FinanceAmount;
 };
 
+export type FinanceTrendPoint = {
+  key: string;
+  label: string;
+  totalMovement: FinanceAmount;
+  platformRevenue: FinanceAmount;
+  hotelNetEstimated: FinanceAmount;
+  transactionCount: number;
+};
+
+export type PaymentMethodSummary = {
+  method: string;
+  label: string;
+  transactionCount: number;
+  totalMovement: FinanceAmount;
+};
+
 export type FinanceDashboardMetrics = {
   scope: {
     type: "network" | "hotels";
@@ -66,6 +83,8 @@ export type FinanceDashboardMetrics = {
   };
   byHotel: HotelFinanceSummary[];
   recentTransactions: RecentFinancialTransaction[];
+  trend: FinanceTrendPoint[];
+  paymentMethods: PaymentMethodSummary[];
 };
 
 type FinanceScope =
@@ -132,15 +151,23 @@ function buildPaidTransactionsWhere(
     return null;
   }
 
+  if (filters.hotelId && scope.type === "hotels" && !scope.hotelIds.includes(filters.hotelId)) {
+    throw new AuthorizationError();
+  }
+
   return {
     status: "paid",
-    ...(scope.type === "hotels"
+    ...(filters.hotelId
       ? {
-          hotelId: {
-            in: scope.hotelIds,
-          },
+          hotelId: filters.hotelId,
         }
-      : {}),
+      : scope.type === "hotels"
+        ? {
+            hotelId: {
+              in: scope.hotelIds,
+            },
+          }
+        : {}),
     ...(filters.from || filters.to
       ? {
           paidAt: {
@@ -156,6 +183,48 @@ function getAverageTicketCents(totalMovementCents: number, transactionCount: num
   return transactionCount > 0 ? Math.floor(totalMovementCents / transactionCount) : 0;
 }
 
+function getTrendKey(date: Date, filters: FinanceDashboardFilters) {
+  const useMonth = filters.from
+    ? date.getTime() - filters.from.getTime() > 1000 * 60 * 60 * 24 * 120
+    : false;
+
+  if (useMonth) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function formatTrendLabel(key: string) {
+  if (key.length === 7) {
+    const [year, month] = key.split("-").map(Number);
+
+    return new Intl.DateTimeFormat("pt-BR", {
+      month: "short",
+      year: "2-digit",
+    }).format(new Date(year, month - 1, 1));
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(new Date(`${key}T00:00:00`));
+}
+
+function formatPaymentMethodLabel(method: string) {
+  const labels: Record<string, string> = {
+    pix: "Pix",
+    credit_card: "Crédito",
+    debit_card: "Débito",
+    boleto: "Boleto",
+    ticket: "Boleto",
+    account_money: "Saldo em conta",
+    unknown: "Não informado",
+  };
+
+  return labels[method] ?? method.replaceAll("_", " ");
+}
+
 function emptyFinanceDashboard(scope: FinanceScope): FinanceDashboardMetrics {
   return {
     scope,
@@ -168,6 +237,8 @@ function emptyFinanceDashboard(scope: FinanceScope): FinanceDashboardMetrics {
     },
     byHotel: [],
     recentTransactions: [],
+    trend: [],
+    paymentMethods: [],
   };
 }
 
@@ -182,7 +253,7 @@ export async function getFinanceDashboardMetrics(
     return emptyFinanceDashboard(scope);
   }
 
-  const [summary, hotelGroups, recentTransactions] = await prisma.$transaction([
+  const [summary, hotelGroups, recentTransactions, chartTransactions] = await prisma.$transaction([
     prisma.paymentTransaction.aggregate({
       where,
       _count: {
@@ -243,6 +314,18 @@ export async function getFinanceDashboardMetrics(
         },
       },
     }),
+    prisma.paymentTransaction.findMany({
+      where,
+      orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }],
+      select: {
+        grossAmountCents: true,
+        platformFeeCents: true,
+        hotelNetAmountCents: true,
+        paymentMethod: true,
+        paidAt: true,
+        createdAt: true,
+      },
+    }),
   ]);
 
   const hotelIds = hotelGroups.map((group) => group.hotelId);
@@ -265,6 +348,49 @@ export async function getFinanceDashboardMetrics(
   const platformRevenueCents = summary._sum.platformFeeCents ?? 0;
   const hotelNetEstimatedCents = summary._sum.hotelNetAmountCents ?? 0;
   const paidTransactionCount = summary._count._all;
+  const trendByKey = new Map<
+    string,
+    {
+      totalMovementCents: number;
+      platformRevenueCents: number;
+      hotelNetEstimatedCents: number;
+      transactionCount: number;
+    }
+  >();
+  const paymentMethodsByKey = new Map<
+    string,
+    {
+      totalMovementCents: number;
+      transactionCount: number;
+    }
+  >();
+
+  for (const transaction of chartTransactions) {
+    const date = transaction.paidAt ?? transaction.createdAt;
+    const trendKey = getTrendKey(date, filters);
+    const currentTrend = trendByKey.get(trendKey) ?? {
+      totalMovementCents: 0,
+      platformRevenueCents: 0,
+      hotelNetEstimatedCents: 0,
+      transactionCount: 0,
+    };
+
+    currentTrend.totalMovementCents += transaction.grossAmountCents;
+    currentTrend.platformRevenueCents += transaction.platformFeeCents;
+    currentTrend.hotelNetEstimatedCents += transaction.hotelNetAmountCents;
+    currentTrend.transactionCount += 1;
+    trendByKey.set(trendKey, currentTrend);
+
+    const method = transaction.paymentMethod ?? "unknown";
+    const currentMethod = paymentMethodsByKey.get(method) ?? {
+      totalMovementCents: 0,
+      transactionCount: 0,
+    };
+
+    currentMethod.totalMovementCents += transaction.grossAmountCents;
+    currentMethod.transactionCount += 1;
+    paymentMethodsByKey.set(method, currentMethod);
+  }
 
   return {
     scope,
@@ -316,5 +442,21 @@ export async function getFinanceDashboardMetrics(
       platformRevenue: toFinanceAmount(transaction.platformFeeCents),
       hotelNetEstimated: toFinanceAmount(transaction.hotelNetAmountCents),
     })),
+    trend: Array.from(trendByKey.entries()).map(([key, value]) => ({
+      key,
+      label: formatTrendLabel(key),
+      totalMovement: toFinanceAmount(value.totalMovementCents),
+      platformRevenue: toFinanceAmount(value.platformRevenueCents),
+      hotelNetEstimated: toFinanceAmount(value.hotelNetEstimatedCents),
+      transactionCount: value.transactionCount,
+    })),
+    paymentMethods: Array.from(paymentMethodsByKey.entries())
+      .map(([method, value]) => ({
+        method,
+        label: formatPaymentMethodLabel(method),
+        transactionCount: value.transactionCount,
+        totalMovement: toFinanceAmount(value.totalMovementCents),
+      }))
+      .sort((left, right) => right.totalMovement.cents - left.totalMovement.cents),
   };
 }

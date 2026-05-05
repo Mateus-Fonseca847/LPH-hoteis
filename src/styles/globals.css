@@ -2665,6 +2665,318 @@ button {
   font-weight: 900;
 }
 
+.finance-dashboard-page {
+  gap: 22px;
+}
+
+.finance-dashboard-hero {
+  min-height: 280px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: end;
+  padding: clamp(24px, 4vw, 34px);
+  border-radius: 30px;
+  background:
+    linear-gradient(135deg, rgba(6, 41, 79, 0.96), rgba(6, 41, 79, 0.78)),
+    linear-gradient(180deg, #ffffff, #eef3f8);
+  color: var(--surface);
+}
+
+.finance-dashboard-hero h1 {
+  max-width: 900px;
+  margin: 10px 0 0;
+  font-family: var(--font-sora), sans-serif;
+  font-size: clamp(2.8rem, 5vw, 5.2rem);
+  line-height: 0.94;
+  letter-spacing: -0.06em;
+}
+
+.finance-dashboard-hero p {
+  max-width: 680px;
+  margin: 16px 0 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.finance-dashboard-hero .hotel-page-eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.finance-dashboard-hero small {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--surface);
+  font-weight: 900;
+}
+
+.finance-dashboard-filters {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.finance-dashboard-hotel-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.finance-dashboard-kpis {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.finance-kpi-card {
+  min-height: 190px;
+  display: grid;
+  align-content: space-between;
+  gap: 18px;
+  border-color: rgba(6, 41, 79, 0.08);
+}
+
+.finance-kpi-card--primary {
+  grid-column: span 2;
+  background: var(--brand);
+  color: var(--surface);
+}
+
+.finance-kpi-card--accent {
+  background: rgba(230, 194, 0, 0.16);
+}
+
+.finance-kpi-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.finance-kpi-card__top span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.finance-kpi-card--primary .finance-kpi-card__top span,
+.finance-kpi-card--primary p {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.finance-kpi-card__top i {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(6, 41, 79, 0.08);
+  color: var(--brand);
+  font-style: normal;
+  font-size: 0.8rem;
+  font-weight: 950;
+}
+
+.finance-kpi-card--primary .finance-kpi-card__top i {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--surface);
+}
+
+.finance-kpi-card strong {
+  font-family: var(--font-sora), sans-serif;
+  font-size: clamp(1.65rem, 2.5vw, 2.85rem);
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+  overflow-wrap: anywhere;
+}
+
+.finance-kpi-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.finance-dashboard-charts,
+.finance-dashboard-analytics {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.finance-chart-card {
+  min-height: 360px;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+
+.finance-chart-card--wide {
+  min-height: 390px;
+}
+
+.finance-line-chart {
+  width: 100%;
+  height: 220px;
+  padding: 8px 0;
+  overflow: visible;
+}
+
+.finance-line-chart polygon {
+  fill: rgba(6, 41, 79, 0.08);
+}
+
+.finance-line-chart polyline {
+  fill: none;
+  stroke: var(--brand);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.finance-line-chart circle {
+  fill: var(--brand);
+  stroke: var(--surface);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.finance-line-chart-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.finance-bars--compact {
+  max-height: 360px;
+}
+
+.finance-hotel-bar,
+.finance-method-row {
+  display: grid;
+  gap: 9px;
+}
+
+.finance-hotel-bar div,
+.finance-method-row div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.finance-hotel-bar strong,
+.finance-method-row strong {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.finance-hotel-bar span,
+.finance-method-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.finance-hotel-bar i,
+.finance-method-row i {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(6, 41, 79, 0.09);
+}
+
+.finance-hotel-bar i span,
+.finance-method-row i span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: var(--brand);
+}
+
+.finance-composition {
+  display: grid;
+  gap: 18px;
+  align-self: end;
+}
+
+.finance-composition__bar {
+  height: 44px;
+  display: flex;
+  overflow: hidden;
+  border-radius: 18px;
+  background: rgba(6, 41, 79, 0.08);
+}
+
+.finance-composition__platform {
+  background: var(--accent);
+}
+
+.finance-composition__hotel {
+  background: var(--brand);
+}
+
+.finance-composition__legend {
+  display: grid;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
+.finance-composition__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.finance-composition__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.finance-composition__dot--platform {
+  background: var(--accent);
+}
+
+.finance-composition__dot--hotel {
+  background: var(--brand);
+}
+
+.finance-method-list {
+  display: grid;
+  gap: 16px;
+}
+
+.finance-method-row {
+  grid-template-columns: minmax(110px, 0.7fr) minmax(140px, 1fr) auto;
+  align-items: center;
+}
+
+.finance-method-row b {
+  color: var(--brand);
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
 .admin-dashboard-grid {
   grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
   align-items: start;
@@ -5544,6 +5856,10 @@ button {
   .admin-dashboard-metrics,
   .admin-finance-grid,
   .admin-dashboard-grid,
+  .finance-dashboard-hero,
+  .finance-dashboard-kpis,
+  .finance-dashboard-charts,
+  .finance-dashboard-analytics,
   .admin-hotels-grid,
   .admin-hotel-detail-grid,
   .admin-admin-meta,
@@ -5596,6 +5912,19 @@ button {
 
   .admin-finance-metric--wide {
     grid-column: auto;
+  }
+
+  .finance-kpi-card--primary {
+    grid-column: auto;
+  }
+
+  .finance-method-row {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-dashboard-hero {
+    min-height: 360px;
+    align-items: end;
   }
 
   .admin-room-amenities-grid {
