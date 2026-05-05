@@ -187,12 +187,43 @@ export function FinancialKpiCards({ metrics }: { metrics: FinanceDashboardMetric
   );
 }
 
+type FinanceChartPoint = FinanceDashboardMetrics["trend"][number] & {
+  x: number;
+  y: number;
+};
+
+function getSmoothLinePath(points: FinanceChartPoint[]) {
+  if (!points.length) {
+    return "";
+  }
+
+  if (points.length === 1) {
+    return `M ${points[0].x} ${points[0].y}`;
+  }
+
+  return points.reduce((path, point, index) => {
+    if (index === 0) {
+      return `M ${point.x} ${point.y}`;
+    }
+
+    const previous = points[index - 1];
+    const beforePrevious = points[index - 2] ?? previous;
+    const next = points[index + 1] ?? point;
+    const controlStartX = previous.x + (point.x - beforePrevious.x) / 6;
+    const controlStartY = previous.y + (point.y - beforePrevious.y) / 6;
+    const controlEndX = point.x - (next.x - previous.x) / 6;
+    const controlEndY = point.y - (next.y - previous.y) / 6;
+
+    return `${path} C ${controlStartX} ${controlStartY}, ${controlEndX} ${controlEndY}, ${point.x} ${point.y}`;
+  }, "");
+}
+
 export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMetrics }) {
   const maxValue = Math.max(...metrics.trend.map((point) => point.totalMovement.cents), 1);
-  const chartWidth = 100;
-  const chartHeight = 180;
-  const paddingX = 4;
-  const paddingY = 14;
+  const chartWidth = 640;
+  const chartHeight = 220;
+  const paddingX = 28;
+  const paddingY = 24;
   const plotWidth = chartWidth - paddingX * 2;
   const plotHeight = chartHeight - paddingY * 2;
   const points = metrics.trend.map((point, index) => {
@@ -204,9 +235,9 @@ export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMet
 
     return { ...point, x, y };
   });
-  const polyline = points.map((point) => `${point.x},${point.y}`).join(" ");
-  const area = points.length
-    ? `${paddingX},${chartHeight - paddingY} ${polyline} ${chartWidth - paddingX},${chartHeight - paddingY}`
+  const linePath = getSmoothLinePath(points);
+  const areaPath = points.length
+    ? `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`
     : "";
 
   return (
@@ -225,12 +256,11 @@ export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMet
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             role="img"
             aria-label="Evolução da movimentação financeira"
-            preserveAspectRatio="none"
           >
-            <polygon points={area} />
-            <polyline points={polyline} />
+            <path className="finance-line-chart__area" d={areaPath} />
+            <path className="finance-line-chart__line" d={linePath} />
             {points.map((point) => (
-              <circle key={point.key} cx={point.x} cy={point.y} r="1.7">
+              <circle key={point.key} cx={point.x} cy={point.y} r="5">
                 <title>{`${point.label}: ${point.totalMovement.formatted}`}</title>
               </circle>
             ))}
