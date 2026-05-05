@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 
 import type { FinanceDashboardMetrics } from "@/lib/finance";
 
@@ -9,7 +9,7 @@ type FinanceChartPoint = FinanceDashboardMetrics["trend"][number] & {
   y: number;
 };
 
-function getSmoothLinePath(points: FinanceChartPoint[]) {
+function getSmoothLinePath(points: FinanceChartPoint[], minY: number, maxY: number) {
   if (!points.length) {
     return "";
   }
@@ -27,12 +27,16 @@ function getSmoothLinePath(points: FinanceChartPoint[]) {
     const beforePrevious = points[index - 2] ?? previous;
     const next = points[index + 1] ?? point;
     const controlStartX = previous.x + (point.x - beforePrevious.x) / 6;
-    const controlStartY = previous.y + (point.y - beforePrevious.y) / 6;
+    const controlStartY = clampChartY(previous.y + (point.y - beforePrevious.y) / 6, minY, maxY);
     const controlEndX = point.x - (next.x - previous.x) / 6;
-    const controlEndY = point.y - (next.y - previous.y) / 6;
+    const controlEndY = clampChartY(point.y - (next.y - previous.y) / 6, minY, maxY);
 
     return `${path} C ${controlStartX} ${controlStartY}, ${controlEndX} ${controlEndY}, ${point.x} ${point.y}`;
   }, "");
+}
+
+function clampChartY(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function getTooltipPositionClass(
@@ -47,7 +51,24 @@ function getTooltipPositionClass(
   return `finance-line-chart-tooltip--${horizontal} finance-line-chart-tooltip--${vertical}`;
 }
 
+function getVisibleLabels(points: FinanceChartPoint[]) {
+  if (points.length <= 6) {
+    return points;
+  }
+
+  const lastIndex = points.length - 1;
+  const step = Math.ceil(lastIndex / 5);
+  const labels = points.filter(
+    (_, index) => index === 0 || index === lastIndex || index % step === 0
+  );
+
+  return labels[labels.length - 1]?.key === points[lastIndex].key
+    ? labels
+    : [...labels, points[lastIndex]];
+}
+
 export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMetrics }) {
+  const chartRef = useRef<SVGSVGElement>(null);
   const [activePointKey, setActivePointKey] = useState<string | null>(null);
   const maxValue = Math.max(...metrics.trend.map((point) => point.totalMovement.cents), 1);
   const chartWidth = 640;
@@ -56,20 +77,38 @@ export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMet
   const paddingY = 24;
   const plotWidth = chartWidth - paddingX * 2;
   const plotHeight = chartHeight - paddingY * 2;
-  const points = metrics.trend.map((point, index) => {
+  const sortedTrend = [...metrics.trend].sort((left, right) => left.key.localeCompare(right.key));
+  const points = sortedTrend.map((point, index) => {
     const x =
-      metrics.trend.length === 1
+      sortedTrend.length === 1
         ? chartWidth / 2
-        : paddingX + (index / (metrics.trend.length - 1)) * plotWidth;
+        : paddingX + (index / (sortedTrend.length - 1)) * plotWidth;
     const y = chartHeight - paddingY - (point.totalMovement.cents / maxValue) * plotHeight;
 
     return { ...point, x, y };
   });
-  const linePath = getSmoothLinePath(points);
+  const linePath = getSmoothLinePath(points, paddingY, chartHeight - paddingY);
   const areaPath = points.length
     ? `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`
     : "";
   const activePoint = points.find((point) => point.key === activePointKey) ?? null;
+  const visibleLabels = getVisibleLabels(points);
+
+  function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
+    const svg = chartRef.current;
+
+    if (!svg || !points.length) {
+      return;
+    }
+
+    const rect = svg.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * chartWidth;
+    const closestPoint = points.reduce((closest, point) =>
+      Math.abs(point.x - x) < Math.abs(closest.x - x) ? point : closest
+    );
+
+    setActivePointKey(closestPoint.key);
+  }
 
   function handlePointKeyDown(event: KeyboardEvent<SVGGElement>, pointKey: string) {
     if (event.key !== "Enter" && event.key !== " ") {
@@ -93,13 +132,28 @@ export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMet
         <>
           <div className="finance-line-chart-stage" onMouseLeave={() => setActivePointKey(null)}>
             <svg
+              ref={chartRef}
               className="finance-line-chart"
               viewBox={`0 0 ${chartWidth} ${chartHeight}`}
               role="img"
+              onPointerMove={handlePointerMove}
               aria-label="Evolução da movimentação financeira"
             >
-              <path className="finance-line-chart__area" d={areaPath} />
-              <path className="finance-line-chart__line" d={linePath} />
+              <defs>
+                <clipPath id="finance-line-chart-clip">
+                  <rect x={paddingX} y={paddingY} width={plotWidth} height={plotHeight} />
+                </clipPath>
+              </defs>
+              <g clipPath="url(#finance-line-chart-clip)">
+                <path className="finance-line-chart__area" d={areaPath} />
+                <path
+                  className="finance-line-chart__line"
+                  d={linePath}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </g>
               {points.map((point) => (
                 <g
                   key={point.key}
@@ -118,12 +172,6 @@ export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMet
                     cx={point.x}
                     cy={point.y}
                     r="11"
-                  />
-                  <circle
-                    className="finance-line-chart__point-dot"
-                    cx={point.x}
-                    cy={point.y}
-                    r={activePointKey === point.key ? "5" : "3.8"}
                   />
                 </g>
               ))}
@@ -151,8 +199,13 @@ export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMet
           </div>
 
           <div className="finance-line-chart-labels">
-            {points.map((point) => (
-              <span key={point.key}>{point.label}</span>
+            {visibleLabels.map((point) => (
+              <span
+                key={point.key}
+                style={{ "--label-x": `${(point.x / chartWidth) * 100}%` } as CSSProperties}
+              >
+                {point.label}
+              </span>
             ))}
           </div>
         </>

@@ -2825,6 +2825,7 @@ button {
 .finance-line-chart-stage {
   position: relative;
   isolation: isolate;
+  overflow: hidden;
 }
 
 .finance-line-chart {
@@ -2834,7 +2835,8 @@ button {
   display: block;
   aspect-ratio: 640 / 220;
   padding: 4px 0 2px;
-  overflow: visible;
+  overflow: hidden;
+  touch-action: manipulation;
 }
 
 .finance-line-chart__area {
@@ -2858,24 +2860,6 @@ button {
 .finance-line-chart__point-hit {
   fill: transparent;
   stroke: transparent;
-}
-
-.finance-line-chart__point-dot {
-  fill: var(--brand);
-  stroke: var(--brand);
-  stroke-width: 1.6;
-  vector-effect: non-scaling-stroke;
-  transition:
-    r 160ms ease,
-    stroke-width 160ms ease,
-    filter 160ms ease;
-}
-
-.finance-line-chart__point:hover .finance-line-chart__point-dot,
-.finance-line-chart__point:focus-visible .finance-line-chart__point-dot {
-  filter: drop-shadow(0 5px 10px rgba(6, 41, 79, 0.2));
-  stroke: var(--surface);
-  stroke-width: 2.4;
 }
 
 .finance-line-chart-tooltip {
@@ -2938,12 +2922,27 @@ button {
 }
 
 .finance-line-chart-labels {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
+  position: relative;
+  height: 18px;
   color: var(--muted);
   font-size: 0.74rem;
   font-weight: 800;
+}
+
+.finance-line-chart-labels span {
+  position: absolute;
+  left: var(--label-x);
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.finance-line-chart-labels span:first-child {
+  transform: translateX(0);
+}
+
+.finance-line-chart-labels span:last-child {
+  transform: translateX(-100%);
 }
 
 .finance-bars--compact {
