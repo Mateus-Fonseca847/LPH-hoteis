@@ -2457,10 +2457,10 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 12px;
-  border: 1px solid rgba(30, 30, 30, 0.08);
-  border-radius: 999px;
-  background: var(--surface);
+  padding: 8px 13px;
+  border: 1px solid rgba(30, 30, 30, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.76);
   color: var(--muted);
   font-size: 0.86rem;
   font-weight: 800;
@@ -2471,12 +2471,18 @@ button {
 }
 
 .admin-finance-period:hover,
-.admin-finance-period:focus-visible,
-.admin-finance-period.is-active {
-  border-color: rgba(6, 41, 79, 0.2);
-  background: rgba(6, 41, 79, 0.08);
-  color: var(--brand);
+.admin-finance-period:focus-visible {
+  border-color: rgba(6, 41, 79, 0.24);
+  background: var(--surface);
+  color: var(--text);
   outline: none;
+}
+
+.admin-finance-period.is-active {
+  border-color: rgba(6, 41, 79, 0.28);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--brand);
 }
 
 .admin-finance-grid {
@@ -2658,71 +2664,64 @@ button {
   display: inline-flex;
   align-items: center;
   padding: 5px 10px;
-  border-radius: 999px;
-  background: rgba(6, 41, 79, 0.08);
-  color: var(--brand);
+  border-radius: 10px;
+  background: rgba(30, 30, 30, 0.06);
+  color: var(--text);
   font-size: 0.78rem;
   font-weight: 900;
 }
 
 .finance-dashboard-page {
-  gap: 22px;
+  gap: 28px;
 }
 
 .finance-dashboard-hero {
-  min-height: 280px;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 24px;
-  align-items: end;
-  padding: clamp(24px, 4vw, 34px);
-  border-radius: 30px;
-  background:
-    linear-gradient(135deg, rgba(6, 41, 79, 0.96), rgba(6, 41, 79, 0.78)),
-    linear-gradient(180deg, #ffffff, #eef3f8);
-  color: var(--surface);
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 20px;
+  align-items: center;
+  padding: clamp(24px, 4vw, 36px);
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 24px;
+  background: linear-gradient(135deg, #ffffff, #f6f8fb);
+  color: var(--text);
 }
 
 .finance-dashboard-hero h1 {
   max-width: 900px;
-  margin: 10px 0 0;
+  margin: 0;
   font-family: var(--font-sora), sans-serif;
-  font-size: clamp(2.8rem, 5vw, 5.2rem);
-  line-height: 0.94;
+  font-size: clamp(2.3rem, 4vw, 4.2rem);
+  line-height: 0.98;
   letter-spacing: -0.06em;
+  color: var(--brand);
 }
 
 .finance-dashboard-hero p {
   max-width: 680px;
-  margin: 16px 0 0;
-  color: rgba(255, 255, 255, 0.76);
+  margin: 14px 0 0;
+  color: var(--muted);
   font-size: 1.05rem;
   line-height: 1.55;
 }
 
-.finance-dashboard-hero .hotel-page-eyebrow {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.finance-dashboard-hero small {
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 9px 13px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--surface);
+.finance-dashboard-hero .finance-dashboard-scope {
+  max-width: 240px;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.92rem;
   font-weight: 900;
+  line-height: 1.35;
+  text-align: right;
 }
 
 .finance-dashboard-filters {
   display: grid;
-  gap: 10px;
-  padding: 14px;
+  gap: 12px;
+  padding: 16px;
   border: 1px solid rgba(30, 30, 30, 0.08);
-  border-radius: 24px;
+  border-radius: 20px;
   background: rgba(255, 255, 255, 0.7);
 }
 
@@ -2734,33 +2733,31 @@ button {
 
 .finance-dashboard-kpis {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .finance-kpi-card {
-  min-height: 190px;
+  min-height: 184px;
+  grid-column: span 4;
   display: grid;
   align-content: space-between;
-  gap: 18px;
+  gap: 20px;
   border-color: rgba(6, 41, 79, 0.08);
+  background: var(--surface);
 }
 
 .finance-kpi-card--primary {
-  grid-column: span 2;
-  background: var(--brand);
-  color: var(--surface);
+  background: linear-gradient(135deg, rgba(6, 41, 79, 0.08), rgba(255, 255, 255, 0.96));
+  border-color: rgba(6, 41, 79, 0.16);
 }
 
 .finance-kpi-card--accent {
-  background: rgba(230, 194, 0, 0.16);
+  background: linear-gradient(135deg, rgba(230, 194, 0, 0.14), rgba(255, 255, 255, 0.96));
 }
 
 .finance-kpi-card__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  display: block;
 }
 
 .finance-kpi-card__top span {
@@ -2771,28 +2768,8 @@ button {
   text-transform: uppercase;
 }
 
-.finance-kpi-card--primary .finance-kpi-card__top span,
-.finance-kpi-card--primary p {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.finance-kpi-card__top i {
-  width: 38px;
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14px;
-  background: rgba(6, 41, 79, 0.08);
+.finance-kpi-card--primary .finance-kpi-card__top span {
   color: var(--brand);
-  font-style: normal;
-  font-size: 0.8rem;
-  font-weight: 950;
-}
-
-.finance-kpi-card--primary .finance-kpi-card__top i {
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--surface);
 }
 
 .finance-kpi-card strong {
@@ -2812,7 +2789,7 @@ button {
 .finance-dashboard-charts,
 .finance-dashboard-analytics {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.85fr);
   gap: 18px;
   align-items: start;
 }
@@ -5857,7 +5834,6 @@ button {
   .admin-finance-grid,
   .admin-dashboard-grid,
   .finance-dashboard-hero,
-  .finance-dashboard-kpis,
   .finance-dashboard-charts,
   .finance-dashboard-analytics,
   .admin-hotels-grid,
@@ -5914,7 +5890,11 @@ button {
     grid-column: auto;
   }
 
-  .finance-kpi-card--primary {
+  .finance-dashboard-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finance-kpi-card {
     grid-column: auto;
   }
 
@@ -5923,8 +5903,13 @@ button {
   }
 
   .finance-dashboard-hero {
-    min-height: 360px;
-    align-items: end;
+    min-height: 0;
+    align-items: start;
+  }
+
+  .finance-dashboard-hero .finance-dashboard-scope {
+    max-width: none;
+    text-align: left;
   }
 
   .admin-room-amenities-grid {
@@ -5999,6 +5984,15 @@ button {
 }
 
 @media (max-width: 820px) {
+  .finance-dashboard-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-dashboard-hero .finance-dashboard-scope {
+    max-width: none;
+    text-align: left;
+  }
+
   .admin-room-basic-grid,
   .admin-room-guest-grid,
   .admin-room-amenities-grid {

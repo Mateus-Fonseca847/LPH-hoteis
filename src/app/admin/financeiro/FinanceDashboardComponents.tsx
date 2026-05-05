@@ -135,42 +135,36 @@ export function FinancialKpiCards({ metrics }: { metrics: FinanceDashboardMetric
       label: "Movimentação total",
       value: metrics.summary.totalMovement.formatted,
       helper: "Valor bruto pago no site.",
-      icon: "R$",
       variant: "primary",
     },
     {
       label: "Faturamento da plataforma",
       value: metrics.summary.platformRevenue.formatted,
       helper: "Comissão de 10% sobre pagamentos aprovados.",
-      icon: "10%",
       variant: "accent",
     },
     {
       label: "Repasse aos hotéis",
       value: metrics.summary.hotelNetEstimated.formatted,
       helper: "Líquido estimado de 90%.",
-      icon: "90%",
       variant: "neutral",
     },
     {
       label: "Transações pagas",
       value: String(metrics.summary.paidTransactionCount),
       helper: "Pagamentos confirmados no período.",
-      icon: "#",
       variant: "neutral",
     },
     {
       label: "Ticket médio",
       value: metrics.summary.averageTicket.formatted,
       helper: "Média por transação paga.",
-      icon: "TM",
       variant: "neutral",
     },
     {
       label: "Reservas pagas",
       value: String(metrics.summary.paidTransactionCount),
       helper: "Reservas com pagamento aprovado.",
-      icon: "OK",
       variant: "neutral",
     },
   ];
@@ -184,7 +178,6 @@ export function FinancialKpiCards({ metrics }: { metrics: FinanceDashboardMetric
         >
           <div className="finance-kpi-card__top">
             <span>{card.label}</span>
-            <i aria-hidden="true">{card.icon}</i>
           </div>
           <strong>{card.value}</strong>
           <p>{card.helper}</p>
@@ -210,7 +203,6 @@ export function RevenueOverTimeChart({ metrics }: { metrics: FinanceDashboardMet
     <article className="hotel-content-card finance-chart-card finance-chart-card--wide">
       <div className="admin-finance-chart__header">
         <div>
-          <span className="hotel-page-eyebrow">Evolução</span>
           <h3>Movimentação ao longo do tempo</h3>
         </div>
         <p>Receita paga agrupada conforme o período selecionado.</p>
@@ -255,7 +247,6 @@ export function RevenueByHotelChart({ hotels }: { hotels: HotelFinanceSummary[] 
     <article className="hotel-content-card finance-chart-card">
       <div className="admin-finance-chart__header">
         <div>
-          <span className="hotel-page-eyebrow">Hotéis</span>
           <h3>Movimentação por hotel</h3>
         </div>
         <p>Hotéis ordenados por valor bruto pago.</p>
@@ -303,7 +294,6 @@ export function RevenueCompositionChart({ metrics }: { metrics: FinanceDashboard
     <article className="hotel-content-card finance-chart-card">
       <div className="admin-finance-chart__header">
         <div>
-          <span className="hotel-page-eyebrow">Composição</span>
           <h3>Comissão x repasse</h3>
         </div>
         <p>Distribuição da movimentação paga.</p>
@@ -348,7 +338,6 @@ export function PaymentMethodsChart({ metrics }: { metrics: FinanceDashboardMetr
     <article className="hotel-content-card finance-chart-card">
       <div className="admin-finance-chart__header">
         <div>
-          <span className="hotel-page-eyebrow">Pagamentos</span>
           <h3>Por método</h3>
         </div>
         <p>Valor e quantidade por forma de pagamento.</p>
@@ -387,7 +376,6 @@ export function HotelFinancialRanking({ hotels }: { hotels: HotelFinanceSummary[
     <article className="hotel-content-card admin-finance-table-card">
       <div className="admin-finance-chart__header">
         <div>
-          <span className="hotel-page-eyebrow">Ranking</span>
           <h3>Hotéis por movimentação</h3>
         </div>
         <p>Resumo financeiro por hotel.</p>
@@ -432,7 +420,6 @@ export function RecentTransactionsList({ metrics }: { metrics: FinanceDashboardM
     <article className="hotel-content-card admin-finance-table-card">
       <div className="admin-finance-chart__header">
         <div>
-          <span className="hotel-page-eyebrow">Recentes</span>
           <h3>Movimentações recentes</h3>
         </div>
         <p>Últimas reservas pagas do site dentro do seu escopo.</p>
@@ -493,13 +480,12 @@ export function FinancialDashboard({
     <section className="section admin-section finance-dashboard-page">
       <div className="finance-dashboard-hero">
         <div>
-          <span className="hotel-page-eyebrow">Financeiro</span>
           <h1>Dashboard financeiro</h1>
           <p>Acompanhe movimentação paga, comissão da plataforma e repasses estimados por hotel.</p>
         </div>
-        <small>
+        <p className="finance-dashboard-scope">
           {isSuperAdmin ? "Visão consolidada da rede" : "Visão limitada aos seus hotéis"}
-        </small>
+        </p>
       </div>
 
       <FinancialFilters
