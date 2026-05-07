@@ -979,134 +979,147 @@ export function ExperienceSection() {
         ? budgetSuggestions[displayedCategory as BudgetKey]
         : experienceDestinations[displayedCategory as ExperienceKey];
 
-  return (
-    <section id="destinations" className="showcase section reveal">
-      <div className="showcase-copy">
-        <h2>
-          {showResult
-            ? "Encontramos experiências para o seu perfil"
-            : "Experiência sem complicação"}
-        </h2>
-        <p>
-          {showResult
-            ? "Suas escolhas ajudam a priorizar destinos, estrutura e localização para uma estadia mais certeira."
-            : "Escolha suas preferências e hospede-se perto do que faz você feliz, com uma reserva pensada para conforto do check-in ao check-out."}
-        </p>
-
-        <div key={showResult ? "result" : activeStep.id} className="experience-question-panel">
-          <div className="experience-stepper" aria-label="Pergunta atual">
-            <strong>{showResult ? "Sugestão pronta para sua estadia" : activeStep.label}</strong>
+  if (showResult) {
+    return (
+      <section id="destinations" className="showcase showcase--result section reveal">
+        <div className="experience-result-hero">
+          <h2>Encontramos experiências para o seu perfil</h2>
+          <p>
+            Com base nas suas respostas, selecionamos experiências alinhadas ao seu perfil de
+            viagem.
+          </p>
+          <div className="experience-result-chips" aria-label="Resumo do perfil">
+            {resultSummary.map((item) => (
+              <span key={item.label}>{item.value}</span>
+            ))}
           </div>
-
-          {showResult ? (
-            <div className="experience-result">
-              <strong>Resumo do perfil</strong>
-              <dl className="experience-result-summary">
-                {resultSummary.map((item) => (
-                  <div key={item.label}>
-                    <dt>{item.label}</dt>
-                    <dd>{item.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          ) : (
-            <div className="category-pills">
-              {activeStep.options.map((option) => {
-                const isSelected = isPreferenceStep
-                  ? answers.preferences.includes(option.key as PreferenceKey)
-                  : activeAnswer === option.key;
-
-                return (
-                  <button
-                    key={option.key}
-                    className={`pill experience-filter ${isSelected ? "active" : ""}`}
-                    type="button"
-                    aria-pressed={isSelected}
-                    data-experience={option.key}
-                    onClick={() => handleOptionSelect(option)}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
-      </div>
 
-      {showResult ? (
         <div
           className={`showcase-gallery experience-recommendations ${isTransitioning ? "is-transitioning" : ""}`}
         >
           {resultRecommendations.map((recommendation, index) => (
-            <article
+            <Link
               key={recommendation.key}
               className="experience-recommendation-card reveal experience-card"
               data-card-index={index}
+              href={getSearchHref(recommendation.query)}
             >
               <div className="experience-recommendation-card__image">
                 <Image
                   src={recommendation.image}
                   alt={recommendation.alt}
                   fill
-                  sizes="(max-width: 900px) 100vw, 33vw"
+                  sizes="(max-width: 720px) 100vw, (max-width: 1180px) 50vw, 33vw"
                 />
               </div>
               <div className="experience-recommendation-card__body">
                 <span>{recommendation.location}</span>
                 <strong>{recommendation.title}</strong>
                 <p>{recommendation.reason}</p>
-                <Link
-                  className="card-cta-button experience-recommendation-card__link"
-                  href={getSearchHref(recommendation.query)}
+                <span className="card-cta-button experience-recommendation-card__link">
+                  Ver detalhes
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        <div className="experience-step-actions">
+          <button
+            className="outline-round experience-step-button"
+            type="button"
+            onClick={handleBack}
+          >
+            Voltar
+          </button>
+          <button
+            className="outline-round experience-step-button"
+            type="button"
+            onClick={handleRestart}
+          >
+            Refazer perfil
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section id="destinations" className="showcase section reveal">
+      <div className="showcase-copy">
+        <h2>Experiência sem complicação</h2>
+        <p>
+          Escolha suas preferências e hospede-se perto do que faz você feliz, com uma reserva
+          pensada para conforto do check-in ao check-out.
+        </p>
+
+        <div key={activeStep.id} className="experience-question-panel">
+          <div className="experience-stepper" aria-label="Pergunta atual">
+            <strong>{activeStep.label}</strong>
+          </div>
+
+          <div className="category-pills">
+            {activeStep.options.map((option) => {
+              const isSelected = isPreferenceStep
+                ? answers.preferences.includes(option.key as PreferenceKey)
+                : activeAnswer === option.key;
+
+              return (
+                <button
+                  key={option.key}
+                  className={`pill experience-filter ${isSelected ? "active" : ""}`}
+                  type="button"
+                  aria-pressed={isSelected}
+                  data-experience={option.key}
+                  onClick={() => handleOptionSelect(option)}
                 >
-                  Ver hotéis
-                </Link>
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className={`showcase-gallery ${isTransitioning ? "is-transitioning" : ""}`}>
+        <article
+          className="gallery-card large reveal experience-card experience-card--featured"
+          data-card-index="0"
+        >
+          <Image
+            src={destinations[0].image}
+            alt={destinations[0].alt}
+            fill
+            sizes="(max-width: 900px) 100vw, 46vw"
+          />
+          <div className="gallery-caption">
+            <strong>{destinations[0].title}</strong>
+            <span>{destinations[0].description}</span>
+          </div>
+        </article>
+
+        <div className="gallery-side">
+          {destinations.slice(1).map((destination, index) => (
+            <article
+              key={`${displayedCategory}-${destination.title}`}
+              className="gallery-card reveal experience-card experience-card--small"
+              data-card-index={index + 1}
+            >
+              <Image
+                src={destination.image}
+                alt={destination.alt}
+                fill
+                sizes="(max-width: 900px) 100vw, 260px"
+              />
+              <div className="gallery-caption">
+                <strong>{destination.title}</strong>
+                <span>{destination.description}</span>
               </div>
             </article>
           ))}
         </div>
-      ) : (
-        <div className={`showcase-gallery ${isTransitioning ? "is-transitioning" : ""}`}>
-          <article
-            className="gallery-card large reveal experience-card experience-card--featured"
-            data-card-index="0"
-          >
-            <Image
-              src={destinations[0].image}
-              alt={destinations[0].alt}
-              fill
-              sizes="(max-width: 900px) 100vw, 46vw"
-            />
-            <div className="gallery-caption">
-              <strong>{destinations[0].title}</strong>
-              <span>{destinations[0].description}</span>
-            </div>
-          </article>
-
-          <div className="gallery-side">
-            {destinations.slice(1).map((destination, index) => (
-              <article
-                key={`${displayedCategory}-${destination.title}`}
-                className="gallery-card reveal experience-card experience-card--small"
-                data-card-index={index + 1}
-              >
-                <Image
-                  src={destination.image}
-                  alt={destination.alt}
-                  fill
-                  sizes="(max-width: 900px) 100vw, 260px"
-                />
-                <div className="gallery-caption">
-                  <strong>{destination.title}</strong>
-                  <span>{destination.description}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      )}
+      </div>
 
       <div className="experience-step-actions">
         {currentStep > 0 ? (
@@ -1118,25 +1131,14 @@ export function ExperienceSection() {
             Voltar
           </button>
         ) : null}
-        {showResult ? null : (
-          <button
-            className="outline-round experience-step-button"
-            type="button"
-            disabled={!canContinue}
-            onClick={handleContinue}
-          >
-            Continuar
-          </button>
-        )}
-        {showResult ? (
-          <button
-            className="outline-round experience-step-button"
-            type="button"
-            onClick={handleRestart}
-          >
-            Refazer perfil
-          </button>
-        ) : null}
+        <button
+          className="outline-round experience-step-button"
+          type="button"
+          disabled={!canContinue}
+          onClick={handleContinue}
+        >
+          Continuar
+        </button>
       </div>
     </section>
   );

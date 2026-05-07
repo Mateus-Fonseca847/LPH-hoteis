@@ -2441,6 +2441,48 @@ button {
   margin-top: 18px;
 }
 
+.experience-result-hero {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  max-width: 980px;
+}
+
+.experience-result-hero h2 {
+  max-width: 980px;
+  margin-bottom: 0;
+  font-size: clamp(2.35rem, 5vw, 4.8rem);
+  line-height: 0.98;
+}
+
+.experience-result-hero p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(1rem, 1.4vw, 1.2rem);
+  line-height: 1.45;
+}
+
+.experience-result-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.experience-result-chips span {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(6, 41, 79, 0.06);
+  color: var(--brand);
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
 .experience-result > strong {
   color: var(--brand);
   font-size: 0.9rem;
@@ -2525,14 +2567,33 @@ button {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.showcase--result {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 24px;
+  min-height: 0;
+}
+
+.showcase--result .experience-recommendations {
+  grid-column: 1;
+  grid-row: auto;
+  min-height: 0;
+}
+
+.showcase--result .experience-step-actions {
+  grid-column: 1;
+  grid-row: auto;
+}
+
 .experience-recommendation-card {
-  min-height: 560px;
+  min-height: 480px;
   display: grid;
   grid-template-rows: minmax(220px, 0.78fr) auto;
   overflow: hidden;
   border: 1px solid rgba(6, 41, 79, 0.08);
   border-radius: 28px;
   background: var(--surface);
+  color: inherit;
   box-shadow: 0 18px 42px rgba(10, 27, 52, 0.08);
   transition:
     opacity 0.28s ease,
@@ -2587,6 +2648,7 @@ button {
   min-width: 0;
   min-height: 46px;
   margin-top: 4px;
+  pointer-events: none;
 }
 
 .gallery-card {
@@ -6706,7 +6768,7 @@ button {
   }
 
   .experience-recommendations {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .admin-room-form-block--split {
