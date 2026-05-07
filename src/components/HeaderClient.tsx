@@ -2,22 +2,34 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { brazilianCities } from "@/data/cities";
 import {
   listFavoriteHotels,
   removeFavoriteHotel,
   subscribeToFavoriteHotels,
   type FavoriteHotel,
 } from "@/lib/hotel-favorites";
-import { normalizeText } from "@/lib/normalize-text";
 
 type HeaderClientProps = {
   user: {
     name: string;
     globalRole: "super_admin" | "hotel_admin" | "user";
   } | null;
+};
+
+type SearchSuggestion = {
+  id: string;
+  type: "hotel" | "destination";
+  label: string;
+  description: string;
+  href: string;
+};
+
+type SearchSuggestionsResponse = {
+  ok?: boolean;
+  suggestions?: SearchSuggestion[];
 };
 
 function getInitials(name: string) {
@@ -32,15 +44,18 @@ function getInitials(name: string) {
 }
 
 export function HeaderClient({ user }: HeaderClientProps) {
+  const router = useRouter();
   const [time, setTime] = useState("00:00:00");
   const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [favoriteHotels, setFavoriteHotels] = useState<FavoriteHotel[]>([]);
-  const searchRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLFormElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const favoritesMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -110,6 +125,7 @@ export function HeaderClient({ user }: HeaderClientProps) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        setIsOpen(false);
         setIsUserMenuOpen(false);
         setIsFavoritesOpen(false);
       }
@@ -134,10 +150,64 @@ export function HeaderClient({ user }: HeaderClientProps) {
     removeFavoriteHotel(slug);
   }
 
-  const normalizedQuery = normalizeText(query.trim());
-  const suggestions = normalizedQuery
-    ? brazilianCities.filter((city) => normalizeText(city).includes(normalizedQuery))
-    : [];
+  useEffect(() => {
+    const safeQuery = query.trim();
+
+    if (safeQuery.length < 2) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      setIsSearching(true);
+
+      try {
+        const response = await fetch(`/api/hoteis/sugestoes?q=${encodeURIComponent(safeQuery)}`, {
+          signal: controller.signal,
+        });
+        const payload = (await response
+          .json()
+          .catch(() => null)) as SearchSuggestionsResponse | null;
+
+        if (!response.ok || !payload?.ok) {
+          setSuggestions([]);
+          return;
+        }
+
+        setSuggestions(payload.suggestions ?? []);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setSuggestions([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsSearching(false);
+        }
+      }
+    }, 280);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [query]);
+
+  function goToSearch(value: string) {
+    const safeQuery = value.trim();
+
+    if (!safeQuery) {
+      return;
+    }
+
+    setIsOpen(false);
+    router.push(`/buscar?destino=${encodeURIComponent(safeQuery)}`);
+  }
+
+  function handleSuggestionSelect(suggestion: SearchSuggestion) {
+    setQuery(suggestion.label);
+    setIsOpen(false);
+    router.push(suggestion.href);
+  }
 
   return (
     <header className={`site-header${isScrolled ? " is-scrolled" : ""}`}>
@@ -153,9 +223,16 @@ export function HeaderClient({ user }: HeaderClientProps) {
           {time}
         </span>
 
-        <div ref={searchRef} className="city-search">
+        <form
+          ref={searchRef}
+          className="city-search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            goToSearch(query);
+          }}
+        >
           <label className="sr-only" htmlFor="city-search-input">
-            Buscar cidade
+            Buscar destino, hotel ou região
           </label>
           <span className="city-search-icon" aria-hidden="true">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
@@ -170,15 +247,21 @@ export function HeaderClient({ user }: HeaderClientProps) {
             className="city-search-input"
             type="search"
             role="combobox"
-            placeholder="Buscar cidade"
+            placeholder="Buscar destino"
             autoComplete="off"
             aria-autocomplete="list"
             aria-haspopup="listbox"
-            aria-expanded={isOpen && !!normalizedQuery}
+            aria-expanded={isOpen && query.trim().length >= 2}
             aria-controls="city-search-suggestions"
             value={query}
             onChange={(event) => {
-              setQuery(event.target.value);
+              const nextQuery = event.target.value;
+
+              setQuery(nextQuery);
+              if (nextQuery.trim().length < 2) {
+                setSuggestions([]);
+                setIsSearching(false);
+              }
               setIsOpen(true);
             }}
             onFocus={() => {
@@ -198,29 +281,31 @@ export function HeaderClient({ user }: HeaderClientProps) {
             id="city-search-suggestions"
             className="city-search-suggestions"
             role="listbox"
-            hidden={!isOpen || !normalizedQuery}
+            hidden={!isOpen || query.trim().length < 2}
           >
-            {normalizedQuery && suggestions.length === 0 ? (
-              <div className="city-search-empty">Nenhuma cidade encontrada</div>
+            {isSearching ? <div className="city-search-empty">Buscando hotéis...</div> : null}
+
+            {!isSearching && suggestions.length === 0 ? (
+              <div className="city-search-empty">Nenhum hotel encontrado para esse destino.</div>
             ) : null}
 
-            {suggestions.map((city) => (
+            {suggestions.map((suggestion) => (
               <button
-                key={city}
+                key={suggestion.id}
                 type="button"
                 className="city-search-option"
                 role="option"
                 aria-selected={false}
-                onClick={() => {
-                  setQuery(city);
-                  setIsOpen(false);
-                }}
+                onClick={() => handleSuggestionSelect(suggestion)}
               >
-                {city}
+                <span>
+                  <strong>{suggestion.label}</strong>
+                  <small>{suggestion.description}</small>
+                </span>
               </button>
             ))}
           </div>
-        </div>
+        </form>
       </div>
 
       <div className="header-actions">

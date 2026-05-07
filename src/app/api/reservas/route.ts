@@ -3,6 +3,7 @@ import {
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
+import { upsertInitialPaymentTransactionForReservation } from "@/lib/finance";
 import { resolveHotelPaymentConfiguration, startReservationPayment } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import {
@@ -31,6 +32,8 @@ function getTodayDateOnly() {
 }
 
 export async function POST(request: Request) {
+  let createdReservationId: string | null = null;
+
   try {
     let body: unknown;
 
@@ -93,7 +96,7 @@ export async function POST(request: Request) {
       throw new ValidationError("Quarto indisponível para reserva.");
     }
 
-    resolveHotelPaymentConfiguration(room.hotel.paymentSettings);
+    const paymentConfiguration = resolveHotelPaymentConfiguration(room.hotel.paymentSettings);
 
     if (!room.isAvailable || !canRoomAccommodateGuests(room, adults, children)) {
       throw new ValidationError("O quarto selecionado não comporta essa ocupação.");
@@ -162,8 +165,8 @@ export async function POST(request: Request) {
         nights,
         nightlyPriceCents,
         totalPriceCents,
-        status: "pending",
-        paymentProvider: "mercado_pago",
+        status: "awaiting_payment",
+        paymentProvider: paymentConfiguration.provider,
         paymentMethod,
         paymentStatus: "pending",
       },
@@ -173,6 +176,9 @@ export async function POST(request: Request) {
         createdAt: true,
       },
     });
+    createdReservationId = reservation.id;
+    await upsertInitialPaymentTransactionForReservation(reservation.id, "pending");
+
     const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL;
 
     if (!origin) {
@@ -204,6 +210,23 @@ export async function POST(request: Request) {
       201
     );
   } catch (error) {
+    if (createdReservationId) {
+      const reservationId = createdReservationId;
+
+      await prisma.reservation
+        .update({
+          where: {
+            id: reservationId,
+          },
+          data: {
+            status: "payment_failed",
+            paymentStatus: "payment_failed",
+          },
+        })
+        .then(() => upsertInitialPaymentTransactionForReservation(reservationId, "payment_failed"))
+        .catch(() => null);
+    }
+
     return createApiErrorResponse(error, CREATE_RESERVATION_FAILURE);
   }
 }

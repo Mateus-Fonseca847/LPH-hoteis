@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 
 import { AdminAccessDenied } from "@/app/admin/AdminAccessDenied";
 import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
-import { AuthorizationError, requireHotelEditAccess } from "@/lib/auth/authorization";
+import {
+  AuthorizationError,
+  requireHotelAdminAccess,
+  requireHotelEditAccess,
+} from "@/lib/auth/authorization";
 import { prisma } from "@/lib/prisma";
 
 import { HotelEditorForm } from "./HotelEditorForm";
@@ -131,6 +135,18 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
     notFound();
   }
 
+  const canManagePaymentSettings =
+    user.globalRole === "super_admin" ||
+    (await requireHotelAdminAccess(user.id, hotel.id)
+      .then(() => true)
+      .catch((error) => {
+        if (error instanceof AuthorizationError) {
+          return false;
+        }
+
+        throw error;
+      }));
+
   const saveAction = updateHotelProfileAction.bind(null, hotel.id);
   const savePaymentSettingsAction = updateHotelPaymentSettingsAction.bind(null, hotel.id);
   const paymentSettings = hotel.paymentSettings
@@ -161,11 +177,23 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
       </div>
 
       <HotelEditorForm action={saveAction} hotel={hotel} />
-      <HotelPaymentSettingsForm
-        action={savePaymentSettingsAction}
-        settings={paymentSettings}
-        isConfigured={Boolean(hotel.paymentSettings)}
-      />
+      {canManagePaymentSettings ? (
+        <HotelPaymentSettingsForm
+          action={savePaymentSettingsAction}
+          settings={paymentSettings}
+          isConfigured={Boolean(hotel.paymentSettings)}
+        />
+      ) : (
+        <section className="hotel-content-card admin-form-section">
+          <div className="section-heading admin-subsection-heading">
+            <h2>Pagamentos</h2>
+          </div>
+          <div className="admin-editor-banner">
+            <strong>Acesso restrito</strong>
+            <p>Apenas administradores do hotel podem alterar configurações financeiras.</p>
+          </div>
+        </section>
+      )}
       <HotelRoomsSection
         hotelId={hotel.id}
         initialRooms={hotel.rooms.map((room) => ({

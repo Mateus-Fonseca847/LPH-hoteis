@@ -6,7 +6,11 @@ import {
   requireAuthenticatedRequestUser,
 } from "@/lib/auth";
 import { validateAdminTwoFactor } from "@/lib/auth/admin-security";
-import { AuthorizationError, requireHotelEditAccess } from "@/lib/auth/authorization";
+import {
+  AuthorizationError,
+  requireHotelAdminAccess,
+  requireHotelEditAccess,
+} from "@/lib/auth/authorization";
 import { createApiErrorResponse } from "@/lib/errors/app-error";
 
 const routeIdSchema = z
@@ -73,6 +77,21 @@ export async function requireAuthorizedHotelWrite(hotelId: string) {
   }
 
   await requireHotelEditAccess(user.id, hotelId);
+
+  return user;
+}
+
+export async function requireAuthorizedHotelAdminWrite(hotelId: string) {
+  await getRequiredSession();
+
+  const user = await requireAuthenticatedRequestUser();
+  const twoFactorValidation = await validateAdminTwoFactor(user.id);
+
+  if (!twoFactorValidation.success) {
+    throw new AuthorizationError(twoFactorValidation.message);
+  }
+
+  await requireHotelAdminAccess(user.id, hotelId);
 
   return user;
 }

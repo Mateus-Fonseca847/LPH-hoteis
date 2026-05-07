@@ -5,7 +5,10 @@ import {
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
-import { upsertPaidPaymentTransactionForReservation } from "@/lib/finance/payment-transactions";
+import {
+  upsertInitialPaymentTransactionForReservation,
+  upsertPaidPaymentTransactionForReservation,
+} from "@/lib/finance/payment-transactions";
 import { getMercadoPagoPayment } from "@/lib/payments/mercado-pago";
 import { prisma } from "@/lib/prisma";
 import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
@@ -50,7 +53,8 @@ function safeCompare(a: string, b: string) {
 function validateMercadoPagoSignature(request: Request, paymentId: string) {
   const signature = request.headers.get("x-signature");
   const requestId = request.headers.get("x-request-id");
-  const secret = getRequiredEnv("MERCADO_PAGO_WEBHOOK_SECRET");
+  const secret =
+    process.env.PAYMENT_WEBHOOK_SECRET?.trim() || getRequiredEnv("MERCADO_PAGO_WEBHOOK_SECRET");
 
   if (!signature || !requestId) {
     throw new ValidationError("Assinatura do webhook ausente.");
@@ -61,14 +65,14 @@ function validateMercadoPagoSignature(request: Request, paymentId: string) {
   const expectedSignature = parsedSignature.v1;
 
   if (!timestamp || !expectedSignature) {
-    throw new ValidationError("Assinatura do webhook invalida.");
+    throw new ValidationError("Assinatura do webhook inválida.");
   }
 
   const manifest = `id:${paymentId};request-id:${requestId};ts:${timestamp};`;
   const calculatedSignature = createHmac("sha256", secret).update(manifest).digest("hex");
 
   if (!safeCompare(calculatedSignature, expectedSignature)) {
-    throw new ValidationError("Assinatura do webhook invalida.");
+    throw new ValidationError("Assinatura do webhook inválida.");
   }
 }
 
@@ -149,14 +153,20 @@ async function notifyPaidReservation(reservationId: string) {
   }
 }
 
-async function findReservation(paymentId: string, reservationId?: string | null) {
-  const byProviderPaymentId = await prisma.reservation.findUnique({
+async function findPaymentTransaction(paymentId: string, reservationId?: string | null) {
+  const byProviderPaymentId = await prisma.paymentTransaction.findUnique({
     where: {
       providerPaymentId: paymentId,
     },
     select: {
       id: true,
-      paymentStatus: true,
+      status: true,
+      reservation: {
+        select: {
+          id: true,
+          paymentStatus: true,
+        },
+      },
     },
   });
 
@@ -164,50 +174,65 @@ async function findReservation(paymentId: string, reservationId?: string | null)
     return byProviderPaymentId;
   }
 
-  return prisma.reservation.findUnique({
+  return prisma.paymentTransaction.findUnique({
     where: {
-      id: reservationId,
+      reservationId,
     },
     select: {
       id: true,
-      paymentStatus: true,
+      status: true,
+      reservation: {
+        select: {
+          id: true,
+          paymentStatus: true,
+        },
+      },
     },
   });
 }
 
 async function handleApprovedPayment(paymentId: string) {
   const payment = await getMercadoPagoPayment(paymentId);
-  const reservation = await findReservation(payment.id, payment.reservationId);
+  const paymentTransaction = await findPaymentTransaction(payment.id, payment.reservationId);
+  const reservation = paymentTransaction?.reservation;
 
   if (!reservation) {
     throw new ValidationError("Reserva do pagamento não encontrada.");
   }
 
-  if (reservation.paymentStatus === "paid") {
+  if (paymentTransaction.status === "paid" || reservation.paymentStatus === "paid") {
     await upsertPaidPaymentTransactionForReservation(reservation.id);
     return;
   }
 
-  await prisma.reservation.update({
+  const paidAt = new Date();
+  const updateResult = await prisma.reservation.updateMany({
     where: {
       id: reservation.id,
+      paymentStatus: {
+        not: "paid",
+      },
     },
     data: {
       status: "confirmed",
       paymentStatus: "paid",
       providerPaymentId: payment.id,
       paymentMethod: payment.paymentTypeId || payment.paymentMethodId,
-      paidAt: new Date(),
+      paidAt,
     },
   });
 
   await upsertPaidPaymentTransactionForReservation(reservation.id);
-  await notifyPaidReservation(reservation.id);
+
+  if (updateResult.count > 0) {
+    await notifyPaidReservation(reservation.id);
+  }
 }
 
 async function handleRejectedPayment(paymentId: string) {
   const payment = await getMercadoPagoPayment(paymentId);
-  const reservation = await findReservation(payment.id, payment.reservationId);
+  const paymentTransaction = await findPaymentTransaction(payment.id, payment.reservationId);
+  const reservation = paymentTransaction?.reservation;
 
   if (!reservation || reservation.paymentStatus === "paid") {
     return;
@@ -223,6 +248,7 @@ async function handleRejectedPayment(paymentId: string) {
       providerPaymentId: payment.id,
     },
   });
+  await upsertInitialPaymentTransactionForReservation(reservation.id, "payment_failed", payment.id);
 }
 
 export async function POST(request: Request) {

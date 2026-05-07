@@ -277,6 +277,7 @@ model PaymentTransaction {
   reservationId       String          @unique
   hotelId             String
   provider            PaymentProvider
+  providerPaymentId   String?         @unique
   paymentMethod       String?
   status              PaymentStatus
   grossAmountCents    Int
@@ -292,6 +293,7 @@ model PaymentTransaction {
 
   @@index([hotelId])
   @@index([provider])
+  @@index([providerPaymentId])
   @@index([paymentMethod])
   @@index([status])
   @@index([isTestData])

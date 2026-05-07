@@ -49,10 +49,12 @@ export function HotelPaymentSettingsForm({
         ) : null}
 
         <div className="admin-editor-banner">
-          <strong>{isConfigured ? "Configuração de teste" : "Pagamento não configurado"}</strong>
+          <strong>
+            {isConfigured ? "Configuração de pagamento" : "Pagamento não configurado"}
+          </strong>
           <p>
             {isConfigured
-              ? "Informe o destino de pagamento do hotel. Tokens salvos não são exibidos novamente na interface."
+              ? "Informe o destino de pagamento do hotel. Credenciais sensíveis salvas não são exibidas novamente."
               : "Este hotel ainda não possui configuração de pagamento. Salve os dados abaixo para criar uma configuração inativa por padrão."}
           </p>
         </div>
@@ -64,18 +66,20 @@ export function HotelPaymentSettingsForm({
               <option value="manual">Manual</option>
               <option value="mercado_pago">Mercado Pago</option>
             </select>
-            <small>Use Mercado Pago apenas com credenciais de sandbox nesta fase.</small>
           </label>
 
           <label className="admin-form-field">
-            <span>Identificação do recebedor</span>
+            <span>Identificador da conta recebedora</span>
             <input
               name="receiverLabel"
               defaultValue={settings.receiverLabel}
               required
               maxLength={120}
-              placeholder="Conta LPH Testes"
+              placeholder="ID, nome ou apelido da conta recebedora"
             />
+            <small>
+              Use um identificador interno claro para reconhecer o destino dos repasses.
+            </small>
           </label>
         </div>
 
@@ -91,25 +95,25 @@ export function HotelPaymentSettingsForm({
               name="publicKey"
               defaultValue={settings.publicKey ?? ""}
               maxLength={240}
-              placeholder="Chave pública de teste"
+              placeholder="Chave pública do provedor, se aplicável"
             />
           </label>
 
           <label className="admin-form-field">
-            <span>Access token</span>
+            <span>Credencial sensível</span>
             <input
               name="accessToken"
               type="password"
               maxLength={500}
               placeholder={
-                settings.hasAccessToken ? "Token já salvo. Preencha para substituir." : ""
+                settings.hasAccessToken ? "Credencial já salva. Preencha para substituir." : ""
               }
-              autoComplete="off"
+              autoComplete="new-password"
             />
             <small>
               {settings.hasAccessToken
-                ? "Há um token criptografado salvo para este hotel."
-                : "Nenhum token salvo ainda."}
+                ? "Há uma credencial criptografada salva para este hotel."
+                : "Nenhuma credencial sensível salva ainda."}
             </small>
           </label>
         </div>

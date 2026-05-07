@@ -1,5 +1,12 @@
 import { prisma } from "@/lib/prisma";
 
+type InitialPaymentTransactionStatus =
+  | "pending"
+  | "awaiting_payment"
+  | "paid"
+  | "payment_failed"
+  | "cancelled";
+
 const PLATFORM_FEE_BASIS_POINTS = 1000;
 const BASIS_POINTS = 10000;
 
@@ -28,6 +35,7 @@ export async function upsertPaidPaymentTransactionForReservation(reservationId: 
       id: true,
       hotelId: true,
       paymentProvider: true,
+      providerPaymentId: true,
       paymentMethod: true,
       paymentStatus: true,
       totalPriceCents: true,
@@ -51,6 +59,7 @@ export async function upsertPaidPaymentTransactionForReservation(reservationId: 
       reservationId: reservation.id,
       hotelId: reservation.hotelId,
       provider: reservation.paymentProvider ?? "manual",
+      providerPaymentId: reservation.providerPaymentId,
       paymentMethod: reservation.paymentMethod,
       status: "paid",
       ...amounts,
@@ -60,11 +69,67 @@ export async function upsertPaidPaymentTransactionForReservation(reservationId: 
     update: {
       hotelId: reservation.hotelId,
       provider: reservation.paymentProvider ?? "manual",
+      providerPaymentId: reservation.providerPaymentId,
       paymentMethod: reservation.paymentMethod,
       status: "paid",
       ...amounts,
       currency: reservation.currency,
       paidAt,
+    },
+  });
+}
+
+export async function upsertInitialPaymentTransactionForReservation(
+  reservationId: string,
+  status: InitialPaymentTransactionStatus = "awaiting_payment",
+  providerPaymentId?: string | null
+) {
+  const reservation = await prisma.reservation.findUnique({
+    where: {
+      id: reservationId,
+    },
+    select: {
+      id: true,
+      hotelId: true,
+      paymentProvider: true,
+      providerPaymentId: true,
+      paymentMethod: true,
+      totalPriceCents: true,
+      currency: true,
+    },
+  });
+
+  if (!reservation) {
+    return null;
+  }
+
+  const amounts = calculatePaymentTransactionAmounts(reservation.totalPriceCents);
+  const resolvedProviderPaymentId = providerPaymentId ?? reservation.providerPaymentId;
+
+  return prisma.paymentTransaction.upsert({
+    where: {
+      reservationId: reservation.id,
+    },
+    create: {
+      reservationId: reservation.id,
+      hotelId: reservation.hotelId,
+      provider: reservation.paymentProvider ?? "manual",
+      providerPaymentId: resolvedProviderPaymentId,
+      paymentMethod: reservation.paymentMethod,
+      status,
+      ...amounts,
+      currency: reservation.currency,
+      paidAt: null,
+    },
+    update: {
+      hotelId: reservation.hotelId,
+      provider: reservation.paymentProvider ?? "manual",
+      providerPaymentId: resolvedProviderPaymentId,
+      paymentMethod: reservation.paymentMethod,
+      status,
+      ...amounts,
+      currency: reservation.currency,
+      paidAt: null,
     },
   });
 }

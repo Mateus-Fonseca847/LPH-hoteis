@@ -1,5 +1,6 @@
 export {
   calculatePaymentTransactionAmounts,
+  upsertInitialPaymentTransactionForReservation,
   upsertPaidPaymentTransactionForReservation,
 } from "@/lib/finance/payment-transactions";
 export {

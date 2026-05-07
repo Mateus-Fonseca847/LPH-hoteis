@@ -1,7 +1,15 @@
-import { decryptSecret } from "@/lib/security/encryption";
 import { ValidationError } from "@/lib/errors/app-error";
+import { upsertInitialPaymentTransactionForReservation } from "@/lib/finance";
 import { prisma } from "@/lib/prisma";
+import { decryptSecret } from "@/lib/security/encryption";
 
+import {
+  assertConfiguredPaymentProvider,
+  getConfiguredPaymentProvider,
+  getPaymentAccessToken,
+  getPaymentWebhookUrl,
+  type RealPaymentProvider,
+} from "./config";
 import { createMercadoPagoPayment } from "./mercado-pago";
 import type { CreatePaymentInput, CreatePaymentResult, PaymentMethod } from "./types";
 
@@ -14,7 +22,7 @@ export type {
 } from "./types";
 
 export type PaymentConfiguration = {
-  provider: "mercado_pago";
+  provider: RealPaymentProvider;
   accessToken: string;
 };
 
@@ -25,25 +33,23 @@ type StartReservationPaymentInput = {
 };
 
 function getConfiguredAccessToken(encryptedAccessToken?: string | null) {
+  const provider = getConfiguredPaymentProvider();
+
   if (!encryptedAccessToken) {
-    const token = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
-
-    if (!token) {
-      throw new ValidationError("Mercado Pago não está configurado para este hotel.");
-    }
-
-    return token;
+    return getPaymentAccessToken(provider);
   }
 
   return decryptSecret(encryptedAccessToken, "PAYMENT_SECRETS_ENCRYPTION_KEY");
 }
 
 export async function createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
-  if (input.provider !== "mercado_pago") {
-    throw new ValidationError("Pagamento online não configurado para este hotel.");
+  const provider = assertConfiguredPaymentProvider(input.provider);
+
+  if (provider === "mercado_pago") {
+    return createMercadoPagoPayment(input);
   }
 
-  return createMercadoPagoPayment(input);
+  throw new ValidationError("Pagamento online não configurado para este hotel.");
 }
 
 export function resolveHotelPaymentConfiguration(
@@ -53,12 +59,14 @@ export function resolveHotelPaymentConfiguration(
     encryptedAccessToken?: string | null;
   } | null
 ): PaymentConfiguration {
-  if (!settings?.isEnabled || settings.provider !== "mercado_pago") {
+  const provider = getConfiguredPaymentProvider();
+
+  if (!settings?.isEnabled || settings.provider !== provider) {
     throw new ValidationError("Pagamento online não configurado para este hotel.");
   }
 
   return {
-    provider: "mercado_pago",
+    provider,
     accessToken: getConfiguredAccessToken(settings.encryptedAccessToken),
   };
 }
@@ -92,7 +100,7 @@ export async function startReservationPayment({
   const successUrl = `${origin}/hoteis/${reservation.hotel.slug}?checkout=success&reservation=${reservation.id}`;
   const failureUrl = `${origin}/hoteis/${reservation.hotel.slug}?checkout=cancelled&reservation=${reservation.id}`;
   const payment = await createPayment({
-    provider: "mercado_pago",
+    provider: paymentConfiguration.provider,
     method,
     reservationId: reservation.id,
     hotelName: reservation.hotel.name,
@@ -106,8 +114,7 @@ export async function startReservationPayment({
     } para ${reservation.adults} adulto(s) e ${reservation.children} crianca(s).`,
     successUrl,
     failureUrl,
-    notificationUrl:
-      process.env.MERCADO_PAGO_WEBHOOK_URL?.trim() || `${origin}/api/mercado-pago/webhook`,
+    notificationUrl: getPaymentWebhookUrl(paymentConfiguration.provider, origin),
     accessToken: paymentConfiguration.accessToken,
   });
 
@@ -123,6 +130,11 @@ export async function startReservationPayment({
       providerPaymentId: payment.providerPaymentId,
     },
   });
+  await upsertInitialPaymentTransactionForReservation(
+    reservation.id,
+    payment.status,
+    payment.providerPaymentId
+  );
 
   return payment;
 }

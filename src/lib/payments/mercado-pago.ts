@@ -1,5 +1,6 @@
 import { InternalServerError, ValidationError } from "@/lib/errors/app-error";
 
+import { getPaymentAccessToken } from "./config";
 import type { CreatePaymentInput, CreatePaymentResult, PaymentMethod } from "./types";
 
 const MERCADO_PAGO_PREFERENCES_URL = "https://api.mercadopago.com/checkout/preferences";
@@ -31,13 +32,7 @@ type MercadoPagoPaymentResponse = {
 };
 
 function getAccessToken(inputToken?: string | null) {
-  const token = inputToken?.trim() || process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
-
-  if (!token) {
-    throw new ValidationError("Mercado Pago não está configurado para este hotel.");
-  }
-
-  return token;
+  return getPaymentAccessToken("mercado_pago", inputToken);
 }
 
 function getCheckoutUrl(preference: MercadoPagoPreferenceResponse) {

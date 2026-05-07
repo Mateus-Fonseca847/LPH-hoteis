@@ -7,7 +7,7 @@ import { getErrorMessage, NotFoundError, ValidationError } from "@/lib/errors/ap
 import {
   getRequestIpAddress,
   parseHotelRouteParams,
-  requireAuthorizedHotelWrite,
+  requireAuthorizedHotelAdminWrite,
 } from "@/lib/hotel-write";
 import { prisma } from "@/lib/prisma";
 import { encryptSecret } from "@/lib/security/encryption";
@@ -47,7 +47,7 @@ export async function updateHotelPaymentSettingsAction(
     }
 
     const safeHotelId = parsedParams.data.hotelId;
-    const user = await requireAuthorizedHotelWrite(safeHotelId);
+    const user = await requireAuthorizedHotelAdminWrite(safeHotelId);
     const parsedPayload = parsePaymentSettingsFormData(formData);
 
     if (!parsedPayload.success) {
