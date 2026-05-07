@@ -786,6 +786,12 @@ export function ExperienceSection() {
     budget: null,
     preferences: [],
   });
+  const [confirmedAnswers, setConfirmedAnswers] = useState<QuestionnaireAnswers>({
+    "experience-type": null,
+    "travel-company": null,
+    budget: null,
+    preferences: [],
+  });
   const [showResult, setShowResult] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const timeoutRef = useRef<number | null>(null);
@@ -793,14 +799,20 @@ export function ExperienceSection() {
   const activeAnswer = answers[activeStep.id];
   const isPreferenceStep = activeStep.id === "preferences";
   const selectedPreferenceLabels = questionnaireSteps[3].options
-    .filter((option) => answers.preferences.includes(option.key as PreferenceKey))
+    .filter((option) => confirmedAnswers.preferences.includes(option.key as PreferenceKey))
     .map((option) => option.label);
   const primaryPreferenceLabels = selectedPreferenceLabels.slice(0, 4);
-  const resultRecommendations = getRecommendations(answers);
+  const resultRecommendations = getRecommendations(confirmedAnswers);
   const resultSummary = [
-    { label: "Experiência", value: getOptionLabel("experience-type", answers["experience-type"]) },
-    { label: "Companhia", value: getOptionLabel("travel-company", answers["travel-company"]) },
-    { label: "Orçamento", value: getOptionLabel("budget", answers.budget) },
+    {
+      label: "Experiência",
+      value: getOptionLabel("experience-type", confirmedAnswers["experience-type"]),
+    },
+    {
+      label: "Companhia",
+      value: getOptionLabel("travel-company", confirmedAnswers["travel-company"]),
+    },
+    { label: "Orçamento", value: getOptionLabel("budget", confirmedAnswers.budget) },
     {
       label: "Preferências",
       value: primaryPreferenceLabels.length > 0 ? primaryPreferenceLabels.join(", ") : "A definir",
@@ -890,13 +902,6 @@ export function ExperienceSection() {
 
       setAnswers(nextAnswers);
 
-      const nextVisualCategory =
-        nextPreferences.at(-1) ?? getVisualCategoryForStep(currentStep, nextAnswers);
-
-      if (nextVisualCategory) {
-        updateDisplayedCategory(nextVisualCategory);
-      }
-
       return;
     }
 
@@ -906,19 +911,6 @@ export function ExperienceSection() {
     };
 
     setAnswers(nextAnswers);
-
-    const nextVisualCategory =
-      activeStep.id === "experience-type"
-        ? option.experienceKey
-        : activeStep.id === "travel-company"
-          ? travelCompanyVisuals[option.key]
-          : activeStep.id === "budget"
-            ? budgetVisuals[option.key as BudgetKey]
-            : getVisualCategoryForStep(currentStep, nextAnswers);
-
-    if (nextVisualCategory) {
-      updateDisplayedCategory(nextVisualCategory);
-    }
   };
 
   const handleContinue = () => {
@@ -926,25 +918,25 @@ export function ExperienceSection() {
       return;
     }
 
-    if (currentStep === questionnaireSteps.length - 1) {
-      setShowResult(true);
+    const nextConfirmedAnswers = {
+      ...confirmedAnswers,
+      [activeStep.id]:
+        activeStep.id === "preferences" ? [...answers.preferences] : answers[activeStep.id],
+    } as QuestionnaireAnswers;
+    const nextVisualCategory = getVisualCategoryForStep(currentStep, nextConfirmedAnswers);
 
-      const resultVisualCategory = getVisualCategoryForStep(currentStep, answers);
-
-      if (resultVisualCategory) {
-        updateDisplayedCategory(resultVisualCategory);
-      }
-
-      return;
-    }
-
-    const nextStep = Math.min(questionnaireSteps.length - 1, currentStep + 1);
-    const nextVisualCategory = getVisualCategoryForStep(nextStep, answers);
+    setConfirmedAnswers(nextConfirmedAnswers);
 
     if (nextVisualCategory) {
       updateDisplayedCategory(nextVisualCategory);
     }
 
+    if (currentStep === questionnaireSteps.length - 1) {
+      setShowResult(true);
+      return;
+    }
+
+    const nextStep = Math.min(questionnaireSteps.length - 1, currentStep + 1);
     setCurrentStep(nextStep);
   };
 
@@ -954,14 +946,7 @@ export function ExperienceSection() {
       return;
     }
 
-    const previousStep = Math.max(0, currentStep - 1);
-    const previousVisualCategory = getVisualCategoryForStep(previousStep, answers);
-
-    if (previousVisualCategory) {
-      updateDisplayedCategory(previousVisualCategory);
-    }
-
-    setCurrentStep(previousStep);
+    setCurrentStep(Math.max(0, currentStep - 1));
   };
 
   const handleRestart = () => {
@@ -970,6 +955,12 @@ export function ExperienceSection() {
     }
 
     setAnswers({
+      "experience-type": null,
+      "travel-company": null,
+      budget: null,
+      preferences: [],
+    });
+    setConfirmedAnswers({
       "experience-type": null,
       "travel-company": null,
       budget: null,
@@ -1003,12 +994,7 @@ export function ExperienceSection() {
         </p>
 
         <div key={showResult ? "result" : activeStep.id} className="experience-question-panel">
-          <div className="experience-stepper" aria-label="Etapas da experiência">
-            <span>
-              {showResult
-                ? "Resultado"
-                : `Etapa ${currentStep + 1} de ${questionnaireSteps.length}`}
-            </span>
+          <div className="experience-stepper" aria-label="Pergunta atual">
             <strong>{showResult ? "Sugestão pronta para sua estadia" : activeStep.label}</strong>
           </div>
 

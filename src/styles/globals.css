@@ -2393,17 +2393,8 @@ button {
 
 .experience-stepper {
   display: grid;
-  gap: 4px;
   margin-top: 24px;
   color: var(--brand);
-}
-
-.experience-stepper span {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .experience-stepper strong {
@@ -2492,8 +2483,25 @@ button {
 }
 
 .experience-step-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 42px;
-  padding-inline: 16px;
+  padding: 0 18px;
+  border: 1px solid rgba(6, 41, 79, 0.14);
+  border-radius: 999px;
+  background: rgba(6, 41, 79, 0.06);
+  color: var(--brand);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.experience-step-button:hover,
+.experience-step-button:focus-visible {
+  border-color: rgba(6, 41, 79, 0.24);
+  background: var(--brand);
+  color: var(--surface);
+  outline: none;
 }
 
 .experience-step-button:disabled {
