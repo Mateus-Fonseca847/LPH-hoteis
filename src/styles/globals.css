@@ -2370,11 +2370,14 @@ button {
 .showcase {
   display: grid;
   grid-template-columns: 0.82fr 1.18fr;
-  gap: 34px;
+  grid-template-rows: 1fr auto;
+  gap: 18px 34px;
   align-items: start;
+  min-height: 650px;
 }
 
 .showcase-copy {
+  min-height: 520px;
   padding-top: 12px;
 }
 
@@ -2383,10 +2386,36 @@ button {
   color: var(--muted);
 }
 
+.experience-question-panel {
+  min-height: 254px;
+  animation: experiencePanelEnter 0.34s ease both;
+}
+
+.experience-stepper {
+  display: grid;
+  gap: 4px;
+  margin-top: 24px;
+  color: var(--brand);
+}
+
+.experience-stepper span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.experience-stepper strong {
+  font-family: var(--font-sora), sans-serif;
+  font-size: 1.05rem;
+  letter-spacing: -0.03em;
+}
+
 .category-pills {
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 26px;
+  margin-top: 18px;
 }
 
 .pill {
@@ -2405,11 +2434,151 @@ button {
   color: var(--surface);
 }
 
+.experience-step-actions {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-self: end;
+  margin-top: 0;
+}
+
+.experience-result {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.experience-result > strong {
+  color: var(--brand);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.experience-selected-pills {
+  margin-top: 0;
+}
+
+.experience-result-summary {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.experience-result-summary div {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid rgba(6, 41, 79, 0.08);
+  border-radius: 16px;
+  background: rgba(6, 41, 79, 0.04);
+}
+
+.experience-result-summary dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.experience-result-summary dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.experience-step-button {
+  min-height: 42px;
+  padding-inline: 16px;
+}
+
+.experience-step-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+  transform: none;
+}
+
 .showcase-gallery {
+  grid-column: 2;
+  grid-row: 1 / span 2;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
   gap: 16px;
   align-items: stretch;
+  min-width: 0;
+  min-height: 560px;
+}
+
+.experience-recommendations {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.experience-recommendation-card {
+  min-height: 560px;
+  display: grid;
+  grid-template-rows: minmax(220px, 0.78fr) auto;
+  overflow: hidden;
+  border: 1px solid rgba(6, 41, 79, 0.08);
+  border-radius: 28px;
+  background: var(--surface);
+  box-shadow: 0 18px 42px rgba(10, 27, 52, 0.08);
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease,
+    box-shadow 0.28s ease;
+  animation: experienceCardEnter 0.38s ease both;
+}
+
+.experience-recommendation-card__image {
+  position: relative;
+  min-height: 250px;
+  overflow: hidden;
+}
+
+.experience-recommendation-card__image img {
+  object-fit: cover;
+  transition: transform 0.36s ease;
+}
+
+.experience-recommendation-card__body {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 18px;
+}
+
+.experience-recommendation-card__body > span {
+  color: var(--brand);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.experience-recommendation-card__body strong {
+  font-family: var(--font-sora), sans-serif;
+  font-size: 1.16rem;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+}
+
+.experience-recommendation-card__body p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.experience-recommendation-card__link {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  margin-top: 4px;
 }
 
 .gallery-card {
@@ -2421,6 +2590,7 @@ button {
   transition:
     opacity 0.28s ease,
     transform 0.28s ease;
+  animation: experienceCardEnter 0.38s ease both;
 }
 
 .gallery-card.large,
@@ -2434,9 +2604,17 @@ button {
   height: 272px;
 }
 
+.experience-card[data-card-index="1"] {
+  animation-delay: 0.04s;
+}
+
+.experience-card[data-card-index="2"] {
+  animation-delay: 0.08s;
+}
+
 .showcase-gallery.is-transitioning .experience-card {
   opacity: 0;
-  transform: translateY(12px);
+  transform: translateY(10px) scale(0.985);
 }
 
 .gallery-card::after,
@@ -6250,10 +6428,17 @@ button {
 }
 
 .footer-form {
+  display: grid;
+  gap: 8px;
+}
+
+.footer-form__row {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.footer-form input {
+.footer-form__email {
   min-width: min(340px, 52vw);
   min-height: 54px;
   padding: 0 18px;
@@ -6270,6 +6455,48 @@ button {
   background: var(--accent);
   color: var(--text);
   font-weight: 800;
+}
+
+.footer-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.footer-form__consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 470px;
+  color: rgba(112, 109, 100, 0.9);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.footer-form__consent input {
+  width: 15px;
+  height: 15px;
+  margin: 2px 0 0;
+  accent-color: var(--brand);
+  flex-shrink: 0;
+}
+
+.footer-form__status {
+  min-height: 18px;
+  margin: 0;
+  max-width: 470px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.footer-form__status--success {
+  color: #0f766e;
+}
+
+.footer-form__status--error {
+  color: #9b1c1c;
 }
 
 .sr-only {
@@ -6306,7 +6533,8 @@ button {
 }
 
 .gallery-card:hover img,
-.detail-card.image-card:hover img {
+.detail-card.image-card:hover img,
+.experience-recommendation-card:hover img {
   transform: scale(1.08);
 }
 
@@ -6314,7 +6542,8 @@ button {
 .person-card:hover,
 .quote-card:hover,
 .detail-card:hover,
-.hotel-card:hover {
+.hotel-card:hover,
+.experience-recommendation-card:hover {
   box-shadow: var(--shadow);
 }
 
@@ -6336,7 +6565,7 @@ button {
   color: var(--brand);
 }
 
-.footer-form input:focus {
+.footer-form__email:focus {
   border-color: rgba(6, 41, 79, 0.3);
   box-shadow: 0 0 0 4px rgba(6, 41, 79, 0.08);
 }
@@ -6374,8 +6603,38 @@ button {
   }
 }
 
+@keyframes experiencePanelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes experienceCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hotel-page--enter {
+    animation: none;
+  }
+
+  .experience-question-panel,
+  .experience-card,
+  .gallery-card {
     animation: none;
   }
 }
@@ -6417,8 +6676,29 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .showcase {
+    grid-template-rows: auto;
+    min-height: 0;
+  }
+
+  .showcase-copy {
+    min-height: 0;
+  }
+
   .showcase-gallery {
+    grid-column: 1;
+    grid-row: auto;
     grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .experience-step-actions {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .experience-recommendations {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .admin-room-form-block--split {
@@ -6489,6 +6769,10 @@ button {
     height: 420px;
   }
 
+  .experience-recommendation-card {
+    min-height: 430px;
+  }
+
   .experience-card--small,
   .gallery-card {
     min-height: 250px;
@@ -6545,6 +6829,14 @@ button {
 }
 
 @media (max-width: 820px) {
+  .experience-recommendations {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-recommendation-card {
+    min-height: 0;
+  }
+
   .finance-dashboard-kpis {
     grid-template-columns: 1fr;
   }
@@ -6661,11 +6953,14 @@ button {
 
   .footer-form {
     width: 100%;
+  }
+
+  .footer-form__row {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .footer-form input {
+  .footer-form__email {
     min-width: 0;
     width: 100%;
   }
@@ -6705,6 +7000,14 @@ button {
 }
 
 @media (max-width: 560px) {
+  .experience-step-actions {
+    width: 100%;
+  }
+
+  .experience-step-button {
+    width: 100%;
+  }
+
   .hotel-availability-modal-backdrop {
     padding: 8px;
   }

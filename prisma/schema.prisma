@@ -321,6 +321,21 @@ model HotelPaymentSettings {
   @@index([isEnabled])
 }
 
+model MarketingSubscriber {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  source          String
+  isActive        Boolean   @default(true)
+  consentAccepted Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  unsubscribedAt  DateTime?
+
+  @@index([source])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
 enum GlobalRole {
   super_admin
   hotel_admin

@@ -6,7 +6,6 @@ import { HotelsCarousel } from "@/components/HotelsCarousel";
 import { RevealObserver } from "@/components/RevealObserver";
 import { StayDetailsSection } from "@/components/StayDetailsSection";
 import { TestimonialsSection } from "@/components/TestimonialsSection";
-import { TripPlannerSection } from "@/components/TripPlannerSection";
 import { getPublishedHotels } from "@/lib/hotel-data";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +21,6 @@ export default async function HomePage() {
       <main id="top">
         <Hero />
         <HotelsCarousel hotels={hotels} />
-        <TripPlannerSection />
         <ExperienceSection />
         <TestimonialsSection />
         <StayDetailsSection />
