@@ -106,12 +106,12 @@ Variáveis obrigatórias para staging:
 
 Variáveis recomendadas conforme recursos ativos:
 
-- `PAYMENT_SECRETS_ENCRYPTION_KEY`: chave base64 de 32 bytes para credenciais de pagamento por hotel.
+- `PAYMENT_SECRETS_ENCRYPTION_KEY`: obrigatória quando houver pagamentos por hotel com credencial criptografada; chave base64 de 32 bytes.
 - `EMAIL_PROVIDER`, `EMAIL_FROM`, `RESEND_API_KEY`: envio real de e-mails transacionais.
-- `NEXT_PUBLIC_APP_URL`: URL pública de homologação, usada em retornos de checkout.
+- `NEXT_PUBLIC_APP_URL`: obrigatória para checkout quando a origem da requisição não estiver disponível; use a URL pública de homologação.
 - `PAYMENT_PROVIDER`: provedor online ativo. Hoje use `mercado_pago`.
 - `PAYMENT_ACCESS_TOKEN`, `PAYMENT_WEBHOOK_URL`, `PAYMENT_WEBHOOK_SECRET`: aliases genéricos aceitos pelo código de pagamento.
-- `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_SANDBOX`, `MERCADO_PAGO_WEBHOOK_URL`, `MERCADO_PAGO_WEBHOOK_SECRET`: checkout e webhook Mercado Pago em sandbox.
+- `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_SANDBOX`, `MERCADO_PAGO_WEBHOOK_URL`, `MERCADO_PAGO_WEBHOOK_SECRET`: obrigatórias para checkout/webhook Mercado Pago em sandbox quando os aliases genéricos não forem usados.
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`: ainda são lidas apenas pelo webhook legado de Stripe.
 - `SEED_STAGING_*`: opcionais para criar usuários administrativos de teste via seed.
 - `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`: aliases legados ainda aceitos pelo seed.
@@ -121,9 +121,10 @@ Passos recomendados:
 ```bash
 npm ci
 npm run prisma:generate
-npx prisma migrate deploy
+npm run prisma:migrate:deploy
+npm run prisma:seed
 npm run build
-npm run start
+npm start
 ```
 
 Antes de liberar para o cliente:
@@ -140,6 +141,9 @@ Antes de liberar para o cliente:
 - Com `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"`, a aplicação falha de forma explícita se `DATABASE_URL` estiver ausente.
 - A autenticação falha de forma explícita se `AUTH_SECRET` estiver ausente.
 - A ativação/validação de 2FA falha de forma explícita se `TWO_FACTOR_ENCRYPTION_KEY` estiver ausente ou não for base64 de 32 bytes.
+- O checkout falha de forma explícita se `NEXT_PUBLIC_APP_URL` não estiver configurada e a requisição não enviar origem.
+- Pagamentos Mercado Pago falham de forma explícita se `PAYMENT_PROVIDER`, credenciais, webhook ou credenciais criptografadas do hotel estiverem ausentes/incompatíveis.
+- Credenciais de pagamento por hotel falham de forma explícita se `PAYMENT_SECRETS_ENCRYPTION_KEY` estiver ausente ou não for base64 de 32 bytes.
 - Uploads com `UPLOAD_STORAGE_PROVIDER="local"` são gravados em `public/uploads` e dependem de disco persistente. Em Railway, configure um Volume persistente montado no caminho da aplicação antes de usar upload em staging/produção. Sem volume, arquivos enviados podem ser perdidos em redeploy/restart.
 
 ## Deploy na Railway

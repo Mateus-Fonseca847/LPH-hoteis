@@ -651,7 +651,9 @@ export function AvailabilitySearchModal({
 
       throw new Error("payment_start_failed");
     } catch {
-      setReservationError("Não foi possível iniciar o pagamento. Tente novamente.");
+      setReservationError(
+        "Não foi possível iniciar o pagamento. Verifique os dados e tente novamente."
+      );
     } finally {
       setIsSubmittingReservation(false);
     }
@@ -678,8 +680,8 @@ export function AvailabilitySearchModal({
         <div className="availability-payment-instructions" role="status">
           <strong>Pagamento Pix gerado</strong>
           <p>
-            Use o QR Code ou copie o código Pix abaixo. A reserva só será confirmada após a
-            aprovação do pagamento.
+            Use o QR Code ou copie o código Pix abaixo. A reserva fica pendente e só será confirmada
+            após a aprovação do pagamento.
           </p>
           {paymentDetails.pix.qrCodeImageUrl ? (
             <Image
@@ -713,8 +715,8 @@ export function AvailabilitySearchModal({
         <div className="availability-payment-instructions" role="status">
           <strong>Boleto gerado</strong>
           <p>
-            Pague o boleto dentro do prazo. A reserva só será confirmada após a compensação do
-            pagamento.
+            Pague o boleto dentro do prazo. A reserva fica pendente e só será confirmada após a
+            compensação do pagamento.
           </p>
           {paymentDetails.boleto.digitableLine ? (
             <div className="availability-payment-code">
@@ -760,7 +762,8 @@ export function AvailabilitySearchModal({
             <span className="hotel-page-eyebrow">Disponibilidade</span>
             <h2 id={titleId}>Consultar disponibilidade</h2>
             <p id={descriptionId}>
-              Selecione o período e os viajantes para consultar opções no {hotelName}
+              Consulte datas, escolha um quarto e avance ao pagamento seguro. A reserva só é
+              confirmada depois da aprovação do pagamento no {hotelName}
               {context}.
             </p>
           </div>
@@ -925,7 +928,7 @@ export function AvailabilitySearchModal({
             <div className="availability-results-header">
               <div className="availability-search-modal-panel-heading">
                 <h3>Escolha seu quarto</h3>
-                <span>Quartos compativeis com sua busca</span>
+                <span>Somente quartos disponíveis podem seguir para pagamento</span>
               </div>
             </div>
 
@@ -1060,7 +1063,7 @@ export function AvailabilitySearchModal({
                                   setCurrentStep(3);
                                 }}
                               >
-                                Reservar agora
+                                Selecionar quarto
                               </button>
                             ) : (
                               <span className="availability-modal-room-card__cta is-disabled">
@@ -1076,8 +1079,11 @@ export function AvailabilitySearchModal({
               </div>
             ) : (
               <div className="hotel-empty-state availability-modal-empty">
-                <strong>Nenhum quarto comporta essa ocupacao.</strong>
-                <p>Reduza o numero de viajantes ou consulte a equipe para alternativas.</p>
+                <strong>Nenhum quarto disponível para essa consulta.</strong>
+                <p>
+                  Ajuste datas ou viajantes. Se preferir, fale com a equipe do hotel para avaliar
+                  alternativas.
+                </p>
               </div>
             )}
           </section>
@@ -1086,13 +1092,13 @@ export function AvailabilitySearchModal({
             <div className="availability-results-header">
               <div className="availability-search-modal-panel-heading">
                 <h3>Dados do hóspede</h3>
-                <span>Informe os dados para seguir ao pagamento</span>
+                <span>A reserva ainda não está confirmada nesta etapa</span>
               </div>
             </div>
 
             <div className="availability-guest-layout">
               <aside className="availability-reservation-summary">
-                <h3>Resumo da reserva</h3>
+                <h3>Resumo antes do pagamento</h3>
                 <div className="availability-confirmation-details">
                   <div>
                     <span>Hotel</span>
@@ -1149,9 +1155,14 @@ export function AvailabilitySearchModal({
                     minLength={3}
                     maxLength={120}
                     autoComplete="name"
+                    aria-describedby={
+                      guestFormErrors.guestName ? "availability-guest-name-error" : undefined
+                    }
                     aria-invalid={Boolean(guestFormErrors.guestName)}
                   />
-                  {guestFormErrors.guestName ? <span>{guestFormErrors.guestName}</span> : null}
+                  {guestFormErrors.guestName ? (
+                    <span id="availability-guest-name-error">{guestFormErrors.guestName}</span>
+                  ) : null}
                 </label>
 
                 <label>
@@ -1166,9 +1177,14 @@ export function AvailabilitySearchModal({
                     required
                     maxLength={180}
                     autoComplete="email"
+                    aria-describedby={
+                      guestFormErrors.guestEmail ? "availability-guest-email-error" : undefined
+                    }
                     aria-invalid={Boolean(guestFormErrors.guestEmail)}
                   />
-                  {guestFormErrors.guestEmail ? <span>{guestFormErrors.guestEmail}</span> : null}
+                  {guestFormErrors.guestEmail ? (
+                    <span id="availability-guest-email-error">{guestFormErrors.guestEmail}</span>
+                  ) : null}
                 </label>
 
                 <label>
@@ -1184,9 +1200,14 @@ export function AvailabilitySearchModal({
                     minLength={8}
                     maxLength={30}
                     autoComplete="tel"
+                    aria-describedby={
+                      guestFormErrors.guestPhone ? "availability-guest-phone-error" : undefined
+                    }
                     aria-invalid={Boolean(guestFormErrors.guestPhone)}
                   />
-                  {guestFormErrors.guestPhone ? <span>{guestFormErrors.guestPhone}</span> : null}
+                  {guestFormErrors.guestPhone ? (
+                    <span id="availability-guest-phone-error">{guestFormErrors.guestPhone}</span>
+                  ) : null}
                 </label>
 
                 <label>
@@ -1214,15 +1235,22 @@ export function AvailabilitySearchModal({
                     autoComplete="off"
                     placeholder="Digite seu CPF ou passaporte"
                     inputMode="text"
+                    aria-describedby={
+                      guestDocumentTouched && guestFormErrors.guestDocument
+                        ? "availability-guest-document-error"
+                        : undefined
+                    }
                     aria-invalid={Boolean(guestFormErrors.guestDocument)}
                   />
                   {guestDocumentTouched && guestFormErrors.guestDocument ? (
-                    <span>{guestFormErrors.guestDocument}</span>
+                    <span id="availability-guest-document-error">
+                      {guestFormErrors.guestDocument}
+                    </span>
                   ) : null}
                 </label>
 
                 <button type="submit" className="availability-confirmation-cta">
-                  Ir para pagamento
+                  Continuar para pagamento
                 </button>
               </form>
             </div>
@@ -1232,10 +1260,41 @@ export function AvailabilitySearchModal({
             <div className="availability-results-header">
               <div className="availability-search-modal-panel-heading">
                 <h3>Escolha a forma de pagamento</h3>
+                <span>A reserva será criada como pendente antes do pagamento</span>
               </div>
             </div>
 
             <div className="availability-confirmation-card">
+              <div className="availability-payment-summary">
+                <strong>Resumo do pagamento</strong>
+                <div className="availability-confirmation-details">
+                  <div>
+                    <span>Quarto</span>
+                    <strong>{selectedRoomResult.room.name}</strong>
+                  </div>
+                  <div>
+                    <span>Período</span>
+                    <strong>
+                      {formatDateLabel(checkIn)} a {formatDateLabel(checkOut)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Hóspedes</span>
+                    <strong>
+                      {adults} adulto(s), {children} criança(s)
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Total estimado</span>
+                    <strong>{selectedTotalPriceLabel}</strong>
+                  </div>
+                </div>
+                <p>
+                  Ao prosseguir, a reserva fica aguardando pagamento. Confirmação e e-mails só
+                  acontecem depois da aprovação pelo provedor.
+                </p>
+              </div>
+
               <div
                 className="availability-payment-methods"
                 role="radiogroup"
@@ -1278,7 +1337,7 @@ export function AvailabilitySearchModal({
               {isSubmittingReservation ? (
                 <div className="availability-payment-loading" role="status">
                   <span aria-hidden="true" />
-                  <strong>Criando reserva e iniciando pagamento...</strong>
+                  <strong>Criando reserva pendente e iniciando pagamento...</strong>
                   <p>Você será redirecionado para um checkout seguro quando tudo estiver pronto.</p>
                 </div>
               ) : null}
@@ -1293,7 +1352,9 @@ export function AvailabilitySearchModal({
                 }
                 onClick={handleReservationSubmit}
               >
-                {isSubmittingReservation ? "Iniciando pagamento..." : "Ir para pagamento"}
+                {isSubmittingReservation
+                  ? "Iniciando pagamento..."
+                  : "Criar reserva e iniciar pagamento"}
               </button>
             </div>
           </section>

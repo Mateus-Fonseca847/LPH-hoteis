@@ -175,7 +175,7 @@ function formatRoomStartingPrice(priceCents: number | null) {
 
 function getRoomAvailabilityLabel(room: HotelPageRoom) {
   if (room.publicAvailabilityStatus === "available") {
-    return "Disponível para consulta";
+    return "Disponível para reserva online";
   }
 
   if (room.publicAvailabilityStatus === "unavailable") {
@@ -311,11 +311,14 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
   const checkoutNotice =
     checkoutParams.checkout === "success"
       ? {
-          title: paidReservation?.status === "paid" ? "Pagamento aprovado" : "Pagamento recebido",
+          title:
+            paidReservation?.status === "paid"
+              ? "Pagamento aprovado"
+              : "Pagamento em processamento",
           description:
             paidReservation?.status === "paid"
               ? `Reserva ${paidReservation.id} confirmada com pagamento aprovado. O hotel e o hóspede receberão os e-mails de confirmação.`
-              : "Aguardando confirmação automática do pagamento. Você receberá a confirmação por e-mail.",
+              : "Sua reserva ainda não está confirmada. A confirmação acontece automaticamente quando o provedor aprovar o pagamento.",
         }
       : checkoutParams.checkout === "cancelled"
         ? {
@@ -351,6 +354,10 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
               <h1>{hotel.name}</h1>
               <p className="hotel-lead">{hotel.shortDescription}</p>
               <p className="hotel-description">{hotel.fullDescription}</p>
+              <p className="hotel-booking-clarity">
+                Consulte datas e viajantes para ver quartos disponíveis. A reserva online só é
+                confirmada após pagamento aprovado.
+              </p>
 
               <div className="hotel-rating-strip">
                 <div className="hotel-rating-stars" aria-label="Estrutura visual de avaliação">
@@ -559,7 +566,10 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
                       <div className="hotel-room-footer">
                         <div>
                           <strong>{formatRoomStartingPrice(room.lowestActiveRateCents)}</strong>
-                          <p className="hotel-room-status">{getRoomAvailabilityLabel(room)}</p>
+                          <p className="hotel-room-status">
+                            {getRoomAvailabilityLabel(room)}. Valor final calculado por data e
+                            ocupação.
+                          </p>
                         </div>
                         <HotelAvailabilityModalTrigger
                           className="hotel-room-cta"
@@ -629,7 +639,8 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
             <span className="hotel-page-eyebrow">Reserva</span>
             <h2>Pronto para consultar sua estadia?</h2>
             <p className="hotel-description hotel-description--compact">
-              Consulte disponibilidade, escolha o quarto e avance a reserva pelo site.
+              Consulte disponibilidade, escolha o quarto e avance para pagamento. A reserva fica
+              pendente até a aprovação do provedor.
             </p>
           </div>
           <HotelAvailabilityModalTrigger

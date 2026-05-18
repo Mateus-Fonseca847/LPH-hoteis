@@ -1413,6 +1413,20 @@ button {
   background: rgba(255, 255, 255, 0.72);
 }
 
+.availability-payment-summary {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(6, 41, 79, 0.12);
+  border-radius: 18px;
+  background: rgba(6, 41, 79, 0.04);
+}
+
+.availability-payment-summary > strong {
+  color: var(--brand);
+  font-family: var(--font-sora), sans-serif;
+}
+
 .availability-confirmation-room {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
@@ -1884,6 +1898,40 @@ button {
   max-width: 44ch;
   color: var(--muted);
   line-height: 1.55;
+}
+
+.public-loading-state {
+  display: grid;
+  gap: 18px;
+  padding: clamp(24px, 4vw, 42px);
+}
+
+.public-loading-block {
+  min-height: 180px;
+  border-radius: 28px;
+  background: linear-gradient(90deg, rgba(244, 241, 234, 0.72), #ffffff, rgba(244, 241, 234, 0.72));
+  background-size: 240% 100%;
+  animation: publicLoadingPulse 1.4s ease-in-out infinite;
+}
+
+.public-loading-block--hero {
+  min-height: clamp(360px, 48vw, 560px);
+}
+
+@keyframes publicLoadingPulse {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-loading-block {
+    animation: none;
+  }
 }
 
 .hotel-cards-track {
@@ -5576,6 +5624,25 @@ button {
   font-size: 1rem;
   line-height: 1.65;
   max-width: 62ch;
+}
+
+.hotel-booking-clarity {
+  margin: 0;
+  max-width: 62ch;
+  padding: 14px 16px;
+  border: 1px solid rgba(6, 41, 79, 0.12);
+  border-radius: 18px;
+  background: rgba(6, 41, 79, 0.05);
+  color: var(--brand);
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.hotel-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
 }
 
 .hotel-hero-media {

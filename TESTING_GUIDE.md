@@ -45,9 +45,15 @@ Validar a plataforma LPH em ambiente de homologação antes da liberação para 
 
 Antes de iniciar a homologação manual, rode:
 
+- `npm ci`: instala dependências em ambiente limpo.
+- `npm run prisma:generate`: gera o Prisma Client.
+- `npm run prisma:migrate:deploy`: aplica migrations versionadas no banco de staging.
+- `npm run prisma:seed`: prepara dados de demonstração, se as variáveis de seed estiverem configuradas.
 - `npm run test`: executa a suíte automatizada com Vitest.
 - `npm run test:watch`: executa os testes em modo contínuo durante desenvolvimento.
 - `npm run test:coverage`: gera relatório de cobertura local.
+- `npm run build`: valida build de produção.
+- `npm start`: sobe o build já gerado.
 - `npm run quality`: mantém formatação, lint, validação Prisma e build.
 
 A suíte automatizada cobre validações de reserva, cálculo de estadia/preço, autorização administrativa por escopo, regras isoladas de 2FA e transições críticas de reserva/pagamento com mocks. Ela não usa chaves reais, banco de produção, Mercado Pago, Stripe ou Resend.
@@ -102,6 +108,19 @@ Não registre senhas neste arquivo. As senhas devem ser compartilhadas por canal
 5. Navegar por hotéis, favoritos e fluxo público de reserva.
 
 ## Checklist de validação
+
+### Pré-flight de staging
+
+- `DATABASE_URL` aponta para PostgreSQL de staging, separado de produção.
+- `AUTH_SECRET` está configurada com segredo forte.
+- `TWO_FACTOR_ENCRYPTION_KEY` está em base64 de 32 bytes.
+- `PAYMENT_SECRETS_ENCRYPTION_KEY` está em base64 de 32 bytes quando pagamentos por hotel estiverem ativos.
+- `NEXT_PUBLIC_APP_URL` aponta para a URL pública de staging.
+- Mercado Pago sandbox está configurado com token e webhook, usando aliases `PAYMENT_*` ou variáveis `MERCADO_PAGO_*`.
+- `ALLOW_LOCAL_HOTEL_DATA_FALLBACK` está `false`.
+- Railway Volume está configurado se uploads locais forem testados em staging.
+- Migrations foram aplicadas com `npm run prisma:migrate:deploy`.
+- Seed foi executado somente se for necessário preparar dados de demonstração.
 
 ### Home pública
 
@@ -167,6 +186,21 @@ Não registre senhas neste arquivo. As senhas devem ser compartilhadas por canal
 - Cards, métricas e alertas carregam sem telas vazias indevidas.
 - Botão `Sair` encerra a sessão.
 
+### Permissões super_admin
+
+- Enxerga todos os hotéis cadastrados.
+- Acessa administradores, auditoria, financeiro, reservas e segurança.
+- Consegue criar/editar vínculos administrativos permitidos.
+- Não consegue desativar/remover o último `super_admin` ativo.
+
+### Permissões hotel_admin
+
+- Enxerga apenas hotéis vinculados.
+- Não acessa reservas, logs ou dados financeiros de hotéis fora do escopo.
+- Não cria `super_admin`.
+- Não altera papel global próprio ou de outros usuários.
+- Não manipula permissões fora dos hotéis vinculados.
+
 ### Edição de hotel
 
 - Dados principais podem ser alterados.
@@ -219,6 +253,34 @@ Não registre senhas neste arquivo. As senhas devem ser compartilhadas por canal
 - Filtros por hotel, usuário, ação, período e busca funcionam.
 - Detalhe do log abre.
 - Dados sensíveis não aparecem nos logs.
+
+### Uploads
+
+- Upload de capa funciona com imagem JPG, PNG ou WEBP válida.
+- Upload de galeria funciona com imagens válidas.
+- Upload de imagem de quarto funciona.
+- Arquivo acima do limite configurado é rejeitado com mensagem segura.
+- Arquivo não imagem é rejeitado.
+- Imagens enviadas continuam acessíveis após reload da página.
+- Em Railway, confirmar persistência após redeploy/restart somente se houver Volume.
+
+### Responsividade
+
+- Home funciona em mobile, tablet e desktop.
+- Página de hotel não apresenta rolagem horizontal indevida.
+- Modal de disponibilidade cabe na tela mobile e permite rolagem interna.
+- Formulários admin permanecem utilizáveis em mobile.
+- Botões e campos têm área de toque confortável.
+
+## Bloqueadores de produção
+
+- Upload local em `public/uploads` só é seguro em produção se houver disco persistente; recomendação: migrar para storage externo antes do uso definitivo.
+- Não há rotina automática para expirar/liberar reservas abandonadas em `awaiting_payment`.
+- Não há remarcação ou cancelamento manual de reservas no admin.
+- Não há estorno automático integrado.
+- Convite por e-mail para administradores ainda não existe.
+- `npm audit` ainda precisa ser revisado antes da produção.
+- Stripe permanece apenas como webhook legado; não validar como checkout público novo.
 
 ## Como reportar bugs
 
