@@ -3,6 +3,8 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const DEFAULT_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const DEFAULT_STORAGE_PROVIDER = "local";
+const LOCAL_PUBLIC_UPLOAD_PREFIX = "/uploads/hotels/";
 
 const allowedMimeTypes = new Map([
   ["image/jpeg", "jpg"],
@@ -39,6 +41,24 @@ const suspiciousExtensions = new Set([
   "jar",
 ]);
 
+type StoredHotelImage = {
+  url: string;
+  storageKey: string;
+  contentType: string;
+  size: number;
+};
+
+type ImageStorageProvider = {
+  storeHotelImage(input: {
+    hotelId: string;
+    buffer: Uint8Array;
+    mimeType: string;
+    extension: string;
+    size: number;
+  }): Promise<StoredHotelImage>;
+  deleteHotelImage(imageUrl: string): Promise<{ status: "removed" | "missing" | "skipped" }>;
+};
+
 function getMaxImageSizeBytes() {
   const rawValue = process.env.UPLOAD_MAX_IMAGE_SIZE_BYTES?.trim();
 
@@ -59,14 +79,28 @@ function getMaxImageSizeLabel(bytes: number) {
   return Number.isInteger(megaBytes) ? `${megaBytes} MB` : `${megaBytes.toFixed(1)} MB`;
 }
 
+function getStorageProviderName() {
+  return (process.env.UPLOAD_STORAGE_PROVIDER?.trim() || DEFAULT_STORAGE_PROVIDER).toLowerCase();
+}
+
+function sanitizeStorageSegment(value: string, label: string) {
+  const sanitized = value.trim();
+
+  if (!/^[a-zA-Z0-9_-]{1,191}$/.test(sanitized)) {
+    throw new Error(`${label} invalido para armazenamento.`);
+  }
+
+  return sanitized;
+}
+
 function parseFileName(fileName: string) {
   const normalizedName = path
     .basename(fileName)
     .replace(/[\u0000-\u001F\u007F]+/g, "")
     .trim();
 
-  if (!normalizedName) {
-    throw new Error("O arquivo precisa ter um nome válido.");
+  if (!normalizedName || normalizedName.length > 180) {
+    throw new Error("O arquivo precisa ter um nome valido.");
   }
 
   const parts = normalizedName
@@ -75,7 +109,7 @@ function parseFileName(fileName: string) {
     .filter(Boolean);
 
   if (parts.length < 2) {
-    throw new Error("O arquivo precisa ter uma extensão válida.");
+    throw new Error("O arquivo precisa ter uma extensao valida.");
   }
 
   const baseName = parts[0];
@@ -83,15 +117,15 @@ function parseFileName(fileName: string) {
   const intermediateExtensions = parts.slice(1, -1).map((part) => part.toLowerCase());
 
   if (!baseName) {
-    throw new Error("O arquivo precisa ter um nome válido.");
+    throw new Error("O arquivo precisa ter um nome valido.");
   }
 
   if (!extension) {
-    throw new Error("O arquivo precisa ter uma extensão válida.");
+    throw new Error("O arquivo precisa ter uma extensao valida.");
   }
 
   if (intermediateExtensions.some((part) => suspiciousExtensions.has(part))) {
-    throw new Error("Nome de arquivo inválido. Remova extensões suspeitas e tente novamente.");
+    throw new Error("Nome de arquivo invalido. Remova extensoes suspeitas e tente novamente.");
   }
 
   return {
@@ -100,6 +134,10 @@ function parseFileName(fileName: string) {
 }
 
 function assertMagicNumber(buffer: Uint8Array, mimeType: string) {
+  if (buffer.length < 12) {
+    return false;
+  }
+
   if (mimeType === "image/jpeg") {
     return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
   }
@@ -124,9 +162,84 @@ function assertMagicNumber(buffer: Uint8Array, mimeType: string) {
   return false;
 }
 
+const localStorageProvider: ImageStorageProvider = {
+  async storeHotelImage({ hotelId, buffer, mimeType, extension, size }) {
+    const safeHotelId = sanitizeStorageSegment(hotelId, "Hotel");
+    const safeExtension = sanitizeStorageSegment(extension, "Extensao");
+    const fileName = `${randomUUID()}.${safeExtension}`;
+    const relativeDir = path.posix.join("uploads", "hotels", safeHotelId);
+    const relativePath = path.posix.join(relativeDir, fileName);
+    const outputDir = path.join(process.cwd(), "public", "uploads", "hotels", safeHotelId);
+    const outputPath = path.join(outputDir, fileName);
+
+    await mkdir(outputDir, { recursive: true });
+    await writeFile(outputPath, buffer);
+
+    return {
+      url: `/${relativePath}`,
+      storageKey: relativePath,
+      contentType: mimeType,
+      size,
+    };
+  },
+
+  async deleteHotelImage(imageUrl) {
+    if (!imageUrl.startsWith(LOCAL_PUBLIC_UPLOAD_PREFIX)) {
+      return { status: "skipped" };
+    }
+
+    const relativePath = imageUrl.replace(/^\//, "").split("/").join(path.sep);
+    const absolutePath = path.join(process.cwd(), "public", relativePath);
+
+    try {
+      await rm(absolutePath, { force: false });
+      return { status: "removed" };
+    } catch (error) {
+      const errorCode =
+        typeof error === "object" && error && "code" in error ? String(error.code) : null;
+
+      if (errorCode === "ENOENT") {
+        return { status: "missing" };
+      }
+
+      throw error;
+    }
+  },
+};
+
+const externalUrlProvider: ImageStorageProvider = {
+  async storeHotelImage() {
+    throw new Error(
+      "Storage externo ainda nao configurado. Use UPLOAD_STORAGE_PROVIDER=local com disco persistente ou integre S3/R2/Supabase Storage."
+    );
+  },
+
+  async deleteHotelImage(imageUrl) {
+    if (imageUrl.startsWith(LOCAL_PUBLIC_UPLOAD_PREFIX)) {
+      return localStorageProvider.deleteHotelImage(imageUrl);
+    }
+
+    return { status: "skipped" };
+  },
+};
+
+function getImageStorageProvider(): ImageStorageProvider {
+  const provider = getStorageProviderName();
+
+  if (provider === "local") {
+    return localStorageProvider;
+  }
+
+  if (provider === "external_url") {
+    return externalUrlProvider;
+  }
+
+  throw new Error("UPLOAD_STORAGE_PROVIDER invalido. Use local ou external_url.");
+}
+
 export async function validateHotelImageFile(file: File) {
   if (!file || file.size <= 0) {
-    throw new Error("Selecione uma imagem válida.");
+    throw new Error("Selecione uma imagem valida.");
   }
 
   const maxImageSizeBytes = getMaxImageSizeBytes();
@@ -139,11 +252,11 @@ export async function validateHotelImageFile(file: File) {
   const { extension } = parseFileName(file.name);
 
   if (!allowedMimeTypes.has(mimeType)) {
-    throw new Error("Formato inválido. Use JPG, JPEG, PNG ou WEBP.");
+    throw new Error("Formato invalido. Use JPG, JPEG, PNG ou WEBP.");
   }
 
   if (!allowedExtensions.has(extension)) {
-    throw new Error("Extensão inválida. Use JPG, JPEG, PNG ou WEBP.");
+    throw new Error("Extensao invalida. Use JPG, JPEG, PNG ou WEBP.");
   }
 
   const expectedExtension = allowedMimeTypes.get(mimeType);
@@ -152,13 +265,13 @@ export async function validateHotelImageFile(file: File) {
     !expectedExtension ||
     (extension !== expectedExtension && !(mimeType === "image/jpeg" && extension === "jpeg"))
   ) {
-    throw new Error("MIME type e extensão não correspondem.");
+    throw new Error("MIME type e extensao nao correspondem.");
   }
 
   const buffer = new Uint8Array(await file.arrayBuffer());
 
   if (!assertMagicNumber(buffer, mimeType)) {
-    throw new Error("O conteúdo do arquivo não corresponde a uma imagem válida.");
+    throw new Error("O conteudo do arquivo nao corresponde a uma imagem valida.");
   }
 
   return {
@@ -170,42 +283,19 @@ export async function validateHotelImageFile(file: File) {
 
 export async function storeHotelImageFile(hotelId: string, file: File) {
   const { buffer, mimeType, extension } = await validateHotelImageFile(file);
-  const fileName = `${randomUUID()}.${extension}`;
-  const relativeDir = path.posix.join("uploads", "hotels", hotelId);
-  const relativePath = path.posix.join(relativeDir, fileName);
-  const outputDir = path.join(process.cwd(), "public", "uploads", "hotels", hotelId);
-  const outputPath = path.join(outputDir, fileName);
+  const provider = getImageStorageProvider();
 
-  await mkdir(outputDir, { recursive: true });
-  await writeFile(outputPath, buffer);
-
-  return {
-    url: `/${relativePath}`,
-    storageKey: relativePath,
-    contentType: mimeType,
+  return provider.storeHotelImage({
+    hotelId,
+    buffer,
+    mimeType,
+    extension,
     size: file.size,
-  };
+  });
 }
 
 export async function deleteStoredHotelImageFile(imageUrl: string) {
-  if (!imageUrl.startsWith("/uploads/hotels/")) {
-    return { status: "skipped" as const };
-  }
+  const provider = getImageStorageProvider();
 
-  const relativePath = imageUrl.replace(/^\//, "").split("/").join(path.sep);
-  const absolutePath = path.join(process.cwd(), "public", relativePath);
-
-  try {
-    await rm(absolutePath, { force: false });
-    return { status: "removed" as const };
-  } catch (error) {
-    const errorCode =
-      typeof error === "object" && error && "code" in error ? String(error.code) : null;
-
-    if (errorCode === "ENOENT") {
-      return { status: "missing" as const };
-    }
-
-    throw error;
-  }
+  return provider.deleteHotelImage(imageUrl);
 }

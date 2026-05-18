@@ -4,11 +4,53 @@
 
 Validar a plataforma LPH em ambiente de homologação antes da liberação para uso do cliente. O foco é testar a navegação pública, o fluxo de reserva, autenticação com 2FA e a operação administrativa básica.
 
+## Status do projeto
+
+### Implementado
+
+- Catálogo público de hotéis, busca, favoritos locais e páginas públicas de hotel.
+- Fluxo público de reserva com consulta de disponibilidade, criação de reserva, checkout Mercado Pago, webhook e e-mails após pagamento aprovado.
+- Painel administrativo para hotéis, quartos, tarifas, disponibilidade, imagens, pagamentos, reservas, administradores, auditoria, segurança e financeiro.
+- Cadastro/login público e login administrativo com 2FA por e-mail quando habilitado.
+- Testes automatizados com Vitest para regras críticas.
+
+### Parcialmente implementado
+
+- O motor de reserva existe para o fluxo público transacional; o admin possui acompanhamento de reservas/pagamentos, mas não possui remarcação, cancelamento manual ou confirmação manual de pagamento.
+- Financeiro mostra dados de pagamentos aprovados, mas não executa repasses.
+- E-mails dependem de `EMAIL_PROVIDER`, `EMAIL_FROM` e `RESEND_API_KEY` configurados.
+
+### Pendente
+
+- Convite por e-mail para administradores.
+- Remarcação/cancelamento manual de reservas no admin.
+- Calendário visual avançado de disponibilidade.
+- Expiração automática de reservas abandonadas em pagamento.
+
+### Legado/compatibilidade
+
+- Stripe permanece apenas como webhook legado.
+- Campos TOTP legados permanecem no schema, mas o login administrativo atual usa 2FA por e-mail.
+
 ## Ambiente
 
 - URL da homologação: `[preencher URL da Railway]`
 - Data da rodada de testes: `[preencher data]`
 - Responsável pelo acompanhamento: `[preencher nome]`
+- Banco usado: staging separado de produção.
+- Pagamentos usados: Mercado Pago sandbox.
+- E-mail usado: conta/provedor de homologação, sem dados reais.
+
+## Testes automatizados
+
+Antes de iniciar a homologação manual, rode:
+
+- `npm run test`: executa a suíte automatizada com Vitest.
+- `npm run test:watch`: executa os testes em modo contínuo durante desenvolvimento.
+- `npm run test:coverage`: gera relatório de cobertura local.
+- `npm run quality`: mantém formatação, lint, validação Prisma e build.
+
+A suíte automatizada cobre validações de reserva, cálculo de estadia/preço, autorização administrativa por escopo, regras isoladas de 2FA e transições críticas de reserva/pagamento com mocks. Ela não usa chaves reais, banco de produção, Mercado Pago, Stripe ou Resend.
 
 ## Credenciais de homologação
 
@@ -20,13 +62,23 @@ Não registre senhas neste arquivo. As senhas devem ser compartilhadas por canal
 | Admin de hotel | `[preencher e-mail do hotel admin]`   | Enviar por canal seguro | Acesso apenas ao hotel vinculado            |
 | Usuário comum  | `[preencher e-mail do usuário comum]` | Enviar por canal seguro | Cadastro/login público, sem acesso ao admin |
 
+## Pré-requisitos para testar reserva
+
+- Existe pelo menos um hotel publicado.
+- O hotel possui quarto ativo, tarifa ativa em BRL e disponibilidade futura com unidades disponíveis para todas as noites testadas.
+- O hotel possui configuração Mercado Pago habilitada no admin.
+- `NEXT_PUBLIC_APP_URL` aponta para a URL pública de staging.
+- O webhook Mercado Pago está configurado para `/api/mercado-pago/webhook` na URL pública de staging.
+- Use apenas cartões, documentos, e-mails e dados de sandbox/fictícios.
+- Se o webhook não estiver acessível pelo Mercado Pago, teste apenas até o redirecionamento para checkout e registre que a confirmação automática não pôde ser validada.
+
 ## Fluxos por conta
 
 ### Super admin
 
 1. Acessar `/login`.
 2. Entrar com o e-mail do super admin.
-3. Validar recebimento e verificação do código de 6 dígitos por e-mail.
+3. Se o 2FA por e-mail estiver habilitado, validar recebimento e verificação do código de 6 dígitos.
 4. Acessar o Painel administrativo.
 5. Validar visão geral da rede, hotéis, administradores, auditoria e segurança.
 6. Editar um hotel, revisar quartos, tarifas e disponibilidade.
@@ -35,7 +87,7 @@ Não registre senhas neste arquivo. As senhas devem ser compartilhadas por canal
 
 1. Acessar `/login`.
 2. Entrar com o e-mail do admin de hotel.
-3. Validar 2FA por e-mail.
+3. Se o 2FA por e-mail estiver habilitado, validar o código recebido por e-mail.
 4. Confirmar que apenas o hotel vinculado aparece no painel.
 5. Editar dados permitidos do hotel vinculado.
 6. Criar ou alterar quartos, tarifas e disponibilidade.
@@ -72,11 +124,19 @@ Não registre senhas neste arquivo. As senhas devem ser compartilhadas por canal
 - Modal ocupa a tela corretamente e bloqueia o scroll do fundo.
 - Timeline exibe as etapas: Datas e viajantes, Escolha do quarto, Dados do hóspede, Pagamento e Confirmação.
 - Datas, adultos e crianças são preservados ao voltar etapas.
-- Etapa de quartos mostra apenas opções compatíveis ou informa indisponibilidade com clareza.
+- Etapa de quartos mostra quartos compatíveis e só permite reservar quartos com disponibilidade configurada como `Disponível`.
 - Dados do hóspede validam nome, e-mail, telefone e CPF/passaporte.
 - Etapa de pagamento permite escolher Pix, cartão de crédito, cartão de débito ou boleto.
 - Botão `Ir para pagamento` só habilita após escolher forma de pagamento.
-- O sistema não confirma reserva antes do pagamento aprovado pelo provedor.
+- Ao iniciar o pagamento, a reserva fica `awaiting_payment`/`pending` e segura uma unidade de disponibilidade para as noites selecionadas.
+- O usuário é enviado ao checkout Mercado Pago sandbox ou recebe instruções do meio de pagamento quando aplicável.
+- O sistema não confirma reserva antes do webhook de pagamento aprovado pelo provedor.
+- Pagamento pendente não marca reserva como paga.
+- Pagamento recusado, cancelado, expirado, estornado ou com chargeback marca a reserva como falha/cancelada e devolve a disponibilidade.
+- Webhook duplicado de pagamento aprovado não cria nova reserva, não envia confirmação novamente e não baixa disponibilidade duas vezes.
+- Antes de confirmar pagamento aprovado, o sistema revalida a disponibilidade configurada para todas as noites.
+- E-mails transacionais de reserva são enviados somente após pagamento aprovado e reserva confirmada.
+- O painel financeiro passa a considerar a reserva somente quando houver pagamento aprovado.
 - Mensagens de erro são compreensíveis.
 
 ### Login
@@ -94,10 +154,11 @@ Não registre senhas neste arquivo. As senhas devem ser compartilhadas por canal
 
 ### 2FA
 
-- Código de 6 dígitos chega por e-mail.
+- Para administradores com `emailTwoFactorEnabled=true`, o código de 6 dígitos chega por e-mail.
 - Código inválido ou expirado é rejeitado.
 - Reenvio respeita cooldown.
-- Acesso admin só é liberado após verificação.
+- Acesso admin só é liberado após verificação quando o 2FA por e-mail está habilitado.
+- Administradores com `emailTwoFactorEnabled=false` entram com e-mail e senha, conforme configuração atual.
 
 ### Admin
 
@@ -116,9 +177,26 @@ Não registre senhas neste arquivo. As senhas devem ser compartilhadas por canal
 ### Quartos
 
 - Lista de quartos carrega.
-- Criar quarto funciona com nome, descrição, imagem, capacidade, camas, tamanho e comodidades.
+- Criar quarto funciona com nome, descrição, upload de imagem, capacidade, camas, tamanho e comodidades.
 - Editar quarto mantém dados já preenchidos.
 - Ativar/desativar quarto reflete no site público.
+
+### Pagamentos do hotel
+
+- Configuração de pagamento do hotel carrega na edição do hotel.
+- Mercado Pago pode ser selecionado e salvo com credencial de sandbox.
+- Credenciais sensíveis salvas não aparecem novamente em texto aberto.
+- Hotel sem pagamento habilitado não deve iniciar reserva pública.
+- Alteração de pagamento registra auditoria.
+
+### Reservas no admin
+
+- `/admin/reservas` lista reservas com hotel, quarto, hóspede, datas, valor, status, pagamento, provedor e criação.
+- Filtros por hotel, status da reserva, status do pagamento, período de check-in e busca por hóspede funcionam.
+- Super admin enxerga reservas da rede.
+- Hotel admin enxerga apenas reservas dos hotéis vinculados.
+- Detalhe da reserva abre em modo somente leitura.
+- A tela não permite confirmar pagamento manualmente.
 
 ### Tarifas
 
@@ -167,8 +245,17 @@ Ao encontrar um problema, envie:
 
 1. Acesse a URL de homologação.
 2. Navegue pela home e abra a página de um hotel.
-3. Teste o fluxo de reserva até a etapa de pagamento, usando dados fictícios.
+3. Teste o fluxo de reserva até o checkout Mercado Pago sandbox, usando dados fictícios.
 4. Entre no painel com a conta indicada para seu perfil.
 5. Edite informações simples de hotel, quartos, tarifas e disponibilidade.
 6. Confira se as alterações aparecem no site público.
 7. Registre qualquer problema seguindo o modelo de reporte acima.
+
+## O que não validar nesta rodada
+
+- Pagamentos reais de produção.
+- Repasses financeiros reais.
+- Convite por e-mail para administradores.
+- Remarcação ou cancelamento manual de reservas no admin.
+- Calendário visual avançado de disponibilidade.
+- Stripe como checkout público novo.

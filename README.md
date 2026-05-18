@@ -14,6 +14,40 @@ Plataforma web da rede LPH para catálogo público de hotéis e operação admin
 - `jose` para sessão em cookie assinado
 - `otpauth` para 2FA
 
+## Status do projeto
+
+### Implementado
+
+- Catálogo público de hotéis publicados, páginas de hotel, busca e favoritos locais.
+- Consulta pública de disponibilidade por datas, viajantes e quarto.
+- Fluxo público real de reserva: criação de reserva, retenção de disponibilidade, checkout externo, webhooks de pagamento e e-mails após confirmação.
+- Pagamento online ativo via Mercado Pago, com Pix, cartão de crédito, cartão de débito e boleto conforme disponibilidade do provedor.
+- Painel administrativo com hotéis, quartos, tarifas, disponibilidade, imagens, configurações de pagamento, reservas, administradores, auditoria, segurança e financeiro.
+- Autenticação com sessão em cookie, cadastro público e 2FA administrativo por e-mail.
+- Testes automatizados com Vitest para regras críticas de reserva, pagamento, disponibilidade, autorização e 2FA.
+
+### Parcialmente implementado
+
+- Motor de reserva: existe fluxo transacional público com pagamento e controle de disponibilidade; o admin possui acompanhamento de reservas/pagamentos, mas não executa remarcação, cancelamento manual ou confirmação manual de pagamento.
+- Financeiro: exibe reservas pagas, métodos, receita e comissão, mas não executa repasses bancários.
+- E-mails transacionais: envio existe para 2FA e confirmação de reserva paga, condicionado à configuração do provedor de e-mail.
+- Pagamentos por hotel: configuração administrativa existe; o checkout público exige provedor habilitado e credenciais válidas.
+
+### Pendente
+
+- Convite por e-mail para novos administradores.
+- Cancelamento/remarcação manual de reservas no admin.
+- Calendário visual avançado de disponibilidade.
+- Rotina automática de expiração/liberação de reservas abandonadas em `awaiting_payment`.
+- Revisão de `npm audit` antes de produção.
+
+### Legado/compatibilidade
+
+- Webhook Stripe legado permanece disponível para compatibilidade com reservas antigas/campos legados.
+- Campos `stripeCheckoutSessionId`, `stripePaymentIntentId`, `twoFactorEnabled` e `twoFactorSecret` são mantidos por compatibilidade.
+- `manual` existe em `PaymentProvider` para configuração/desativação administrativa, mas não é checkout público online.
+- Dados locais em `src/data` são apoio de desenvolvimento e não devem ser fonte de staging/produção.
+
 ## Requisitos
 
 - Node.js 20+
@@ -30,11 +64,16 @@ AUTH_SECRET=""
 TWO_FACTOR_ENCRYPTION_KEY=""
 NODE_ENV="production"
 UPLOAD_MAX_IMAGE_SIZE_BYTES="5242880"
+UPLOAD_STORAGE_PROVIDER="local"
 EMAIL_PROVIDER="resend"
 EMAIL_FROM="LPH Testes <onboarding@resend.dev>"
 RESEND_API_KEY=""
 NEXT_PUBLIC_APP_URL="https://staging.seu-dominio.com"
 PAYMENT_SECRETS_ENCRYPTION_KEY=""
+PAYMENT_PROVIDER="mercado_pago"
+PAYMENT_ACCESS_TOKEN=""
+PAYMENT_WEBHOOK_URL=""
+PAYMENT_WEBHOOK_SECRET=""
 MERCADO_PAGO_ACCESS_TOKEN=""
 MERCADO_PAGO_SANDBOX="true"
 MERCADO_PAGO_WEBHOOK_URL=""
@@ -62,6 +101,7 @@ Variáveis obrigatórias para staging:
 - `TWO_FACTOR_ENCRYPTION_KEY`: chave base64 de 32 bytes. Gere com `openssl rand -base64 32`.
 - `NODE_ENV`: em deploy de staging, use `production`.
 - `UPLOAD_MAX_IMAGE_SIZE_BYTES`: limite de upload em bytes. Exemplo: `5242880` para 5 MB.
+- `UPLOAD_STORAGE_PROVIDER`: `local` para gravar em `public/uploads`; `external_url` é placeholder para integração futura com storage externo.
 - `ALLOW_LOCAL_HOTEL_DATA_FALLBACK`: manter `false` em staging. O app não deve usar dados locais quando o banco falhar.
 
 Variáveis recomendadas conforme recursos ativos:
@@ -69,8 +109,10 @@ Variáveis recomendadas conforme recursos ativos:
 - `PAYMENT_SECRETS_ENCRYPTION_KEY`: chave base64 de 32 bytes para credenciais de pagamento por hotel.
 - `EMAIL_PROVIDER`, `EMAIL_FROM`, `RESEND_API_KEY`: envio real de e-mails transacionais.
 - `NEXT_PUBLIC_APP_URL`: URL pública de homologação, usada em retornos de checkout.
-- `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_SANDBOX`, `MERCADO_PAGO_WEBHOOK_URL`, `MERCADO_PAGO_WEBHOOK_SECRET`: pagamentos em sandbox.
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`: ainda são lidas pelo webhook legado de Stripe.
+- `PAYMENT_PROVIDER`: provedor online ativo. Hoje use `mercado_pago`.
+- `PAYMENT_ACCESS_TOKEN`, `PAYMENT_WEBHOOK_URL`, `PAYMENT_WEBHOOK_SECRET`: aliases genéricos aceitos pelo código de pagamento.
+- `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_SANDBOX`, `MERCADO_PAGO_WEBHOOK_URL`, `MERCADO_PAGO_WEBHOOK_SECRET`: checkout e webhook Mercado Pago em sandbox.
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`: ainda são lidas apenas pelo webhook legado de Stripe.
 - `SEED_STAGING_*`: opcionais para criar usuários administrativos de teste via seed.
 - `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`: aliases legados ainda aceitos pelo seed.
 
@@ -89,6 +131,8 @@ Antes de liberar para o cliente:
 - O banco de staging deve ter as migrations aplicadas.
 - O banco deve conter hotéis publicados para a home e páginas públicas.
 - Deve existir ao menos um usuário `super_admin` ativo para acessar `/admin`.
+- Para testar reserva pública completa, o hotel deve ter quartos ativos, tarifas ativas, disponibilidade futura com unidades disponíveis e pagamento Mercado Pago habilitado nas configurações do hotel.
+- O webhook Mercado Pago precisa apontar para a URL pública de staging. Sem webhook público, o checkout pode iniciar, mas a confirmação automática não será validada no ambiente.
 - Se usar as variáveis `SEED_STAGING_*`, rode `npm run prisma:seed` após as migrations; o primeiro login exigirá ativação de 2FA.
 - Credenciais `SEED_STAGING_*` são apenas para homologação/testes do cliente. Não use esses usuários nem essas senhas em produção.
 - `NODE_ENV` deve ser `production` no runtime de staging.
@@ -96,7 +140,7 @@ Antes de liberar para o cliente:
 - Com `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"`, a aplicação falha de forma explícita se `DATABASE_URL` estiver ausente.
 - A autenticação falha de forma explícita se `AUTH_SECRET` estiver ausente.
 - A ativação/validação de 2FA falha de forma explícita se `TWO_FACTOR_ENCRYPTION_KEY` estiver ausente ou não for base64 de 32 bytes.
-- Uploads gravados em `public/uploads` dependem de disco persistente; em hospedagem serverless, use URLs externas ou configure armazenamento persistente antes de testar upload.
+- Uploads com `UPLOAD_STORAGE_PROVIDER="local"` são gravados em `public/uploads` e dependem de disco persistente. Em Railway, configure um Volume persistente montado no caminho da aplicação antes de usar upload em staging/produção. Sem volume, arquivos enviados podem ser perdidos em redeploy/restart.
 
 ## Deploy na Railway
 
@@ -105,19 +149,20 @@ Antes de liberar para o cliente:
 3. No serviço da aplicação, configure `DATABASE_URL` usando a URL interna do PostgreSQL da Railway.
 4. Configure as demais variáveis de ambiente listadas em `.env.example`.
 5. Defina `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"` em homologação.
-6. Configure o Pre-deploy Command como:
+6. Para testar upload em staging, configure um Railway Volume persistente. Com `UPLOAD_STORAGE_PROVIDER="local"`, o app grava arquivos em `public/uploads`; sem volume persistente, imagens enviadas podem desaparecer após redeploy ou restart.
+7. Configure o Pre-deploy Command como:
 
 ```bash
 npm run prisma:migrate:deploy
 ```
 
-7. Use o Build Command padrão do projeto:
+8. Use o Build Command padrão do projeto:
 
 ```bash
 npm run build
 ```
 
-8. Use o Start Command:
+9. Use o Start Command:
 
 ```bash
 npm start
@@ -186,6 +231,15 @@ npm run dev
 
 Aplicação local: [http://localhost:3000](http://localhost:3000)
 
+Para validar localmente sem serviços externos reais:
+
+```bash
+npm run test
+npm run quality
+```
+
+O fluxo público de checkout exige credenciais Mercado Pago e URL de webhook acessível pelo provedor. Em ambiente puramente local, teste a criação/validação com mocks automatizados ou use uma URL pública de túnel apenas em sandbox.
+
 ## Comandos úteis
 
 ```bash
@@ -193,6 +247,9 @@ npm run dev
 npm run build
 npm run start
 npm run lint
+npm run test
+npm run test:watch
+npm run test:coverage
 npm run format
 npm run format:check
 npm run quality
@@ -209,6 +266,18 @@ O quality gate executa formatação, lint, validação do Prisma e build:
 npm run quality
 ```
 
+Os testes automatizados rodam separadamente:
+
+```bash
+npm run test
+```
+
+## CI
+
+O repositório possui GitHub Actions em `.github/workflows/ci.yml`. O pipeline roda em `push` para `main` e em `pull_request` para `main`, usando Node.js 20.
+
+Ele executa `npm ci`, `npm run prisma:generate`, `npm run quality` e `npm run test`. As variáveis usadas no workflow são valores fake seguros apenas para build/validação; credenciais reais devem ficar somente nos ambientes de staging/produção.
+
 ## Arquitetura
 
 - A entrada da aplicação é o App Router em `src/app`; não há HTML/CSS/JS estático legado na raiz.
@@ -218,6 +287,16 @@ npm run quality
 - `src/data`: dados locais de apoio para desenvolvimento.
 - `prisma`: schema, migrations e seed.
 
+## Uploads e imagens
+
+- Hotéis, capas, galeria e quartos usam URLs salvas no banco. URLs antigas continuam válidas enquanto o arquivo ou URL externa existir.
+- O provider atual `local` grava arquivos em `public/uploads/hotels/[hotelId]` e retorna URLs `/uploads/hotels/...`.
+- O provider `external_url` existe como placeholder seguro: ele bloqueia novos uploads até a integração real com S3/R2/Supabase Storage ser implementada. Isso evita falsa sensação de persistência em produção sem disco.
+- Para desenvolvimento local, use `UPLOAD_STORAGE_PROVIDER="local"`.
+- Para staging no Railway com upload real, use `UPLOAD_STORAGE_PROVIDER="local"` somente se houver Railway Volume persistente configurado.
+- Para produção, a recomendação é migrar para storage externo gerenciado antes de liberar upload público/administrativo em larga escala.
+- A validação de upload rejeita arquivos sem conteúdo, arquivos acima de `UPLOAD_MAX_IMAGE_SIZE_BYTES`, MIME types fora de JPG/PNG/WEBP, extensões inseguras, dupla extensão suspeita e conteúdo cujo magic number não corresponda ao MIME declarado.
+
 ## Fluxo público
 
 - A home lista hotéis publicados.
@@ -225,7 +304,22 @@ npm run quality
 - A página pública do hotel usa dados do banco.
 - Hotéis inexistentes ou despublicados retornam 404.
 - Quartos ativos aparecem publicamente com preço inicial baseado em tarifas ativas.
-- Disponibilidade pública é exibida como status simples, sem motor de reserva.
+- O botão `Consultar disponibilidade` abre um fluxo público em etapas: datas/viajantes, escolha do quarto, dados do hóspede, pagamento e confirmação.
+- A etapa de quartos usa disponibilidade configurada, capacidade e tarifas ativas. Quartos com disponibilidade desconhecida ou indisponível não seguem para reserva.
+- A API `/api/reservas` cria a reserva inicialmente como `awaiting_payment`/`pending`, retém uma unidade de disponibilidade por noite e inicia checkout externo.
+- O pagamento aprovado por webhook confirma a reserva, marca `paymentStatus` como `paid`, registra transação financeira e dispara e-mails.
+- Pagamento recusado, cancelado, expirado, estornado ou com chargeback marca a reserva como falha/cancelada e libera a disponibilidade retida.
+- Webhooks duplicados são tratados de forma idempotente para não duplicar reserva, disponibilidade ou e-mails.
+- O motor atual é um fluxo transacional público de reserva e pagamento. Ainda não é um motor operacional completo com gestão administrativa de reservas, remarcação, cancelamento manual e calendário avançado.
+
+## Pagamentos
+
+- Provedor online ativo: Mercado Pago.
+- Métodos expostos no fluxo público: Pix, cartão de crédito, cartão de débito e boleto.
+- Cada hotel precisa ter configuração de pagamento habilitada para permitir reserva pública.
+- `PaymentProvider.manual` existe para estado/configuração administrativa e compatibilidade, mas não inicia checkout online público.
+- Stripe é legado: o webhook `/api/stripe/webhook` continua disponível para compatibilidade com campos e eventos antigos, mas o checkout público atual usa Mercado Pago.
+- Nunca use credenciais reais em desenvolvimento local ou homologação. Use sandbox e banco separado.
 
 ## Admin Fase 2
 
@@ -275,6 +369,7 @@ Na edição do hotel:
 - criar quarto;
 - editar quarto;
 - ativar/desativar quarto.
+- enviar imagem do quarto por upload validado.
 
 Campos principais:
 
@@ -312,6 +407,18 @@ Na edição do hotel:
 - salvar em lote.
 
 O intervalo de edição em lote é limitado pelos validadores do backend.
+
+### Configuração de pagamento
+
+Na edição do hotel:
+
+- configurar provedor `manual` ou `mercado_pago`;
+- ativar/desativar pagamento online do hotel;
+- salvar credencial sensível criptografada;
+- preservar credencial existente sem exibi-la novamente;
+- registrar auditoria da alteração.
+
+O checkout público só inicia quando a configuração do hotel está habilitada e compatível com o provedor ativo do ambiente.
 
 ### Administradores e permissões
 
@@ -383,10 +490,10 @@ As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
 ## Pendências reais
 
 - Convite por e-mail ainda não existe.
-- Não há motor de reserva.
+- Há tela administrativa de acompanhamento de reservas/pagamentos em `/admin/reservas`, sem confirmação manual de pagamento.
+- Não há remarcação/cancelamento manual de reserva no admin.
 - Não há calendário visual avançado de disponibilidade.
-- Não há gestão dedicada de upload para imagem de quarto; hoje o quarto usa URL/imagem existente.
-- Warnings de lint sobre `<img>` ainda existem e podem ser tratados futuramente com `next/image`.
+- Não há rotina automática para expirar reservas abandonadas em `awaiting_payment`.
 - `npm audit` deve ser revisado antes de produção.
 - Dados locais de apoio continuam existindo para desenvolvimento e não devem contaminar produção.
 

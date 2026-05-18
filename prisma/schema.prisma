@@ -253,6 +253,7 @@ model Reservation {
   stripeCheckoutSessionId String?             @unique
   stripePaymentIntentId   String?
   paidAt                  DateTime?
+  availabilityHeld        Boolean             @default(false)
   isTestData              Boolean             @default(false)
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
@@ -266,6 +267,7 @@ model Reservation {
   @@index([paymentProvider])
   @@index([paymentMethod])
   @@index([paymentStatus])
+  @@index([availabilityHeld])
   @@index([isTestData])
   @@index([createdAt])
   @@index([hotelId, createdAt])

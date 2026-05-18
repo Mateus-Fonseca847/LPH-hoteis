@@ -1,4 +1,5 @@
 import {
+  ConflictError,
   createApiErrorResponse,
   createApiSuccessResponse,
   ValidationError,
@@ -6,12 +7,14 @@ import {
 import { upsertInitialPaymentTransactionForReservation } from "@/lib/finance";
 import { resolveHotelPaymentConfiguration, startReservationPayment } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
+import { closeUnpaidReservation } from "@/lib/reservation-confirmation";
 import {
   calculateStayNights,
   canRoomAccommodateGuests,
   formatPriceInBRL,
   getRoomStayAvailabilityStatus,
   getRoomStayPriceEstimate,
+  getStayDates,
 } from "@/lib/stay-query";
 import { parseCreateReservationPayload } from "@/lib/validations/reservation";
 
@@ -131,7 +134,7 @@ export async function POST(request: Request) {
       children
     );
 
-    if (availabilityStatus === "unavailable") {
+    if (availabilityStatus !== "available") {
       throw new ValidationError("O quarto não está disponível para o período selecionado.");
     }
 
@@ -150,31 +153,57 @@ export async function POST(request: Request) {
       throw new ValidationError("Não foi possível calcular o valor da reserva.");
     }
 
-    const reservation = await prisma.reservation.create({
-      data: {
-        hotelId,
-        roomId,
-        guestName,
-        guestEmail,
-        guestPhone,
-        guestDocument,
-        checkIn: toUtcDate(checkIn),
-        checkOut: toUtcDate(checkOut),
-        adults,
-        children,
-        nights,
-        nightlyPriceCents,
-        totalPriceCents,
-        status: "awaiting_payment",
-        paymentProvider: paymentConfiguration.provider,
-        paymentMethod,
-        paymentStatus: "pending",
-      },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-      },
+    const reservation = await prisma.$transaction(async (transaction) => {
+      const availabilityDates = getStayDates(checkIn, checkOut).map(toUtcDate);
+      const availabilityUpdate = await transaction.roomAvailability.updateMany({
+        where: {
+          roomId,
+          date: {
+            in: availabilityDates,
+          },
+          closed: false,
+          availableUnits: {
+            gt: 0,
+          },
+        },
+        data: {
+          availableUnits: {
+            decrement: 1,
+          },
+        },
+      });
+
+      if (availabilityUpdate.count !== nights) {
+        throw new ConflictError("O quarto não está disponível para o período selecionado.");
+      }
+
+      return transaction.reservation.create({
+        data: {
+          hotelId,
+          roomId,
+          guestName,
+          guestEmail,
+          guestPhone,
+          guestDocument,
+          checkIn: toUtcDate(checkIn),
+          checkOut: toUtcDate(checkOut),
+          adults,
+          children,
+          nights,
+          nightlyPriceCents,
+          totalPriceCents,
+          status: "awaiting_payment",
+          paymentProvider: paymentConfiguration.provider,
+          paymentMethod,
+          paymentStatus: "pending",
+          availabilityHeld: true,
+        },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+        },
+      });
     });
     createdReservationId = reservation.id;
     await upsertInitialPaymentTransactionForReservation(reservation.id, "pending");
@@ -213,16 +242,10 @@ export async function POST(request: Request) {
     if (createdReservationId) {
       const reservationId = createdReservationId;
 
-      await prisma.reservation
-        .update({
-          where: {
-            id: reservationId,
-          },
-          data: {
-            status: "payment_failed",
-            paymentStatus: "payment_failed",
-          },
-        })
+      await closeUnpaidReservation({
+        reservationId,
+        status: "payment_failed",
+      })
         .then(() => upsertInitialPaymentTransactionForReservation(reservationId, "payment_failed"))
         .catch(() => null);
     }

@@ -148,16 +148,17 @@ function getManageableHotelRoles(
 
 async function getScopedActorContext(hotelId: string): Promise<ScopedActorContext> {
   const actor = await requireAdminActor();
-  const hotel = await prisma.hotel.findUnique({
-    where: { id: hotelId },
-    select: { id: true, name: true },
-  });
-
-  if (!hotel) {
-    throw new NotFoundError("Hotel não encontrado.");
-  }
 
   if (actor.globalRole === "super_admin") {
+    const hotel = await prisma.hotel.findUnique({
+      where: { id: hotelId },
+      select: { id: true, name: true },
+    });
+
+    if (!hotel) {
+      throw new NotFoundError("Hotel não encontrado.");
+    }
+
     return {
       actor,
       hotelId: hotel.id,
@@ -166,7 +167,26 @@ async function getScopedActorContext(hotelId: string): Promise<ScopedActorContex
     };
   }
 
-  const permission = await requireHotelAdminAccess(actor.id, hotelId);
+  let permission: Awaited<ReturnType<typeof requireHotelAdminAccess>>;
+
+  try {
+    permission = await requireHotelAdminAccess(actor.id, hotelId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw new NotFoundError("Hotel não encontrado.");
+    }
+
+    throw error;
+  }
+
+  const hotel = await prisma.hotel.findUnique({
+    where: { id: hotelId },
+    select: { id: true, name: true },
+  });
+
+  if (!hotel) {
+    throw new NotFoundError("Hotel não encontrado.");
+  }
 
   return {
     actor,

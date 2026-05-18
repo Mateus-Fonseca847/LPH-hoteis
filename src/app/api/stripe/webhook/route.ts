@@ -5,8 +5,12 @@ import {
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
-import { upsertPaidPaymentTransactionForReservation } from "@/lib/finance/payment-transactions";
+import {
+  upsertInitialPaymentTransactionForReservation,
+  upsertPaidPaymentTransactionForReservation,
+} from "@/lib/finance/payment-transactions";
 import { prisma } from "@/lib/prisma";
+import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
 import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
 
@@ -81,24 +85,20 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  await prisma.reservation.update({
-    where: {
-      id: reservation.id,
-    },
-    data: {
-      status: "confirmed",
-      paymentStatus: "paid",
-      stripeCheckoutSessionId: session.id,
-      stripePaymentIntentId:
-        typeof session.payment_intent === "string"
-          ? session.payment_intent
-          : session.payment_intent?.id,
-      paidAt: new Date(),
-    },
+  const stripePaymentIntentId =
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : session.payment_intent?.id;
+  const confirmation = await confirmPaidReservation({
+    reservationId: reservation.id,
+    stripeCheckoutSessionId: session.id,
+    stripePaymentIntentId,
   });
 
   await upsertPaidPaymentTransactionForReservation(reservation.id);
-  await notifyPaidReservation(reservation.id);
+  if (confirmation?.confirmed) {
+    await notifyPaidReservation(reservation.id);
+  }
 }
 
 async function handleCheckoutFailed(session: Stripe.Checkout.Session) {
@@ -108,19 +108,12 @@ async function handleCheckoutFailed(session: Stripe.Checkout.Session) {
     return;
   }
 
-  await prisma.reservation.updateMany({
-    where: {
-      id: reservationId,
-      status: {
-        in: ["pending", "awaiting_payment"],
-      },
-    },
-    data: {
-      status: "payment_failed",
-      paymentStatus: "payment_failed",
-      stripeCheckoutSessionId: session.id,
-    },
+  await closeUnpaidReservation({
+    reservationId,
+    status: "cancelled",
+    stripeCheckoutSessionId: session.id,
   });
+  await upsertInitialPaymentTransactionForReservation(reservationId, "cancelled");
 }
 
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
@@ -130,19 +123,12 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
     return;
   }
 
-  await prisma.reservation.updateMany({
-    where: {
-      id: reservationId,
-      status: {
-        in: ["pending", "awaiting_payment"],
-      },
-    },
-    data: {
-      status: "payment_failed",
-      paymentStatus: "payment_failed",
-      stripePaymentIntentId: paymentIntent.id,
-    },
+  await closeUnpaidReservation({
+    reservationId,
+    status: "payment_failed",
+    stripePaymentIntentId: paymentIntent.id,
   });
+  await upsertInitialPaymentTransactionForReservation(reservationId, "payment_failed");
 }
 
 export async function POST(request: Request) {

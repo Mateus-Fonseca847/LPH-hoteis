@@ -3263,6 +3263,10 @@ button {
   min-width: 1120px;
 }
 
+.admin-reservations-table {
+  min-width: 1320px;
+}
+
 .admin-finance-table th,
 .admin-finance-table td {
   padding: 14px 12px;
@@ -3306,6 +3310,58 @@ button {
   color: var(--text);
   font-size: 0.78rem;
   font-weight: 900;
+}
+
+.admin-status-pill,
+.admin-row-link {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.admin-status-pill {
+  background: rgba(30, 30, 30, 0.06);
+  color: var(--text);
+}
+
+.admin-status-pill.is-paid,
+.admin-status-pill.is-confirmed {
+  background: rgba(15, 118, 110, 0.12);
+  color: #0f766e;
+}
+
+.admin-status-pill.is-awaiting_payment,
+.admin-status-pill.is-pending {
+  background: rgba(230, 194, 0, 0.16);
+  color: #785900;
+}
+
+.admin-status-pill.is-payment_failed,
+.admin-status-pill.is-cancelled {
+  background: rgba(180, 35, 24, 0.1);
+  color: #b42318;
+}
+
+.admin-row-link {
+  background: rgba(6, 41, 79, 0.08);
+  color: var(--brand);
+}
+
+.admin-reservation-guest {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-reservation-guest small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .finance-dashboard-page {
@@ -5118,6 +5174,11 @@ button {
 .admin-audit-detail-card {
   display: grid;
   gap: 22px;
+}
+
+.admin-reservation-detail-card {
+  display: grid;
+  gap: 18px;
 }
 
 .admin-audit-values-grid {

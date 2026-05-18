@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { z } from "zod";
+
 import {
   createApiErrorResponse,
   createApiSuccessResponse,
@@ -11,17 +13,24 @@ import {
 } from "@/lib/finance/payment-transactions";
 import { getMercadoPagoPayment } from "@/lib/payments/mercado-pago";
 import { prisma } from "@/lib/prisma";
+import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
 import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
 
 const WEBHOOK_FAILURE_MESSAGE = "Não foi possível processar o webhook de pagamento.";
 
-type MercadoPagoWebhookPayload = {
-  type?: string;
-  action?: string;
-  data?: {
-    id?: string | number;
-  };
-};
+const mercadoPagoWebhookPayloadSchema = z
+  .object({
+    type: z.string().optional(),
+    action: z.string().optional(),
+    data: z
+      .object({
+        id: z.union([z.string(), z.number()]).optional(),
+      })
+      .optional(),
+  })
+  .passthrough();
+
+type MercadoPagoWebhookPayload = z.infer<typeof mercadoPagoWebhookPayloadSchema>;
 
 function getRequiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -205,26 +214,15 @@ async function handleApprovedPayment(paymentId: string) {
     return;
   }
 
-  const paidAt = new Date();
-  const updateResult = await prisma.reservation.updateMany({
-    where: {
-      id: reservation.id,
-      paymentStatus: {
-        not: "paid",
-      },
-    },
-    data: {
-      status: "confirmed",
-      paymentStatus: "paid",
-      providerPaymentId: payment.id,
-      paymentMethod: payment.paymentTypeId || payment.paymentMethodId,
-      paidAt,
-    },
+  const confirmation = await confirmPaidReservation({
+    reservationId: reservation.id,
+    providerPaymentId: payment.id,
+    paymentMethod: payment.paymentTypeId || payment.paymentMethodId,
   });
 
   await upsertPaidPaymentTransactionForReservation(reservation.id);
 
-  if (updateResult.count > 0) {
+  if (confirmation?.confirmed) {
     await notifyPaidReservation(reservation.id);
   }
 }
@@ -238,27 +236,29 @@ async function handleRejectedPayment(paymentId: string) {
     return;
   }
 
-  await prisma.reservation.update({
-    where: {
-      id: reservation.id,
-    },
-    data: {
-      status: "payment_failed",
-      paymentStatus: "payment_failed",
-      providerPaymentId: payment.id,
-    },
+  const failedStatus = ["cancelled", "refunded", "charged_back"].includes(payment.status)
+    ? "cancelled"
+    : "payment_failed";
+
+  await closeUnpaidReservation({
+    reservationId: reservation.id,
+    status: failedStatus,
+    providerPaymentId: payment.id,
   });
-  await upsertInitialPaymentTransactionForReservation(reservation.id, "payment_failed", payment.id);
+  await upsertInitialPaymentTransactionForReservation(reservation.id, failedStatus, payment.id);
 }
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json().catch(() => null)) as MercadoPagoWebhookPayload | null;
+    const payloadResult = mercadoPagoWebhookPayloadSchema.safeParse(
+      await request.json().catch(() => null)
+    );
 
-    if (!payload) {
+    if (!payloadResult.success) {
       throw new ValidationError("Payload do webhook inválido.");
     }
 
+    const payload = payloadResult.data;
     const paymentId = getPaymentId(payload, request);
 
     validateMercadoPagoSignature(request, paymentId);

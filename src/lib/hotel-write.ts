@@ -11,7 +11,7 @@ import {
   requireHotelAdminAccess,
   requireHotelEditAccess,
 } from "@/lib/auth/authorization";
-import { createApiErrorResponse } from "@/lib/errors/app-error";
+import { createApiErrorResponse, NotFoundError } from "@/lib/errors/app-error";
 
 const routeIdSchema = z
   .string()
@@ -76,7 +76,15 @@ export async function requireAuthorizedHotelWrite(hotelId: string) {
     throw new AuthorizationError(twoFactorValidation.message);
   }
 
-  await requireHotelEditAccess(user.id, hotelId);
+  try {
+    await requireHotelEditAccess(user.id, hotelId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw new NotFoundError("Recurso não encontrado.");
+    }
+
+    throw error;
+  }
 
   return user;
 }
@@ -91,7 +99,15 @@ export async function requireAuthorizedHotelAdminWrite(hotelId: string) {
     throw new AuthorizationError(twoFactorValidation.message);
   }
 
-  await requireHotelAdminAccess(user.id, hotelId);
+  try {
+    await requireHotelAdminAccess(user.id, hotelId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw new NotFoundError("Recurso não encontrado.");
+    }
+
+    throw error;
+  }
 
   return user;
 }

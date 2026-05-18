@@ -11,6 +11,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint src next.config.ts prisma.config.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "quality": "npm run format:check && npm run lint && npm run prisma:validate && npm run build",
     "start": "next start",
     "finance:test-data": "node scripts/seed-financial-test-data.cjs",
@@ -39,11 +42,13 @@
     "@types/node": "^22.10.1",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
+    "@vitest/coverage-v8": "^4.1.6",
     "dotenv": "^16.6.1",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.4",
     "prettier": "^3.8.3",
     "prisma": "^6.17.1",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.6"
   }
 }

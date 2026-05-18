@@ -1047,7 +1047,7 @@ export function AvailabilitySearchModal({
                               </a>
                             ) : null}
 
-                            {availabilityStatus !== "unavailable" ? (
+                            {availabilityStatus === "available" ? (
                               <button
                                 type="button"
                                 className="availability-modal-room-card__cta"

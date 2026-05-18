@@ -126,6 +126,16 @@ export default async function AdminHomePage() {
           <p>Acompanhe reservas pagas, receita da plataforma e repasses por hotel.</p>
           <small>Ver dashboard financeiro</small>
         </Link>
+
+        <Link
+          href="/admin/reservas"
+          className="hotel-content-card admin-overview-card admin-link-card"
+        >
+          <span>RESERVAS</span>
+          <strong>Acompanhar pagamentos</strong>
+          <p>Consulte reservas, status de pagamento e dados operacionais.</p>
+          <small>Ver reservas</small>
+        </Link>
       </div>
 
       <div className="admin-dashboard-metrics">
