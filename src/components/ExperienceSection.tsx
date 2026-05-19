@@ -52,6 +52,13 @@ type Recommendation = {
   query: string;
 };
 
+type ExperienceVisualImageProps = {
+  src: string;
+  alt: string;
+  sizes: string;
+  priority?: boolean;
+};
+
 const experienceOptions: Array<QuestionnaireOption & { experienceKey: ExperienceKey }> = [
   { key: "esporte", label: "Esporte" },
   { key: "musica", label: "Música" },
@@ -757,6 +764,57 @@ const getOptionLabel = (stepId: QuestionnaireStepId, key: string | null) => {
 
 const getSearchHref = (query: string) => `/buscar?destino=${encodeURIComponent(query)}`;
 
+const getDestinationsForCategory = (category: VisualSuggestionKey) =>
+  category in preferenceSuggestions
+    ? preferenceSuggestions[category as PreferenceKey]
+    : category in budgetSuggestions
+      ? budgetSuggestions[category as BudgetKey]
+      : experienceDestinations[category as ExperienceKey];
+
+const preloadImages = async (sources: string[]) => {
+  await Promise.allSettled(
+    sources.map(
+      (source) =>
+        new Promise<void>((resolve) => {
+          const image = new window.Image();
+          image.onload = () => resolve();
+          image.onerror = () => resolve();
+          image.src = source;
+
+          if (image.decode) {
+            image.decode().then(resolve).catch(resolve);
+          }
+        })
+    )
+  );
+};
+
+function ExperienceVisualImage({ src, alt, sizes, priority = false }: ExperienceVisualImageProps) {
+  const [imageState, setImageState] = useState<{
+    src: string;
+    status: "loaded" | "error";
+  } | null>(null);
+  const currentImageState = imageState?.src === src ? imageState.status : "loading";
+
+  return (
+    <>
+      <div className="experience-image-fallback" aria-hidden="true">
+        <span>{currentImageState === "error" ? "Imagem indisponível" : "Carregando imagem"}</span>
+      </div>
+      <Image
+        className={`experience-image ${currentImageState === "loaded" ? "is-loaded" : ""}`}
+        src={src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        priority={priority}
+        onLoad={() => setImageState({ src, status: "loaded" })}
+        onError={() => setImageState({ src, status: "error" })}
+      />
+    </>
+  );
+}
+
 const getRecommendations = (answers: QuestionnaireAnswers) => {
   const recommendations = answers.preferences.map(
     (preference) => preferenceRecommendations[preference]
@@ -794,7 +852,9 @@ export function ExperienceSection() {
   });
   const [showResult, setShowResult] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const resultSectionRef = useRef<HTMLElement | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  const transitionTokenRef = useRef(0);
   const activeStep = questionnaireSteps[currentStep];
   const activeAnswer = answers[activeStep.id];
   const isPreferenceStep = activeStep.id === "preferences";
@@ -818,19 +878,37 @@ export function ExperienceSection() {
       value: primaryPreferenceLabels.length > 0 ? primaryPreferenceLabels.join(", ") : "A definir",
     },
   ];
-  const canContinue = showResult
-    ? false
-    : isPreferenceStep
-      ? answers.preferences.length > 0
-      : Boolean(activeAnswer);
+  const canContinue =
+    showResult || isTransitioning ? false : isPreferenceStep ? true : Boolean(activeAnswer);
+
+  useEffect(() => {
+    preloadImages(
+      getDestinationsForCategory(displayedCategory).map((destination) => destination.image)
+    );
+  }, [displayedCategory]);
 
   useEffect(() => {
     return () => {
+      transitionTokenRef.current += 1;
+
       if (timeoutRef.current) {
         window.clearTimeout(timeoutRef.current);
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!showResult) return;
+
+    const scrollFrame = window.requestAnimationFrame(() => {
+      resultSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(scrollFrame);
+  }, [showResult]);
 
   const updateDisplayedCategory = (nextExperience: VisualSuggestionKey) => {
     if (isTransitioning || nextExperience === displayedCategory) return;
@@ -839,12 +917,31 @@ export function ExperienceSection() {
       window.clearTimeout(timeoutRef.current);
     }
 
+    const transitionToken = transitionTokenRef.current + 1;
+    transitionTokenRef.current = transitionToken;
     setIsTransitioning(true);
 
+    window.setTimeout(() => {
+      preloadImages(
+        getDestinationsForCategory(nextExperience).map((destination) => destination.image)
+      ).then(() => {
+        if (transitionTokenRef.current !== transitionToken) {
+          return;
+        }
+
+        setDisplayedCategory(nextExperience);
+        setIsTransitioning(false);
+      });
+    }, 90);
+
     timeoutRef.current = window.setTimeout(() => {
+      if (transitionTokenRef.current !== transitionToken) {
+        return;
+      }
+
       setDisplayedCategory(nextExperience);
       setIsTransitioning(false);
-    }, 180);
+    }, 900);
   };
 
   const getVisualCategoryForStep = (
@@ -923,17 +1020,34 @@ export function ExperienceSection() {
       [activeStep.id]:
         activeStep.id === "preferences" ? [...answers.preferences] : answers[activeStep.id],
     } as QuestionnaireAnswers;
-    const nextVisualCategory = getVisualCategoryForStep(currentStep, nextConfirmedAnswers);
+    const isFinalStep = currentStep === questionnaireSteps.length - 1;
 
     setConfirmedAnswers(nextConfirmedAnswers);
 
-    if (nextVisualCategory) {
-      updateDisplayedCategory(nextVisualCategory);
+    if (isFinalStep) {
+      const transitionToken = transitionTokenRef.current + 1;
+      transitionTokenRef.current = transitionToken;
+      setShowResult(true);
+      setIsTransitioning(false);
+
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+      }
+
+      preloadImages(
+        getRecommendations(nextConfirmedAnswers).map((recommendation) => recommendation.image)
+      ).then(() => {
+        if (transitionTokenRef.current !== transitionToken) {
+          return;
+        }
+      });
+      return;
     }
 
-    if (currentStep === questionnaireSteps.length - 1) {
-      setShowResult(true);
-      return;
+    const nextVisualCategory = getVisualCategoryForStep(currentStep, nextConfirmedAnswers);
+
+    if (nextVisualCategory) {
+      updateDisplayedCategory(nextVisualCategory);
     }
 
     const nextStep = Math.min(questionnaireSteps.length - 1, currentStep + 1);
@@ -950,6 +1064,8 @@ export function ExperienceSection() {
   };
 
   const handleRestart = () => {
+    transitionTokenRef.current += 1;
+
     if (timeoutRef.current) {
       window.clearTimeout(timeoutRef.current);
     }
@@ -972,58 +1088,64 @@ export function ExperienceSection() {
     setIsTransitioning(false);
   };
 
-  const destinations =
-    displayedCategory in preferenceSuggestions
-      ? preferenceSuggestions[displayedCategory as PreferenceKey]
-      : displayedCategory in budgetSuggestions
-        ? budgetSuggestions[displayedCategory as BudgetKey]
-        : experienceDestinations[displayedCategory as ExperienceKey];
+  const destinations = getDestinationsForCategory(displayedCategory);
 
   if (showResult) {
     return (
-      <section id="destinations" className="showcase showcase--result section reveal">
+      <section
+        ref={resultSectionRef}
+        id="destinations"
+        className="showcase showcase--result section is-visible"
+      >
         <div className="experience-result-hero">
-          <h2>Encontramos experiências para o seu perfil</h2>
-          <p>
-            Com base nas suas respostas, selecionamos experiências alinhadas ao seu perfil de
-            viagem.
-          </p>
+          <span className="experience-result-kicker">Resultado do perfil</span>
+          <h2>Experiências para o seu perfil</h2>
+          <p>Selecionamos opções alinhadas às preferências que você escolheu.</p>
           <div className="experience-result-chips" aria-label="Resumo do perfil">
             {resultSummary.map((item) => (
-              <span key={item.label}>{item.value}</span>
+              <span key={item.label}>
+                <strong>{item.label}</strong>
+                {item.value}
+              </span>
             ))}
           </div>
         </div>
 
-        <div
-          className={`showcase-gallery experience-recommendations ${isTransitioning ? "is-transitioning" : ""}`}
-        >
-          {resultRecommendations.map((recommendation, index) => (
-            <Link
-              key={recommendation.key}
-              className="experience-recommendation-card reveal experience-card"
-              data-card-index={index}
-              href={getSearchHref(recommendation.query)}
-            >
-              <div className="experience-recommendation-card__image">
-                <Image
-                  src={recommendation.image}
-                  alt={recommendation.alt}
-                  fill
-                  sizes="(max-width: 720px) 100vw, (max-width: 1180px) 50vw, 33vw"
-                />
-              </div>
-              <div className="experience-recommendation-card__body">
-                <span>{recommendation.location}</span>
-                <strong>{recommendation.title}</strong>
-                <p>{recommendation.reason}</p>
-                <span className="card-cta-button experience-recommendation-card__link">
-                  Ver detalhes
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
+        {resultRecommendations.length > 0 ? (
+          <div className="showcase-gallery experience-recommendations">
+            {resultRecommendations.map((recommendation, index) => (
+              <Link
+                key={recommendation.key}
+                className="experience-recommendation-card experience-card"
+                data-card-index={index}
+                href={getSearchHref(recommendation.query)}
+              >
+                <div className="experience-recommendation-card__image">
+                  <ExperienceVisualImage
+                    src={recommendation.image}
+                    alt={recommendation.alt}
+                    sizes="(max-width: 720px) 100vw, (max-width: 1180px) 50vw, 33vw"
+                  />
+                </div>
+                <div className="experience-recommendation-card__body">
+                  <span className="experience-recommendation-card__eyebrow">
+                    {recommendation.location}
+                  </span>
+                  <strong>{recommendation.title}</strong>
+                  <p>{recommendation.reason}</p>
+                  <span className="card-cta-button experience-recommendation-card__link">
+                    Ver hospedagem
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="experience-result-empty" role="status">
+            <strong>Não encontramos recomendações para este perfil.</strong>
+            <p>Refaça suas escolhas para calibrar melhor as sugestões.</p>
+          </div>
+        )}
 
         <div className="experience-step-actions">
           <button
@@ -1087,11 +1209,11 @@ export function ExperienceSection() {
           className="gallery-card large reveal experience-card experience-card--featured"
           data-card-index="0"
         >
-          <Image
+          <ExperienceVisualImage
             src={destinations[0].image}
             alt={destinations[0].alt}
-            fill
             sizes="(max-width: 900px) 100vw, 46vw"
+            priority
           />
           <div className="gallery-caption">
             <strong>{destinations[0].title}</strong>
@@ -1102,14 +1224,13 @@ export function ExperienceSection() {
         <div className="gallery-side">
           {destinations.slice(1).map((destination, index) => (
             <article
-              key={`${displayedCategory}-${destination.title}`}
+              key={`experience-side-card-${index}`}
               className="gallery-card reveal experience-card experience-card--small"
               data-card-index={index + 1}
             >
-              <Image
+              <ExperienceVisualImage
                 src={destination.image}
                 alt={destination.alt}
-                fill
                 sizes="(max-width: 900px) 100vw, 260px"
               />
               <div className="gallery-caption">

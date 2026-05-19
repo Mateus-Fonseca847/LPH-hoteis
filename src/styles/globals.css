@@ -2406,6 +2406,40 @@ button {
   transition: transform 0.45s ease;
 }
 
+.experience-image {
+  object-fit: cover;
+  opacity: 0;
+  transition:
+    opacity 0.28s ease,
+    transform 0.45s ease;
+}
+
+.experience-image.is-loaded {
+  opacity: 1;
+}
+
+.experience-image-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background:
+    linear-gradient(145deg, rgba(6, 41, 79, 0.18), rgba(244, 241, 234, 0.9)),
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.7), transparent 36%);
+  color: rgba(6, 41, 79, 0.72);
+  text-align: center;
+}
+
+.experience-image-fallback span {
+  max-width: 18ch;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
 .hotels-intro p,
 .showcase-copy p,
 .detail-card p,
@@ -2492,15 +2526,29 @@ button {
 .experience-result-hero {
   grid-column: 1 / -1;
   display: grid;
-  gap: 12px;
-  max-width: 980px;
+  gap: 14px;
+  max-width: 1040px;
+}
+
+.experience-result-kicker {
+  width: fit-content;
+  padding: 8px 12px;
+  border: 1px solid rgba(6, 41, 79, 0.1);
+  border-radius: 999px;
+  background: rgba(6, 41, 79, 0.05);
+  color: var(--brand);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .experience-result-hero h2 {
-  max-width: 980px;
+  max-width: 840px;
   margin-bottom: 0;
-  font-size: clamp(2.35rem, 5vw, 4.8rem);
-  line-height: 0.98;
+  font-size: clamp(2.45rem, 5vw, 5.25rem);
+  line-height: 0.94;
 }
 
 .experience-result-hero p {
@@ -2515,20 +2563,30 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .experience-result-chips span {
   min-height: 34px;
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   padding: 0 12px;
   border-radius: 999px;
-  background: rgba(6, 41, 79, 0.06);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(6, 41, 79, 0.08);
   color: var(--brand);
   font-size: 0.82rem;
   font-weight: 850;
   line-height: 1.2;
+  box-shadow: 0 10px 22px rgba(10, 27, 52, 0.04);
+}
+
+.experience-result-chips strong {
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .experience-result > strong {
@@ -2620,11 +2678,14 @@ button {
   grid-template-rows: auto auto auto;
   gap: 24px;
   min-height: 0;
+  scroll-margin-top: 104px;
 }
 
 .showcase--result .experience-recommendations {
   grid-column: 1;
   grid-row: auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
   min-height: 0;
 }
 
@@ -2633,74 +2694,135 @@ button {
   grid-row: auto;
 }
 
-.experience-recommendation-card {
-  min-height: 480px;
+.experience-result-empty {
   display: grid;
-  grid-template-rows: minmax(220px, 0.78fr) auto;
+  gap: 8px;
+  padding: 24px;
+  border: 1px solid rgba(6, 41, 79, 0.08);
+  border-radius: 24px;
+  background: rgba(6, 41, 79, 0.04);
+}
+
+.experience-result-empty strong {
+  color: var(--brand);
+  font-family: var(--font-sora), sans-serif;
+  font-size: 1.18rem;
+  line-height: 1.15;
+}
+
+.experience-result-empty p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.experience-recommendation-card {
+  position: relative;
+  min-height: 520px;
+  display: grid;
+  align-items: end;
   overflow: hidden;
   border: 1px solid rgba(6, 41, 79, 0.08);
-  border-radius: 28px;
-  background: var(--surface);
-  color: inherit;
-  box-shadow: 0 18px 42px rgba(10, 27, 52, 0.08);
+  border-radius: 34px;
+  background: var(--brand);
+  color: var(--surface);
+  box-shadow: 0 24px 58px rgba(10, 27, 52, 0.14);
+  isolation: isolate;
   transition:
     opacity 0.28s ease,
     transform 0.28s ease,
+    border-color 0.28s ease,
     box-shadow 0.28s ease;
   animation: experienceCardEnter 0.38s ease both;
 }
 
+.experience-recommendation-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(6, 41, 79, 0.04) 0%,
+      rgba(6, 41, 79, 0.42) 42%,
+      rgba(6, 41, 79, 0.9) 100%
+    ),
+    linear-gradient(40deg, rgba(6, 41, 79, 0.78), transparent 56%);
+  pointer-events: none;
+}
+
 .experience-recommendation-card__image {
-  position: relative;
-  min-height: 250px;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  min-height: 100%;
   overflow: hidden;
 }
 
 .experience-recommendation-card__image img {
   object-fit: cover;
-  transition: transform 0.36s ease;
+  transition: transform 0.45s ease;
 }
 
 .experience-recommendation-card__body {
+  position: relative;
+  z-index: 2;
   display: grid;
-  gap: 10px;
-  align-content: start;
-  padding: 18px;
+  gap: 12px;
+  align-content: end;
+  min-height: 100%;
+  padding: 28px;
 }
 
-.experience-recommendation-card__body > span {
-  color: var(--brand);
-  font-size: 0.78rem;
+.experience-recommendation-card__eyebrow {
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.06em;
+  line-height: 1.2;
   text-transform: uppercase;
+  backdrop-filter: blur(10px);
 }
 
 .experience-recommendation-card__body strong {
   font-family: var(--font-sora), sans-serif;
-  font-size: 1.16rem;
-  line-height: 1.12;
-  letter-spacing: -0.04em;
+  font-size: clamp(1.55rem, 2.3vw, 2.15rem);
+  line-height: 1;
+  letter-spacing: -0.055em;
+  text-wrap: balance;
 }
 
 .experience-recommendation-card__body p {
   margin: 0;
-  color: var(--muted);
-  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.98rem;
   font-weight: 700;
   line-height: 1.45;
+  text-wrap: pretty;
 }
 
 .experience-recommendation-card__link {
   width: 100%;
   min-width: 0;
-  min-height: 46px;
-  margin-top: 4px;
+  min-height: 54px;
+  margin-top: 10px;
+  background: var(--surface);
+  color: var(--brand);
   pointer-events: none;
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
 }
 
 .gallery-card {
   position: relative;
+  aspect-ratio: 16 / 10;
   min-height: 272px;
   height: 272px;
   border-radius: 28px;
@@ -6745,6 +6867,16 @@ button {
   box-shadow: var(--shadow);
 }
 
+.experience-recommendation-card:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+  transform: translateY(-4px);
+}
+
+.experience-recommendation-card:focus-visible {
+  outline: 3px solid rgba(230, 194, 0, 0.72);
+  outline-offset: 4px;
+}
+
 .hotel-card:hover {
   transform: translateY(-4px);
   border-color: rgba(6, 41, 79, 0.14);
@@ -6835,6 +6967,12 @@ button {
   .gallery-card {
     animation: none;
   }
+
+  .experience-image,
+  .showcase-gallery.is-transitioning .experience-card {
+    transition: none;
+    transform: none;
+  }
 }
 
 @media (max-width: 1180px) {
@@ -6896,6 +7034,10 @@ button {
   }
 
   .experience-recommendations {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .showcase--result .experience-recommendations {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -6968,7 +7110,7 @@ button {
   }
 
   .experience-recommendation-card {
-    min-height: 430px;
+    min-height: 480px;
   }
 
   .experience-card--small,
@@ -7031,8 +7173,41 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .showcase--result {
+    gap: 20px;
+  }
+
+  .showcase--result .experience-recommendations {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-result-hero {
+    gap: 12px;
+  }
+
+  .experience-result-hero h2 {
+    font-size: clamp(2.25rem, 12vw, 3.3rem);
+  }
+
+  .experience-result-chips span {
+    max-width: 100%;
+    min-height: 36px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 8px 12px;
+  }
+
   .experience-recommendation-card {
-    min-height: 0;
+    min-height: 430px;
+    border-radius: 28px;
+  }
+
+  .experience-recommendation-card__body {
+    padding: 22px;
+  }
+
+  .experience-recommendation-card__link {
+    min-height: 52px;
   }
 
   .finance-dashboard-kpis {
