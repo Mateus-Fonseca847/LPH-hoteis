@@ -68,6 +68,31 @@ function TestimonialAvatar({ testimonial }: { testimonial: Testimonial }) {
   );
 }
 
+function TestimonialPreviewCard({
+  testimonial,
+  position,
+}: {
+  testimonial: Testimonial;
+  position: "previous" | "next";
+}) {
+  return (
+    <article
+      key={`${position}-${testimonial.name}`}
+      className={`testimonial-preview-card testimonial-preview-card--${position}`}
+      aria-hidden="true"
+    >
+      <div className="testimonial-card-author">
+        <TestimonialAvatar testimonial={testimonial} />
+        <div>
+          <strong>{testimonial.name}</strong>
+          <span>{testimonial.location}</span>
+        </div>
+      </div>
+      <p>&quot;{testimonial.quote}&quot;</p>
+    </article>
+  );
+}
+
 export function TestimonialsSection() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -118,11 +143,7 @@ export function TestimonialsSection() {
       </div>
 
       <div className="testimonial-carousel">
-        <div className="testimonial-side testimonial-side--previous" aria-hidden="true">
-          <span>Anterior</span>
-          <strong>{previousTestimonial.name}</strong>
-          <small>{previousTestimonial.location}</small>
-        </div>
+        <TestimonialPreviewCard testimonial={previousTestimonial} position="previous" />
 
         <button
           className="testimonial-nav testimonial-nav--previous"
@@ -130,7 +151,7 @@ export function TestimonialsSection() {
           onClick={showPrevious}
           aria-label="Comentário anterior"
         >
-          <span aria-hidden="true">←</span>
+          <span aria-hidden="true">&lt;</span>
         </button>
 
         <article
@@ -149,20 +170,16 @@ export function TestimonialsSection() {
           <span className="testimonial-trip-type">{activeTestimonial.tripType}</span>
         </article>
 
+        <TestimonialPreviewCard testimonial={nextTestimonial} position="next" />
+
         <button
           className="testimonial-nav testimonial-nav--next"
           type="button"
           onClick={showNext}
           aria-label="Próximo comentário"
         >
-          <span aria-hidden="true">→</span>
+          <span aria-hidden="true">&gt;</span>
         </button>
-
-        <div className="testimonial-side testimonial-side--next" aria-hidden="true">
-          <span>Próximo</span>
-          <strong>{nextTestimonial.name}</strong>
-          <small>{nextTestimonial.location}</small>
-        </div>
       </div>
     </section>
   );
