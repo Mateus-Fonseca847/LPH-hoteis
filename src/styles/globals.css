@@ -2680,6 +2680,8 @@ button {
   grid-template-rows: auto auto auto;
   gap: 24px;
   min-height: 0;
+  padding-bottom: 34px;
+  overflow: visible;
   scroll-margin-top: 104px;
 }
 
@@ -2688,12 +2690,15 @@ button {
   grid-row: auto;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
+  height: auto;
   min-height: 0;
+  overflow: visible;
 }
 
 .showcase--result .experience-step-actions {
   grid-column: 1;
   grid-row: auto;
+  margin-top: 6px;
 }
 
 .experience-result-empty {
@@ -2998,55 +3003,19 @@ button {
 }
 
 .testimonial-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18px;
-  align-items: start;
-}
-
-.testimonial-controls {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.testimonial-controls button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 54px;
-  height: 54px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--surface);
-  font-size: 1.35rem;
-  font-weight: 900;
-  line-height: 1;
-  transition:
-    transform 0.24s ease,
-    background-color 0.24s ease,
-    border-color 0.24s ease;
-}
-
-.testimonial-controls button:hover,
-.testimonial-controls button:focus-visible {
-  border-color: rgba(255, 255, 255, 0.34);
-  background: rgba(255, 255, 255, 0.18);
-  outline: none;
-  transform: translateY(-2px);
+  max-width: 760px;
 }
 
 .testimonial-carousel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 34%);
-  gap: 18px;
-  align-items: stretch;
+  grid-template-columns: minmax(104px, 0.42fr) 46px minmax(0, 760px) 46px minmax(104px, 0.42fr);
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
 }
 
-.testimonial-card-main,
-.testimonial-preview-card {
+.testimonial-card-main {
   animation: testimonialSlideIn 0.42s ease both;
 }
 
@@ -3077,6 +3046,9 @@ button {
   display: grid;
   align-content: space-between;
   gap: 28px;
+  width: 100%;
+  max-width: 760px;
+  justify-self: center;
 }
 
 .quote-card p {
@@ -3143,64 +3115,73 @@ button {
   text-transform: uppercase;
 }
 
-.testimonial-preview-card {
-  min-height: 390px;
+.testimonial-side {
   display: grid;
-  align-content: space-between;
-  gap: 22px;
-  padding: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.11);
-  color: var(--surface);
-  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.1);
+  gap: 5px;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.54);
 }
 
-.testimonial-preview-label {
-  color: rgba(255, 255, 255, 0.66);
-  font-size: 0.72rem;
+.testimonial-side--previous {
+  text-align: right;
+}
+
+.testimonial-side span {
+  font-size: 0.68rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.testimonial-preview-card p {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.9);
+.testimonial-side strong {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.82);
   font-family: var(--font-sora), sans-serif;
-  font-size: clamp(1.25rem, 2vw, 1.6rem);
-  line-height: 1.18;
+  font-size: clamp(0.98rem, 1.4vw, 1.18rem);
+  line-height: 1.05;
   letter-spacing: -0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.testimonial-preview-card .testimonial-card-author span {
-  color: rgba(255, 255, 255, 0.7);
+.testimonial-side small {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.testimonial-indicators {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.testimonial-nav {
+  display: inline-flex;
   align-items: center;
-}
-
-.testimonial-indicators button {
-  width: 30px;
-  height: 8px;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--surface);
+  font-size: 1.08rem;
+  font-weight: 900;
+  line-height: 1;
   transition:
-    width 0.24s ease,
+    transform 0.24s ease,
     background-color 0.24s ease,
-    transform 0.24s ease;
+    border-color 0.24s ease;
 }
 
-.testimonial-indicators button.active {
-  width: 52px;
-  background: var(--surface);
+.testimonial-nav:hover,
+.testimonial-nav:focus-visible {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.14);
+  outline: none;
+  transform: translateY(-2px);
 }
 
-.testimonial-indicators button:focus-visible {
+.testimonial-nav:focus-visible {
   outline: 3px solid rgba(230, 194, 0, 0.72);
   outline-offset: 4px;
 }
@@ -7232,15 +7213,13 @@ button {
   .experience-question-panel,
   .experience-card,
   .gallery-card,
-  .testimonial-card-main,
-  .testimonial-preview-card {
+  .testimonial-card-main {
     animation: none;
   }
 
   .experience-image,
   .showcase-gallery.is-transitioning .experience-card,
-  .testimonial-controls button,
-  .testimonial-indicators button {
+  .testimonial-nav {
     transition: none;
     transform: none;
   }
@@ -7288,11 +7267,11 @@ button {
   }
 
   .testimonial-carousel {
-    grid-template-columns: minmax(0, 1fr) minmax(240px, 32%);
+    grid-template-columns: minmax(92px, 0.32fr) 42px minmax(0, 1fr) 42px minmax(92px, 0.32fr);
+    gap: 12px;
   }
 
-  .testimonial-card-main,
-  .testimonial-preview-card {
+  .testimonial-card-main {
     min-height: 360px;
   }
 
@@ -7453,21 +7432,35 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .testimonial-controls {
-    justify-content: flex-start;
-  }
-
   .testimonial-carousel {
-    grid-template-columns: 1fr;
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    grid-template-areas:
+      "previous previous previous"
+      "prev-button card next-button"
+      "next next next";
+    gap: 12px;
   }
 
-  .testimonial-card-main,
-  .testimonial-preview-card {
+  .testimonial-side--previous {
+    grid-area: previous;
+    text-align: left;
+  }
+
+  .testimonial-side--next {
+    grid-area: next;
+  }
+
+  .testimonial-nav--previous {
+    grid-area: prev-button;
+  }
+
+  .testimonial-card-main {
+    grid-area: card;
     min-height: 0;
   }
 
-  .testimonial-preview-card {
-    transform: none;
+  .testimonial-nav--next {
+    grid-area: next-button;
   }
 
   .showcase-gallery {
@@ -8112,26 +8105,17 @@ button {
     font-size: 1.5rem;
   }
 
-  .testimonial-controls button {
-    width: 48px;
-    height: 48px;
+  .testimonial-nav {
+    width: 38px;
+    height: 38px;
   }
 
-  .testimonial-card-main,
-  .testimonial-preview-card {
+  .testimonial-card-main {
     padding: 24px;
     border-radius: 24px;
   }
 
-  .testimonial-preview-card p {
-    font-size: 1.2rem;
-  }
-
-  .testimonial-indicators button {
-    width: 24px;
-  }
-
-  .testimonial-indicators button.active {
-    width: 42px;
+  .testimonial-side {
+    max-width: 100%;
   }
 }

@@ -72,6 +72,7 @@ export function TestimonialsSection() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const activeTestimonial = testimonials[activeIndex];
+  const previousTestimonial = testimonials[getPreviousIndex(activeIndex)];
   const nextTestimonial = testimonials[getNextIndex(activeIndex)];
 
   const showPrevious = () => {
@@ -114,18 +115,24 @@ export function TestimonialsSection() {
         <div className="section-heading">
           <h2>O que nossos clientes dizem</h2>
         </div>
-
-        <div className="testimonial-controls" aria-label="Controles do carrossel">
-          <button type="button" onClick={showPrevious} aria-label="Comentário anterior">
-            <span aria-hidden="true">←</span>
-          </button>
-          <button type="button" onClick={showNext} aria-label="Próximo comentário">
-            <span aria-hidden="true">→</span>
-          </button>
-        </div>
       </div>
 
       <div className="testimonial-carousel">
+        <div className="testimonial-side testimonial-side--previous" aria-hidden="true">
+          <span>Anterior</span>
+          <strong>{previousTestimonial.name}</strong>
+          <small>{previousTestimonial.location}</small>
+        </div>
+
+        <button
+          className="testimonial-nav testimonial-nav--previous"
+          type="button"
+          onClick={showPrevious}
+          aria-label="Comentário anterior"
+        >
+          <span aria-hidden="true">←</span>
+        </button>
+
         <article
           key={activeTestimonial.name}
           className="quote-card testimonial-card-main"
@@ -142,30 +149,20 @@ export function TestimonialsSection() {
           <span className="testimonial-trip-type">{activeTestimonial.tripType}</span>
         </article>
 
-        <article key={nextTestimonial.name} className="testimonial-preview-card" aria-hidden="true">
-          <span className="testimonial-preview-label">Próximo comentário</span>
-          <p>&quot;{nextTestimonial.quote}&quot;</p>
-          <div className="testimonial-card-author">
-            <TestimonialAvatar testimonial={nextTestimonial} />
-            <div>
-              <strong>{nextTestimonial.name}</strong>
-              <span>{nextTestimonial.location}</span>
-            </div>
-          </div>
-        </article>
-      </div>
+        <button
+          className="testimonial-nav testimonial-nav--next"
+          type="button"
+          onClick={showNext}
+          aria-label="Próximo comentário"
+        >
+          <span aria-hidden="true">→</span>
+        </button>
 
-      <div className="testimonial-indicators" aria-label="Posição dos comentários">
-        {testimonials.map((testimonial, index) => (
-          <button
-            key={testimonial.name}
-            type="button"
-            className={index === activeIndex ? "active" : ""}
-            onClick={() => setActiveIndex(index)}
-            aria-label={`Mostrar comentário ${index + 1} de ${testimonials.length}`}
-            aria-current={index === activeIndex ? "true" : undefined}
-          />
-        ))}
+        <div className="testimonial-side testimonial-side--next" aria-hidden="true">
+          <span>Próximo</span>
+          <strong>{nextTestimonial.name}</strong>
+          <small>{nextTestimonial.location}</small>
+        </div>
       </div>
     </section>
   );

@@ -924,10 +924,11 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
   });
   const [showResult, setShowResult] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const resultSectionRef = useRef<HTMLElement | null>(null);
+  const experienceSectionRef = useRef<HTMLElement | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const transitionTokenRef = useRef(0);
-  const activeStep = questionnaireSteps[currentStep];
+  const safeCurrentStep = Math.min(Math.max(currentStep, 0), questionnaireSteps.length - 1);
+  const activeStep = questionnaireSteps[safeCurrentStep];
   const activeAnswer = answers[activeStep.id];
   const isPreferenceStep = activeStep.id === "preferences";
   const selectedPreferenceLabels = questionnaireSteps[3].options
@@ -976,7 +977,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
     if (!showResult) return;
 
     const scrollFrame = window.requestAnimationFrame(() => {
-      resultSectionRef.current?.scrollIntoView({
+      experienceSectionRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
@@ -1095,7 +1096,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
       [activeStep.id]:
         activeStep.id === "preferences" ? [...answers.preferences] : answers[activeStep.id],
     } as QuestionnaireAnswers;
-    const isFinalStep = currentStep === questionnaireSteps.length - 1;
+    const isFinalStep = safeCurrentStep === questionnaireSteps.length - 1;
 
     setConfirmedAnswers(nextConfirmedAnswers);
 
@@ -1119,23 +1120,30 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
       return;
     }
 
-    const nextVisualCategory = getVisualCategoryForStep(currentStep, nextConfirmedAnswers);
+    const nextVisualCategory = getVisualCategoryForStep(safeCurrentStep, nextConfirmedAnswers);
 
     if (nextVisualCategory) {
       updateDisplayedCategory(nextVisualCategory);
     }
 
-    const nextStep = Math.min(questionnaireSteps.length - 1, currentStep + 1);
+    const nextStep = Math.min(questionnaireSteps.length - 1, safeCurrentStep + 1);
     setCurrentStep(nextStep);
   };
 
   const handleBack = () => {
     if (showResult) {
+      setCurrentStep(Math.max(questionnaireSteps.length - 1, 0));
       setShowResult(false);
+      window.requestAnimationFrame(() => {
+        experienceSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
       return;
     }
 
-    setCurrentStep(Math.max(0, currentStep - 1));
+    setCurrentStep(Math.max(0, safeCurrentStep - 1));
   };
 
   const handleRestart = () => {
@@ -1161,6 +1169,12 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
     setShowResult(false);
     setDisplayedCategory("esporte");
     setIsTransitioning(false);
+    window.requestAnimationFrame(() => {
+      experienceSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   };
 
   const destinations = getDestinationsForCategory(displayedCategory);
@@ -1168,7 +1182,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
   if (showResult) {
     return (
       <section
-        ref={resultSectionRef}
+        ref={experienceSectionRef}
         id="destinations"
         className="showcase showcase--result section is-visible"
       >
@@ -1264,7 +1278,11 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
   }
 
   return (
-    <section id="destinations" className="showcase section reveal">
+    <section
+      ref={experienceSectionRef}
+      id="destinations"
+      className="showcase section reveal is-visible"
+    >
       <div className="showcase-copy">
         <h2>Experiência sem complicação</h2>
         <p>
