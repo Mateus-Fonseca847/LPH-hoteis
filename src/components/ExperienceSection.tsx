@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { experienceDestinations, type ExperienceKey } from "@/data/experience-destinations";
+import type { PublishedHotelCard } from "@/lib/hotel-data";
+import {
+  getProfileExperienceMatches,
+  type ProfileTouristAttraction,
+} from "@/lib/profile-recommendations";
 
 type QuestionnaireStepId = "experience-type" | "travel-company" | "budget" | "preferences";
 type BudgetKey = "economico" | "intermediario" | "confortavel" | "premium" | "a-definir";
@@ -57,6 +62,10 @@ type ExperienceVisualImageProps = {
   alt: string;
   sizes: string;
   priority?: boolean;
+};
+
+type ExperienceSectionProps = {
+  hotels: PublishedHotelCard[];
 };
 
 const experienceOptions: Array<QuestionnaireOption & { experienceKey: ExperienceKey }> = [
@@ -762,8 +771,6 @@ const getOptionLabel = (stepId: QuestionnaireStepId, key: string | null) => {
   );
 };
 
-const getSearchHref = (query: string) => `/buscar?destino=${encodeURIComponent(query)}`;
-
 const getDestinationsForCategory = (category: VisualSuggestionKey) =>
   category in preferenceSuggestions
     ? preferenceSuggestions[category as PreferenceKey]
@@ -815,6 +822,71 @@ function ExperienceVisualImage({ src, alt, sizes, priority = false }: Experience
   );
 }
 
+function AttractionIcon({ iconType }: { iconType: ProfileTouristAttraction["iconType"] }) {
+  if (iconType === "beach") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M3 18.5c2 1.1 4 1.1 6 0s4-1.1 6 0 4 1.1 6 0" />
+        <path d="M4 14.5c2 1.1 4 1.1 6 0s4-1.1 6 0 4 1.1 6 0" />
+        <path d="M12 3v8" />
+        <path d="M7 8c1.5-3 4.7-4.4 8-3.3" />
+        <path d="M17 8c-1.5-3-4.7-4.4-8-3.3" />
+      </svg>
+    );
+  }
+
+  if (iconType === "nature") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 21v-8" />
+        <path d="M7 13c-2.8-1.8-3.3-5.6-1-8 3.4.3 5.8 2.5 6 6" />
+        <path d="M17 13c2.8-1.8 3.3-5.6 1-8-3.4.3-5.8 2.5-6 6" />
+      </svg>
+    );
+  }
+
+  if (iconType === "food") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M7 3v8" />
+        <path d="M4.5 3v5.5A2.5 2.5 0 0 0 7 11a2.5 2.5 0 0 0 2.5-2.5V3" />
+        <path d="M7 11v10" />
+        <path d="M17 3c-2 1.8-3 4.2-3 7v3h5V3" />
+        <path d="M17 13v8" />
+      </svg>
+    );
+  }
+
+  if (iconType === "shopping") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M6 8h12l1 13H5L6 8Z" />
+        <path d="M9 8a3 3 0 0 1 6 0" />
+      </svg>
+    );
+  }
+
+  if (iconType === "business") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4 21V7l8-4 8 4v14" />
+        <path d="M9 21v-7h6v7" />
+        <path d="M8 9h.01" />
+        <path d="M12 9h.01" />
+        <path d="M16 9h.01" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 21s7-5.2 7-11a7 7 0 0 0-14 0c0 5.8 7 11 7 11Z" />
+      <path d="M12 10.5h.01" />
+      <path d="M9 17h6" />
+    </svg>
+  );
+}
+
 const getRecommendations = (answers: QuestionnaireAnswers) => {
   const recommendations = answers.preferences.map(
     (preference) => preferenceRecommendations[preference]
@@ -835,7 +907,7 @@ const getRecommendations = (answers: QuestionnaireAnswers) => {
     .slice(0, 3);
 };
 
-export function ExperienceSection() {
+export function ExperienceSection({ hotels }: ExperienceSectionProps) {
   const [displayedCategory, setDisplayedCategory] = useState<VisualSuggestionKey>("esporte");
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<QuestionnaireAnswers>({
@@ -862,7 +934,10 @@ export function ExperienceSection() {
     .filter((option) => confirmedAnswers.preferences.includes(option.key as PreferenceKey))
     .map((option) => option.label);
   const primaryPreferenceLabels = selectedPreferenceLabels.slice(0, 4);
-  const resultRecommendations = getRecommendations(confirmedAnswers);
+  const resultRecommendations = getProfileExperienceMatches({
+    recommendations: getRecommendations(confirmedAnswers),
+    hotels,
+  });
   const resultSummary = [
     {
       label: "Experiência",
@@ -1115,26 +1190,47 @@ export function ExperienceSection() {
           <div className="showcase-gallery experience-recommendations">
             {resultRecommendations.map((recommendation, index) => (
               <Link
-                key={recommendation.key}
+                key={recommendation.experience.key}
                 className="experience-recommendation-card experience-card"
                 data-card-index={index}
-                href={getSearchHref(recommendation.query)}
+                href={recommendation.href}
               >
                 <div className="experience-recommendation-card__image">
                   <ExperienceVisualImage
                     src={recommendation.image}
-                    alt={recommendation.alt}
+                    alt={
+                      recommendation.hotel
+                        ? `${recommendation.hotel.name} em ${recommendation.hotel.city}`
+                        : recommendation.experience.alt
+                    }
                     sizes="(max-width: 720px) 100vw, (max-width: 1180px) 50vw, 33vw"
                   />
                 </div>
                 <div className="experience-recommendation-card__body">
                   <span className="experience-recommendation-card__eyebrow">
-                    {recommendation.location}
+                    {recommendation.destinationCity}, {recommendation.destinationState}
                   </span>
-                  <strong>{recommendation.title}</strong>
-                  <p>{recommendation.reason}</p>
+                  <strong>{recommendation.experience.title}</strong>
+                  <p>{recommendation.experience.reason}</p>
+                  <div className="experience-recommendation-hotel">
+                    <span>{recommendation.hotel ? "Hotel recomendado" : "Destino sugerido"}</span>
+                    <strong>{recommendation.matchLabel}</strong>
+                  </div>
+                  {recommendation.touristAttractions.length > 0 ? (
+                    <div className="experience-attractions" aria-label="Pontos turísticos próximos">
+                      {recommendation.touristAttractions.slice(0, 3).map((attraction) => (
+                        <span key={`${recommendation.experience.key}-${attraction.name}`}>
+                          <AttractionIcon iconType={attraction.iconType} />
+                          <span>
+                            <strong>{attraction.name}</strong>
+                            {attraction.approximateDistanceLabel}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   <span className="card-cta-button experience-recommendation-card__link">
-                    Ver hospedagem
+                    {recommendation.ctaLabel}
                   </span>
                 </div>
               </Link>
@@ -1212,7 +1308,7 @@ export function ExperienceSection() {
           <ExperienceVisualImage
             src={destinations[0].image}
             alt={destinations[0].alt}
-            sizes="(max-width: 900px) 100vw, 46vw"
+            sizes="(max-width: 820px) 100vw, (max-width: 1180px) 58vw, 38vw"
             priority
           />
           <div className="gallery-caption">
@@ -1231,7 +1327,7 @@ export function ExperienceSection() {
               <ExperienceVisualImage
                 src={destination.image}
                 alt={destination.alt}
-                sizes="(max-width: 900px) 100vw, 260px"
+                sizes="(max-width: 820px) 100vw, (max-width: 1180px) 34vw, 24vw"
               />
               <div className="gallery-caption">
                 <strong>{destination.title}</strong>

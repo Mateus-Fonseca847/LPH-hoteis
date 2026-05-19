@@ -21,7 +21,7 @@ export default async function HomePage() {
       <main id="top">
         <Hero />
         <HotelsCarousel hotels={hotels} />
-        <ExperienceSection />
+        <ExperienceSection hotels={hotels} />
         <TestimonialsSection />
         <StayDetailsSection />
       </main>

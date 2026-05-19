@@ -2662,11 +2662,13 @@ button {
   grid-column: 2;
   grid-row: 1 / span 2;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.9fr);
   gap: 16px;
   align-items: stretch;
+  height: 560px;
   min-width: 0;
-  min-height: 560px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .experience-recommendations {
@@ -2719,7 +2721,7 @@ button {
 
 .experience-recommendation-card {
   position: relative;
-  min-height: 520px;
+  min-height: 620px;
   display: grid;
   align-items: end;
   overflow: hidden;
@@ -2809,6 +2811,82 @@ button {
   text-wrap: pretty;
 }
 
+.experience-recommendation-hotel {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.experience-recommendation-hotel > span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.experience-recommendation-hotel strong {
+  color: var(--surface);
+  font-family: var(--font-manrope), sans-serif;
+  font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.experience-attractions {
+  display: grid;
+  gap: 8px;
+}
+
+.experience-attractions > span {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.experience-attractions svg {
+  width: 30px;
+  height: 30px;
+  padding: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  stroke: var(--surface);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.experience-attractions span span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.experience-attractions span strong {
+  overflow: hidden;
+  color: var(--surface);
+  font-family: var(--font-manrope), sans-serif;
+  font-size: 0.84rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .experience-recommendation-card__link {
   width: 100%;
   min-width: 0;
@@ -2823,8 +2901,8 @@ button {
 .gallery-card {
   position: relative;
   aspect-ratio: 16 / 10;
-  min-height: 272px;
-  height: 272px;
+  min-height: 0;
+  height: 100%;
   border-radius: 28px;
   overflow: hidden;
   transition:
@@ -2835,13 +2913,13 @@ button {
 
 .gallery-card.large,
 .experience-card--featured {
-  min-height: 560px;
-  height: 560px;
+  min-height: 0;
+  height: 100%;
 }
 
 .experience-card--small {
-  min-height: 272px;
-  height: 272px;
+  min-height: 0;
+  height: 100%;
 }
 
 .experience-card[data-card-index="1"] {
@@ -2902,6 +2980,9 @@ button {
   display: grid;
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 16px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .testimonials {
@@ -7024,7 +7105,8 @@ button {
   .showcase-gallery {
     grid-column: 1;
     grid-row: auto;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1.35fr) minmax(220px, 0.9fr);
+    height: 460px;
     min-height: 0;
   }
 
@@ -7098,25 +7180,25 @@ button {
   }
 
   .gallery-side {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: none;
-    align-content: initial;
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    align-content: stretch;
   }
 
   .experience-card--featured,
   .gallery-card.large {
-    min-height: 420px;
-    height: 420px;
+    min-height: 0;
+    height: 100%;
   }
 
   .experience-recommendation-card {
-    min-height: 480px;
+    min-height: 580px;
   }
 
   .experience-card--small,
   .gallery-card {
-    min-height: 250px;
-    height: 250px;
+    min-height: 0;
+    height: 100%;
   }
 
   .details-grid {
@@ -7169,6 +7251,30 @@ button {
 }
 
 @media (max-width: 820px) {
+  .showcase-gallery {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
+  }
+
+  .gallery-side {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    overflow: visible;
+  }
+
+  .experience-card--featured,
+  .gallery-card.large {
+    min-height: 340px;
+    height: 340px;
+  }
+
+  .experience-card--small,
+  .gallery-card {
+    min-height: 250px;
+    height: 250px;
+  }
+
   .experience-recommendations {
     grid-template-columns: 1fr;
   }
@@ -7198,7 +7304,7 @@ button {
   }
 
   .experience-recommendation-card {
-    min-height: 430px;
+    min-height: 560px;
     border-radius: 28px;
   }
 
@@ -7594,6 +7700,12 @@ button {
   .gallery-card.large,
   .experience-card--small,
   .gallery-card {
+    min-height: 220px;
+    height: 220px;
+  }
+
+  .experience-card--featured,
+  .gallery-card.large {
     min-height: 320px;
     height: 320px;
   }
@@ -7753,7 +7865,6 @@ button {
     gap: 20px;
   }
 
-  .gallery-card,
   .gallery-card.large {
     min-height: 320px;
   }
