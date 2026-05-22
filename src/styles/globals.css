@@ -2567,26 +2567,17 @@ button {
 }
 
 .experience-result-chips span {
-  min-height: 34px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
+  padding: 0 16px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(6, 41, 79, 0.08);
-  color: var(--brand);
-  font-size: 0.82rem;
-  font-weight: 850;
+  background: var(--brand);
+  color: var(--surface);
+  font-size: 0.86rem;
+  font-weight: 900;
   line-height: 1.2;
-  box-shadow: 0 10px 22px rgba(10, 27, 52, 0.04);
-}
-
-.experience-result-chips strong {
-  color: var(--muted);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  box-shadow: 0 12px 24px rgba(10, 27, 52, 0.12);
 }
 
 .experience-result > strong {
@@ -2729,11 +2720,16 @@ button {
   min-height: 620px;
   display: grid;
   align-items: end;
+  width: 100%;
+  padding: 0;
   overflow: hidden;
   border: 1px solid rgba(6, 41, 79, 0.08);
   border-radius: 34px;
   background: var(--brand);
   color: var(--surface);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
   box-shadow: 0 24px 58px rgba(10, 27, 52, 0.14);
   isolation: isolate;
   transition:
@@ -2742,6 +2738,11 @@ button {
     border-color 0.28s ease,
     box-shadow 0.28s ease;
   animation: experienceCardEnter 0.38s ease both;
+}
+
+.experience-recommendation-card:focus-visible {
+  outline: 3px solid rgba(230, 194, 0, 0.82);
+  outline-offset: 4px;
 }
 
 .experience-recommendation-card::after {
@@ -2901,6 +2902,199 @@ button {
   color: var(--brand);
   pointer-events: none;
   box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
+}
+
+.experience-hotels-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 4vw, 42px);
+  background: rgba(6, 41, 79, 0.58);
+  backdrop-filter: blur(12px);
+}
+
+.experience-hotels-dialog {
+  width: min(940px, 100%);
+  max-height: min(760px, 90dvh);
+  display: grid;
+  gap: 22px;
+  overflow: auto;
+  padding: clamp(22px, 3vw, 34px);
+  border: 1px solid rgba(6, 41, 79, 0.08);
+  border-radius: 34px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 241, 234, 0.98));
+  box-shadow: 0 32px 90px rgba(10, 27, 52, 0.28);
+}
+
+.experience-hotels-dialog:focus {
+  outline: none;
+}
+
+.experience-hotels-dialog__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: start;
+}
+
+.experience-hotels-dialog__header span {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 10px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(6, 41, 79, 0.08);
+  color: var(--brand);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.experience-hotels-dialog__header h3 {
+  margin: 0;
+  color: var(--brand);
+  font-family: var(--font-sora), sans-serif;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.065em;
+}
+
+.experience-hotels-dialog__header p {
+  max-width: 680px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.experience-hotels-dialog__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(6, 41, 79, 0.12);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--brand);
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.experience-hotels-dialog__close:hover,
+.experience-hotels-dialog__close:focus-visible {
+  background: var(--brand);
+  color: var(--surface);
+  outline: none;
+}
+
+.experience-hotels-list {
+  display: grid;
+  gap: 14px;
+}
+
+.experience-hotel-option {
+  display: grid;
+  grid-template-columns: minmax(180px, 230px) minmax(0, 1fr);
+  gap: 18px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(6, 41, 79, 0.08);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 34px rgba(10, 27, 52, 0.06);
+}
+
+.experience-hotel-option__media {
+  position: relative;
+  min-height: 170px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(6, 41, 79, 0.12), rgba(230, 194, 0, 0.18));
+}
+
+.experience-hotel-option__media img {
+  object-fit: cover;
+}
+
+.experience-hotel-option__media span {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  padding: 18px;
+  color: var(--brand);
+  font-weight: 900;
+  text-align: center;
+}
+
+.experience-hotel-option__body {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px 6px 0;
+}
+
+.experience-hotel-option__body > span {
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(6, 41, 79, 0.08);
+  color: var(--brand);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.experience-hotel-option__body strong {
+  color: var(--brand);
+  font-family: var(--font-sora), sans-serif;
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.experience-hotel-option__body p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.experience-hotel-option__link {
+  width: fit-content;
+  min-height: 44px;
+  margin-top: 6px;
+}
+
+.experience-hotels-empty {
+  display: grid;
+  gap: 10px;
+  padding: 24px;
+  border: 1px solid rgba(6, 41, 79, 0.08);
+  border-radius: 24px;
+  background: rgba(6, 41, 79, 0.04);
+}
+
+.experience-hotels-empty strong {
+  color: var(--brand);
+  font-family: var(--font-sora), sans-serif;
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.experience-hotels-empty p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .gallery-card {
@@ -3225,6 +3419,7 @@ button {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 18px;
+  overflow: visible;
 }
 
 .detail-card {
@@ -3236,6 +3431,12 @@ button {
   flex-direction: column;
   justify-content: center;
   gap: 14px;
+  z-index: 0;
+  transform-origin: center;
+  transition:
+    transform 0.28s ease,
+    box-shadow 0.28s ease,
+    background-color 0.28s ease;
 }
 
 .detail-card p {
@@ -3247,6 +3448,16 @@ button {
 .detail-card.image-card {
   padding: 0;
   overflow: hidden;
+}
+
+.detail-card:hover {
+  z-index: 2;
+  transform: translateY(-6px) scale(1.03);
+}
+
+.detail-card:focus-within {
+  z-index: 2;
+  transform: translateY(-4px) scale(1.02);
 }
 
 .dark-panel {
@@ -7245,6 +7456,15 @@ button {
     transform: none;
   }
 
+  .detail-card {
+    transition: none;
+  }
+
+  .detail-card:hover,
+  .detail-card:focus-within {
+    transform: none;
+  }
+
   .testimonial-slider {
     overflow-x: auto;
     scrollbar-width: none;
@@ -7401,6 +7621,10 @@ button {
     min-height: 580px;
   }
 
+  .experience-hotels-dialog {
+    max-height: 88dvh;
+  }
+
   .experience-card--small,
   .gallery-card {
     min-height: 0;
@@ -7409,6 +7633,10 @@ button {
 
   .details-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .detail-card:hover {
+    transform: translateY(-4px) scale(1.015);
   }
 
   .hotel-hero-layout,
@@ -7509,12 +7737,42 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .experience-hotels-modal {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .experience-hotels-dialog {
+    max-height: 92dvh;
+    border-radius: 28px;
+  }
+
+  .experience-hotel-option {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-hotel-option__media {
+    min-height: 220px;
+  }
+
   .showcase--result {
     gap: 20px;
   }
 
   .showcase--result .experience-recommendations {
     grid-template-columns: 1fr;
+  }
+
+  .experience-hotels-dialog {
+    padding: 20px;
+  }
+
+  .experience-hotels-dialog__header {
+    grid-template-columns: 1fr auto;
+  }
+
+  .experience-hotel-option__media {
+    min-height: 190px;
   }
 
   .experience-result-hero {
@@ -8117,6 +8375,11 @@ button {
   .gallery-side,
   .details-grid {
     grid-template-columns: 1fr;
+  }
+
+  .detail-card:hover,
+  .detail-card:focus-within {
+    transform: translateY(-2px);
   }
 
   .quote-card p {

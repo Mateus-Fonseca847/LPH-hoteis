@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 
 import { experienceDestinations, type ExperienceKey } from "@/data/experience-destinations";
 import type { PublishedHotelCard } from "@/lib/hotel-data";
 import {
   getProfileExperienceMatches,
+  type ProfileExperienceMatch,
   type ProfileTouristAttraction,
 } from "@/lib/profile-recommendations";
 
@@ -55,6 +56,8 @@ type Recommendation = {
   image: string;
   alt: string;
   query: string;
+  destinationCity?: string;
+  destinationState?: string;
 };
 
 type ExperienceVisualImageProps = {
@@ -67,6 +70,8 @@ type ExperienceVisualImageProps = {
 type ExperienceSectionProps = {
   hotels: PublishedHotelCard[];
 };
+
+type ExperienceRecommendationMatch = ProfileExperienceMatch<Recommendation>;
 
 const experienceOptions: Array<QuestionnaireOption & { experienceKey: ExperienceKey }> = [
   { key: "esporte", label: "Esporte" },
@@ -138,6 +143,39 @@ const travelCompanyVisuals: Record<string, ExperienceKey> = {
   trabalho: "negocios",
 };
 
+const experienceDestinationMetadata: Record<
+  string,
+  {
+    city: string;
+    state: string;
+  }
+> = {
+  "Trilha na Serra dos Órgãos": { city: "Teresópolis", state: "RJ" },
+  "Surf em Saquarema": { city: "Saquarema", state: "RJ" },
+  "Kitesurf em Jericoacoara": { city: "Jijoca de Jericoacoara", state: "CE" },
+  "Noites de Bossa no Rio": { city: "Rio de Janeiro", state: "RJ" },
+  "Forró em Recife": { city: "Recife", state: "PE" },
+  "Jazz e charme em Paraty": { city: "Paraty", state: "RJ" },
+  "Festival de Cinema de Gramado": { city: "Gramado", state: "RS" },
+  "Mostras culturais em São Paulo": { city: "São Paulo", state: "SP" },
+  "Cine ao ar livre em Brasília": { city: "Brasília", state: "DF" },
+  "Refúgio em Gramado": { city: "Gramado", state: "RS" },
+  "Pousadas em Tiradentes": { city: "Tiradentes", state: "MG" },
+  "Lago Sul em Brasília": { city: "Brasília", state: "DF" },
+  "Sabores de Belo Horizonte": { city: "Belo Horizonte", state: "MG" },
+  "Restaurantes em São Paulo": { city: "São Paulo", state: "SP" },
+  "Culinária em Salvador": { city: "Salvador", state: "BA" },
+  "Chapada dos Veadeiros": { city: "Alto Paraíso de Goiás", state: "GO" },
+  "Amazônia em Manaus": { city: "Manaus", state: "AM" },
+  "Praias de Garopaba": { city: "Garopaba", state: "SC" },
+  "Família em Olímpia": { city: "Olímpia", state: "SP" },
+  "Gramado com crianças": { city: "Gramado", state: "RS" },
+  "Praia do Forte": { city: "Mata de São João", state: "BA" },
+  "São Paulo executivo": { city: "São Paulo", state: "SP" },
+  "Brasília objetiva": { city: "Brasília", state: "DF" },
+  "Eventos em Recife": { city: "Recife", state: "PE" },
+};
+
 const fallbackRecommendation: Recommendation = {
   key: "fallback-rio",
   title: "Rio com localização prática",
@@ -147,89 +185,6 @@ const fallbackRecommendation: Recommendation = {
     "https://images.unsplash.com/photo-1504609773096-104ff2c73ba4?auto=format&fit=crop&w=1200&q=80",
   alt: "Vista urbana do Rio de Janeiro",
   query: "Rio de Janeiro RJ",
-};
-
-const experienceRecommendations: Record<ExperienceKey, Recommendation> = {
-  esporte: {
-    key: "esporte-serra",
-    title: "Serra dos Órgãos ativa",
-    location: "Teresópolis, RJ",
-    reason: "Combina hospedagem confortável com trilhas, montanhas e natureza por perto.",
-    image:
-      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80",
-    alt: "Montanhas na Serra dos Órgãos",
-    query: "Teresópolis RJ",
-  },
-  musica: {
-    key: "musica-rio",
-    title: "Noites culturais no Rio",
-    location: "Rio de Janeiro, RJ",
-    reason: "Boa escolha para ficar perto de bares, shows e programação noturna.",
-    image:
-      "https://images.unsplash.com/photo-1504609773096-104ff2c73ba4?auto=format&fit=crop&w=1200&q=80",
-    alt: "Vista noturna urbana no Rio de Janeiro",
-    query: "Rio de Janeiro RJ",
-  },
-  cinema: {
-    key: "cinema-gramado",
-    title: "Gramado cultural",
-    location: "Gramado, RS",
-    reason: "Une clima de serra, boa hotelaria e experiências culturais no centro.",
-    image:
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
-    alt: "Hospedagem aconchegante em Gramado",
-    query: "Gramado RS",
-  },
-  descanso: {
-    key: "descanso-tiradentes",
-    title: "Pausa em Tiradentes",
-    location: "Tiradentes, MG",
-    reason: "Ritmo tranquilo, charme histórico e estadias acolhedoras.",
-    image:
-      "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1200&q=80",
-    alt: "Rua histórica em Tiradentes",
-    query: "Tiradentes MG",
-  },
-  gastronomia: {
-    key: "gastronomia-bh",
-    title: "Sabores de Belo Horizonte",
-    location: "Belo Horizonte, MG",
-    reason: "Ideal para quem quer colocar restaurantes, bares e mercados no roteiro.",
-    image:
-      "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1200&q=80",
-    alt: "Restaurante acolhedor em Belo Horizonte",
-    query: "Belo Horizonte MG",
-  },
-  natureza: {
-    key: "natureza-chapada",
-    title: "Natureza na Chapada",
-    location: "Alto Paraíso, GO",
-    reason: "Cachoeiras, trilhas e hospedagens para desacelerar ao ar livre.",
-    image:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
-    alt: "Paisagem natural na Chapada",
-    query: "Alto Paraíso GO",
-  },
-  familia: {
-    key: "familia-olimpia",
-    title: "Família em Olímpia",
-    location: "Olímpia, SP",
-    reason: "Estrutura de lazer e hospedagens práticas para viajar com crianças.",
-    image:
-      "https://images.unsplash.com/photo-1563911302283-d2bc129e7570?auto=format&fit=crop&w=1200&q=80",
-    alt: "Área de lazer familiar com piscina",
-    query: "Olímpia SP",
-  },
-  negocios: {
-    key: "negocios-sp",
-    title: "São Paulo objetiva",
-    location: "São Paulo, SP",
-    reason: "Localização estratégica, mobilidade e serviços úteis para agenda cheia.",
-    image:
-      "https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?auto=format&fit=crop&w=1200&q=80",
-    alt: "Quarto contemporâneo para viagem de negócios",
-    query: "São Paulo SP",
-  },
 };
 
 const preferenceRecommendations: Record<PreferenceKey, Recommendation> = {
@@ -778,6 +733,32 @@ const getDestinationsForCategory = (category: VisualSuggestionKey) =>
       ? budgetSuggestions[category as BudgetKey]
       : experienceDestinations[category as ExperienceKey];
 
+const getExperienceDestinationRecommendations = (experienceKey: ExperienceKey): Recommendation[] =>
+  experienceDestinations[experienceKey].reduce<Recommendation[]>(
+    (recommendations, destination, index) => {
+      const metadata = experienceDestinationMetadata[destination.title];
+
+      if (!metadata) {
+        return recommendations;
+      }
+
+      recommendations.push({
+        key: `destination-${experienceKey}-${index}`,
+        title: destination.title,
+        location: `${metadata.city}, ${metadata.state}`,
+        reason: destination.description,
+        image: destination.image,
+        alt: destination.alt,
+        query: `${metadata.city} ${metadata.state}`,
+        destinationCity: metadata.city,
+        destinationState: metadata.state,
+      });
+
+      return recommendations;
+    },
+    []
+  );
+
 const preloadImages = async (sources: string[]) => {
   await Promise.allSettled(
     sources.map(
@@ -894,7 +875,7 @@ const getRecommendations = (answers: QuestionnaireAnswers) => {
   const experienceKey = answers["experience-type"] as ExperienceKey | null;
 
   if (experienceKey) {
-    recommendations.push(experienceRecommendations[experienceKey]);
+    recommendations.unshift(...getExperienceDestinationRecommendations(experienceKey));
   }
 
   recommendations.push(fallbackRecommendation);
@@ -924,9 +905,14 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
   });
   const [showResult, setShowResult] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [selectedExperience, setSelectedExperience] =
+    useState<ExperienceRecommendationMatch | null>(null);
   const experienceSectionRef = useRef<HTMLElement | null>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const transitionTokenRef = useRef(0);
+  const modalTitleId = useId();
   const safeCurrentStep = Math.min(Math.max(currentStep, 0), questionnaireSteps.length - 1);
   const activeStep = questionnaireSteps[safeCurrentStep];
   const activeAnswer = answers[activeStep.id];
@@ -951,7 +937,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
     { label: "Orçamento", value: getOptionLabel("budget", confirmedAnswers.budget) },
     {
       label: "Preferências",
-      value: primaryPreferenceLabels.length > 0 ? primaryPreferenceLabels.join(", ") : "A definir",
+      value: primaryPreferenceLabels.length > 0 ? primaryPreferenceLabels.join(", ") : null,
     },
   ];
   const canContinue =
@@ -985,6 +971,27 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
 
     return () => window.cancelAnimationFrame(scrollFrame);
   }, [showResult]);
+
+  useEffect(() => {
+    if (!selectedExperience) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedExperience(null);
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    window.requestAnimationFrame(() => modalRef.current?.focus());
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+      openerRef.current?.focus();
+    };
+  }, [selectedExperience]);
 
   const updateDisplayedCategory = (nextExperience: VisualSuggestionKey) => {
     if (isTransitioning || nextExperience === displayedCategory) return;
@@ -1167,6 +1174,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
     });
     setCurrentStep(0);
     setShowResult(false);
+    setSelectedExperience(null);
     setDisplayedCategory("esporte");
     setIsTransitioning(false);
     window.requestAnimationFrame(() => {
@@ -1175,6 +1183,14 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
         block: "start",
       });
     });
+  };
+
+  const handleExperienceOpen = (
+    recommendation: ExperienceRecommendationMatch,
+    event: MouseEvent<HTMLButtonElement>
+  ) => {
+    openerRef.current = event.currentTarget;
+    setSelectedExperience(recommendation);
   };
 
   const destinations = getDestinationsForCategory(displayedCategory);
@@ -1191,23 +1207,24 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
           <h2>Experiências para o seu perfil</h2>
           <p>Selecionamos opções alinhadas às preferências que você escolheu.</p>
           <div className="experience-result-chips" aria-label="Resumo do perfil">
-            {resultSummary.map((item) => (
-              <span key={item.label}>
-                <strong>{item.label}</strong>
-                {item.value}
-              </span>
-            ))}
+            {resultSummary
+              .filter((item) => item.value)
+              .map((item) => (
+                <span key={item.label}>{item.value}</span>
+              ))}
           </div>
         </div>
 
         {resultRecommendations.length > 0 ? (
           <div className="showcase-gallery experience-recommendations">
             {resultRecommendations.map((recommendation, index) => (
-              <Link
+              <button
                 key={recommendation.experience.key}
+                type="button"
                 className="experience-recommendation-card experience-card"
                 data-card-index={index}
-                href={recommendation.href}
+                onClick={(event) => handleExperienceOpen(recommendation, event)}
+                aria-label={`Ver hotéis próximos para ${recommendation.experience.title}`}
               >
                 <div className="experience-recommendation-card__image">
                   <ExperienceVisualImage
@@ -1247,7 +1264,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
                     {recommendation.ctaLabel}
                   </span>
                 </div>
-              </Link>
+              </button>
             ))}
           </div>
         ) : (
@@ -1273,6 +1290,92 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
             Refazer perfil
           </button>
         </div>
+
+        {selectedExperience ? (
+          <div
+            className="experience-hotels-modal"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setSelectedExperience(null);
+              }
+            }}
+          >
+            <div
+              ref={modalRef}
+              className="experience-hotels-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={modalTitleId}
+              tabIndex={-1}
+            >
+              <div className="experience-hotels-dialog__header">
+                <div>
+                  <span>
+                    {selectedExperience.destinationCity}, {selectedExperience.destinationState}
+                  </span>
+                  <h3 id={modalTitleId}>{selectedExperience.experience.title}</h3>
+                  <p>{selectedExperience.experience.reason}</p>
+                </div>
+                <button
+                  className="experience-hotels-dialog__close"
+                  type="button"
+                  aria-label="Fechar hotéis próximos"
+                  onClick={() => setSelectedExperience(null)}
+                >
+                  ×
+                </button>
+              </div>
+
+              {selectedExperience.hotels.length > 0 ? (
+                <div className="experience-hotels-list">
+                  {selectedExperience.hotels.map(({ hotel, proximityLabel }) => (
+                    <article className="experience-hotel-option" key={hotel.slug}>
+                      <div className="experience-hotel-option__media">
+                        {hotel.coverImageUrl ? (
+                          <Image
+                            src={hotel.coverImageUrl}
+                            alt={hotel.name}
+                            fill
+                            sizes="(max-width: 720px) 92vw, 220px"
+                          />
+                        ) : (
+                          <span>{hotel.name}</span>
+                        )}
+                      </div>
+                      <div className="experience-hotel-option__body">
+                        <span>{proximityLabel}</span>
+                        <strong>{hotel.name}</strong>
+                        <p>
+                          {hotel.shortDescription ||
+                            `${hotel.city}, ${hotel.state} · boa opção para esta experiência.`}
+                        </p>
+                        <Link
+                          className="card-cta-button experience-hotel-option__link"
+                          href={`/hoteis/${hotel.slug}`}
+                        >
+                          Ver hotel
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="experience-hotels-empty" role="status">
+                  <strong>
+                    Ainda não temos uma hospedagem publicada exatamente para este destino.
+                  </strong>
+                  <p>
+                    Você pode explorar outras opções disponíveis enquanto ampliamos a curadoria.
+                  </p>
+                  <Link className="outline-round" href="/buscar">
+                    Explorar hotéis
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
       </section>
     );
   }

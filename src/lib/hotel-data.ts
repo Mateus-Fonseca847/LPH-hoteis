@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 export type PublishedHotelCard = {
   slug: string;
   name: string;
+  shortDescription?: string;
   city: string;
   state: string;
   coverImageUrl: string;
@@ -262,6 +263,7 @@ function mapFallbackCard(hotel: FallbackHotel): PublishedHotelCard {
   return {
     slug: hotel.slug,
     name: hotel.name,
+    shortDescription: hotel.shortDescription,
     city: hotel.city,
     state: hotel.state,
     coverImageUrl: hotel.image,
@@ -336,6 +338,7 @@ export async function getPublishedHotels(): Promise<PublishedHotelCard[]> {
       select: {
         slug: true,
         name: true,
+        shortDescription: true,
         city: true,
         state: true,
         coverImageUrl: true,

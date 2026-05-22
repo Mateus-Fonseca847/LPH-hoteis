@@ -4,6 +4,7 @@ export type ProfileRecommendationHotel = {
   city: string;
   state: string;
   coverImageUrl: string;
+  shortDescription?: string;
 };
 
 export type TouristAttractionIconType =
@@ -41,6 +42,10 @@ export type ProfileExperienceInput = {
 export type ProfileExperienceMatch<TExperience extends ProfileExperienceInput> = {
   experience: TExperience;
   hotel: ProfileRecommendationHotel | null;
+  hotels: Array<{
+    hotel: ProfileRecommendationHotel;
+    proximityLabel: string;
+  }>;
   href: string;
   image: string;
   ctaLabel: string;
@@ -254,6 +259,10 @@ function getDestinationParts(experience: ProfileExperienceInput) {
   };
 }
 
+function hasClearDestination(destination: { city: string; state: string }) {
+  return Boolean(destination.city.trim() && /^[A-Z]{2}$/.test(destination.state.trim()));
+}
+
 function isValidHotelSlug(slug: string) {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
 }
@@ -289,23 +298,44 @@ function scoreHotelMatch(
   return score;
 }
 
-function findCompatibleHotel(
+function getHotelProximityLabel(
+  hotel: ProfileRecommendationHotel,
+  destinationCity: string,
+  destinationState: string
+) {
+  const sameCity =
+    normalizeText(hotel.city) === normalizeText(destinationCity) &&
+    hotel.state.trim().toUpperCase() === destinationState.trim().toUpperCase();
+
+  if (sameCity) {
+    return "Na mesma cidade";
+  }
+
+  if (hotel.state.trim().toUpperCase() === destinationState.trim().toUpperCase()) {
+    return "No mesmo estado";
+  }
+
+  return "Boa opção para esta experiência";
+}
+
+function findCompatibleHotels(
   hotels: ProfileRecommendationHotel[],
   experience: ProfileExperienceInput,
   destinationCity: string,
   destinationState: string
 ) {
-  return (
-    hotels
-      .filter((hotel) => isValidHotelSlug(hotel.slug))
-      .map((hotel) => ({
-        hotel,
-        score: scoreHotelMatch(hotel, experience, destinationCity, destinationState),
-      }))
-      .filter(({ score }) => score > 0)
-      .sort((a, b) => b.score - a.score || a.hotel.name.localeCompare(b.hotel.name))
-      .at(0)?.hotel ?? null
-  );
+  return hotels
+    .filter((hotel) => isValidHotelSlug(hotel.slug))
+    .map((hotel) => ({
+      hotel,
+      score: scoreHotelMatch(hotel, experience, destinationCity, destinationState),
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score || a.hotel.name.localeCompare(b.hotel.name))
+    .map(({ hotel }) => ({
+      hotel,
+      proximityLabel: getHotelProximityLabel(hotel, destinationCity, destinationState),
+    }));
 }
 
 function getAttractions(experience: ProfileExperienceInput, city: string, state: string) {
@@ -327,22 +357,36 @@ export function getProfileExperienceMatches<TExperience extends ProfileExperienc
   recommendations: TExperience[];
   hotels: ProfileRecommendationHotel[];
 }): Array<ProfileExperienceMatch<TExperience>> {
-  return recommendations.map((experience) => {
-    const destination = getDestinationParts(experience);
-    const hotel = findCompatibleHotel(hotels, experience, destination.city, destination.state);
+  return recommendations
+    .map((experience) => {
+      const destination = getDestinationParts(experience);
 
-    return {
-      experience,
-      hotel,
-      href: hotel
-        ? `/hoteis/${hotel.slug}`
-        : `/buscar?destino=${encodeURIComponent(experience.query)}`,
-      image: hotel?.coverImageUrl || experience.image,
-      ctaLabel: hotel ? "Ver hotel" : "Explorar hotéis",
-      destinationCity: destination.city,
-      destinationState: destination.state,
-      touristAttractions: getAttractions(experience, destination.city, destination.state),
-      matchLabel: hotel ? `${hotel.name} · ${hotel.city}, ${hotel.state}` : experience.location,
-    };
-  });
+      if (!hasClearDestination(destination)) {
+        return null;
+      }
+
+      const hotelMatches = findCompatibleHotels(
+        hotels,
+        experience,
+        destination.city,
+        destination.state
+      );
+      const hotel = hotelMatches.at(0)?.hotel ?? null;
+
+      return {
+        experience,
+        hotel,
+        hotels: hotelMatches,
+        href: hotel
+          ? `/hoteis/${hotel.slug}`
+          : `/buscar?destino=${encodeURIComponent(experience.query)}`,
+        image: hotel?.coverImageUrl || experience.image,
+        ctaLabel: hotel ? "Ver opções" : "Explorar hotéis",
+        destinationCity: destination.city,
+        destinationState: destination.state,
+        touristAttractions: getAttractions(experience, destination.city, destination.state),
+        matchLabel: hotel ? `${hotel.name} · ${hotel.city}, ${hotel.state}` : experience.location,
+      } satisfies ProfileExperienceMatch<TExperience>;
+    })
+    .filter((match): match is ProfileExperienceMatch<TExperience> => Boolean(match));
 }
