@@ -48,7 +48,7 @@ export async function POST(request: Request, context: RouteContext) {
     const fileEntry = formData.get("file");
 
     if (!(fileEntry instanceof File)) {
-      throw new ValidationError("Selecione uma imagem valida.");
+      throw new ValidationError("Selecione uma imagem válida.");
     }
 
     const storedImage = await storeHotelImageFile(hotelId, fileEntry);

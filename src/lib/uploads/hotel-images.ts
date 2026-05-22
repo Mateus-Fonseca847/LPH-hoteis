@@ -87,7 +87,7 @@ function sanitizeStorageSegment(value: string, label: string) {
   const sanitized = value.trim();
 
   if (!/^[a-zA-Z0-9_-]{1,191}$/.test(sanitized)) {
-    throw new Error(`${label} invalido para armazenamento.`);
+    throw new Error(`${label} inválido para armazenamento.`);
   }
 
   return sanitized;
@@ -109,7 +109,7 @@ function parseFileName(fileName: string) {
     .filter(Boolean);
 
   if (parts.length < 2) {
-    throw new Error("O arquivo precisa ter uma extensao valida.");
+    throw new Error("O arquivo precisa ter uma extensão válida.");
   }
 
   const baseName = parts[0];
@@ -121,11 +121,11 @@ function parseFileName(fileName: string) {
   }
 
   if (!extension) {
-    throw new Error("O arquivo precisa ter uma extensao valida.");
+    throw new Error("O arquivo precisa ter uma extensão válida.");
   }
 
   if (intermediateExtensions.some((part) => suspiciousExtensions.has(part))) {
-    throw new Error("Nome de arquivo invalido. Remova extensoes suspeitas e tente novamente.");
+    throw new Error("Nome de arquivo inválido. Remova extensões suspeitas e tente novamente.");
   }
 
   return {
@@ -165,7 +165,7 @@ function assertMagicNumber(buffer: Uint8Array, mimeType: string) {
 const localStorageProvider: ImageStorageProvider = {
   async storeHotelImage({ hotelId, buffer, mimeType, extension, size }) {
     const safeHotelId = sanitizeStorageSegment(hotelId, "Hotel");
-    const safeExtension = sanitizeStorageSegment(extension, "Extensao");
+    const safeExtension = sanitizeStorageSegment(extension, "Extensão");
     const fileName = `${randomUUID()}.${safeExtension}`;
     const relativeDir = path.posix.join("uploads", "hotels", safeHotelId);
     const relativePath = path.posix.join(relativeDir, fileName);
@@ -210,7 +210,7 @@ const localStorageProvider: ImageStorageProvider = {
 const externalUrlProvider: ImageStorageProvider = {
   async storeHotelImage() {
     throw new Error(
-      "Storage externo ainda nao configurado. Use UPLOAD_STORAGE_PROVIDER=local com disco persistente ou integre S3/R2/Supabase Storage."
+      "Storage externo ainda não configurado. Use UPLOAD_STORAGE_PROVIDER=local com disco persistente ou integre S3/R2/Supabase Storage."
     );
   },
 
@@ -234,12 +234,12 @@ function getImageStorageProvider(): ImageStorageProvider {
     return externalUrlProvider;
   }
 
-  throw new Error("UPLOAD_STORAGE_PROVIDER invalido. Use local ou external_url.");
+  throw new Error("UPLOAD_STORAGE_PROVIDER inválido. Use local ou external_url.");
 }
 
 export async function validateHotelImageFile(file: File) {
   if (!file || file.size <= 0) {
-    throw new Error("Selecione uma imagem valida.");
+    throw new Error("Selecione uma imagem válida.");
   }
 
   const maxImageSizeBytes = getMaxImageSizeBytes();
@@ -252,11 +252,11 @@ export async function validateHotelImageFile(file: File) {
   const { extension } = parseFileName(file.name);
 
   if (!allowedMimeTypes.has(mimeType)) {
-    throw new Error("Formato invalido. Use JPG, JPEG, PNG ou WEBP.");
+    throw new Error("Formato inválido. Use JPG, JPEG, PNG ou WEBP.");
   }
 
   if (!allowedExtensions.has(extension)) {
-    throw new Error("Extensao invalida. Use JPG, JPEG, PNG ou WEBP.");
+    throw new Error("Extensão inválida. Use JPG, JPEG, PNG ou WEBP.");
   }
 
   const expectedExtension = allowedMimeTypes.get(mimeType);
@@ -265,13 +265,13 @@ export async function validateHotelImageFile(file: File) {
     !expectedExtension ||
     (extension !== expectedExtension && !(mimeType === "image/jpeg" && extension === "jpeg"))
   ) {
-    throw new Error("MIME type e extensao nao correspondem.");
+    throw new Error("MIME type e extensão não correspondem.");
   }
 
   const buffer = new Uint8Array(await file.arrayBuffer());
 
   if (!assertMagicNumber(buffer, mimeType)) {
-    throw new Error("O conteudo do arquivo nao corresponde a uma imagem valida.");
+    throw new Error("O conteúdo do arquivo não corresponde a uma imagem válida.");
   }
 
   return {

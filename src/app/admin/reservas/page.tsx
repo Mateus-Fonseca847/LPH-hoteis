@@ -273,7 +273,7 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
         <article className="hotel-content-card admin-overview-card">
           <span>Aguardando pagamento</span>
           <strong>{awaitingPaymentReservations}</strong>
-          <p>Reservas ainda nao confirmadas.</p>
+          <p>Reservas ainda não confirmadas.</p>
         </article>
       </div>
 
@@ -282,7 +282,7 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
           <label className="admin-form-field">
             <span>Hotel</span>
             <select name="hotelId" defaultValue={selectedHotelId}>
-              <option value="">Todos os hoteis</option>
+              <option value="">Todos os hotéis</option>
               {hotelOptions.map((hotel) => (
                 <option key={hotel.id} value={hotel.id}>
                   {hotel.name}

@@ -12,7 +12,7 @@ const BASIS_POINTS = 10000;
 
 export function calculatePaymentTransactionAmounts(grossAmountCents: number) {
   if (!Number.isInteger(grossAmountCents) || grossAmountCents < 0) {
-    throw new Error("Valor bruto da transacao invalido.");
+    throw new Error("Valor bruto da transação inválido.");
   }
 
   const platformFeeCents = Math.floor(

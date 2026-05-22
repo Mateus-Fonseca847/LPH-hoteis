@@ -31,7 +31,7 @@ describe("admin 2FA rules", () => {
     ).toBe(false);
   });
 
-  it("faz bypass quando 2FA TOTP nao e exigido", () => {
+  it("faz bypass quando 2FA TOTP não é exigido", () => {
     expect(
       getTwoFactorLoginState({
         id: "user-1",

@@ -134,7 +134,7 @@ describe("reservation payment status transitions", () => {
     expect(tx.reservation.updateMany).not.toHaveBeenCalled();
   });
 
-  it("nao confirma quando a disponibilidade configurada nao cobre toda a estadia", async () => {
+  it("não confirma quando a disponibilidade configurada não cobre toda a estadia", async () => {
     createTransactionMock({
       availabilityRows: 1,
     });

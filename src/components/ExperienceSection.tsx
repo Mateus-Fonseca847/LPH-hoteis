@@ -1274,7 +1274,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
           type="button"
           className={cardClassName}
           data-card-index={index}
-          aria-label={`Ver hotÃ©is prÃ³ximos para ${destination.title}`}
+          aria-label={`Ver hotéis próximos para ${destination.title}`}
           onClick={(event) => handleExperienceOpen(match, event)}
         >
           {content}
@@ -1321,10 +1321,10 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
           <button
             className="experience-hotels-dialog__close"
             type="button"
-            aria-label="Fechar hotÃ©is prÃ³ximos"
+            aria-label="Fechar hotéis próximos"
             onClick={() => setSelectedExperience(null)}
           >
-            Ã—
+            ×
           </button>
         </div>
 
@@ -1349,7 +1349,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
                   <strong>{hotel.name}</strong>
                   <p>
                     {hotel.shortDescription ||
-                      `${hotel.city}, ${hotel.state} Â· hospedagem compatÃ­vel com este destino.`}
+                      `${hotel.city}, ${hotel.state} · hospedagem compatível com este destino.`}
                   </p>
                   <Link
                     className="card-cta-button experience-hotel-option__link"
@@ -1363,10 +1363,10 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
           </div>
         ) : (
           <div className="experience-hotels-empty" role="status">
-            <strong>Ainda nÃ£o temos hotÃ©is publicados prÃ³ximos a este destino.</strong>
-            <p>VocÃª pode explorar outras opÃ§Ãµes disponÃ­veis enquanto ampliamos a curadoria.</p>
+            <strong>Ainda não temos hotéis publicados próximos a este destino.</strong>
+            <p>Você pode explorar outras opções disponíveis enquanto ampliamos nossa curadoria.</p>
             <Link className="outline-round" href="/buscar">
-              Explorar hotÃ©is
+              Explorar hotéis
             </Link>
           </div>
         )}
@@ -1527,7 +1527,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
                         <strong>{hotel.name}</strong>
                         <p>
                           {hotel.shortDescription ||
-                            `${hotel.city}, ${hotel.state} · boa opção para esta experiência.`}
+                            `${hotel.city}, ${hotel.state} · hospedagem compatível com este destino.`}
                         </p>
                         <Link
                           className="card-cta-button experience-hotel-option__link"
@@ -1541,11 +1541,9 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
                 </div>
               ) : (
                 <div className="experience-hotels-empty" role="status">
-                  <strong>
-                    Ainda não temos uma hospedagem publicada exatamente para este destino.
-                  </strong>
+                  <strong>Ainda não temos hotéis publicados próximos a este destino.</strong>
                   <p>
-                    Você pode explorar outras opções disponíveis enquanto ampliamos a curadoria.
+                    Você pode explorar outras opções disponíveis enquanto ampliamos nossa curadoria.
                   </p>
                   <Link className="outline-round" href="/buscar">
                     Explorar hotéis

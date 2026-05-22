@@ -24,29 +24,29 @@ describe("hotel image upload validation", () => {
     delete process.env.UPLOAD_STORAGE_PROVIDER;
   });
 
-  it("aceita imagem PNG valida", async () => {
+  it("aceita imagem PNG válida", async () => {
     await expect(validateHotelImageFile(makeFile())).resolves.toMatchObject({
       mimeType: "image/png",
       extension: "png",
     });
   });
 
-  it("rejeita extensao suspeita intermediaria", async () => {
+  it("rejeita extensão suspeita intermediária", async () => {
     await expect(validateHotelImageFile(makeFile({ name: "hotel.php.png" }))).rejects.toThrow(
       "extensoes suspeitas"
     );
   });
 
-  it("rejeita MIME type diferente da extensao", async () => {
+  it("rejeita MIME type diferente da extensão", async () => {
     await expect(
       validateHotelImageFile(makeFile({ name: "hotel.jpg", type: "image/png" }))
-    ).rejects.toThrow("MIME type e extensao");
+    ).rejects.toThrow("MIME type e extensão");
   });
 
-  it("rejeita conteudo que nao corresponde a imagem", async () => {
+  it("rejeita conteúdo que não corresponde a imagem", async () => {
     await expect(
       validateHotelImageFile(makeFile({ bytes: new Uint8Array([1, 2, 3, 4, 5]) }))
-    ).rejects.toThrow("conteudo do arquivo");
+    ).rejects.toThrow("conteúdo do arquivo");
   });
 
   it("respeita limite configurado por UPLOAD_MAX_IMAGE_SIZE_BYTES", async () => {
@@ -55,11 +55,11 @@ describe("hotel image upload validation", () => {
     await expect(validateHotelImageFile(makeFile())).rejects.toThrow("excede o limite");
   });
 
-  it("bloqueia upload quando storage externo ainda nao esta configurado", async () => {
+  it("bloqueia upload quando storage externo ainda não está configurado", async () => {
     process.env.UPLOAD_STORAGE_PROVIDER = "external_url";
 
     await expect(storeHotelImageFile("hotel_12345", makeFile())).rejects.toThrow(
-      "Storage externo ainda nao configurado"
+      "Storage externo ainda não configurado"
     );
   });
 });

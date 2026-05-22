@@ -92,7 +92,7 @@ describe("requireAuthorizedHotelWrite", () => {
     expect(requireEdit).not.toHaveBeenCalled();
   });
 
-  it("retorna 404 quando o hotel esta fora do escopo do admin", async () => {
+  it("retorna 404 quando o hotel está fora do escopo do admin", async () => {
     requireEdit.mockRejectedValue(new AuthorizationError());
 
     await expect(requireAuthorizedHotelWrite("hotel-fora")).rejects.toBeInstanceOf(NotFoundError);

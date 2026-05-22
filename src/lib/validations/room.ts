@@ -49,7 +49,7 @@ const positiveIntField = (label: string, min: number, max: number) =>
     .min(min, `${label} deve ser no mínimo ${min}.`)
     .max(max, `${label} deve ser no máximo ${max}.`);
 
-const urlSchema = z.string().trim().url("URL invalida.").max(500, "URL muito longa.");
+const urlSchema = z.string().trim().url("URL inválida.").max(500, "URL muito longa.");
 
 const roomBedSchema = z
   .string()

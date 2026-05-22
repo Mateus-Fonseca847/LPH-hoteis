@@ -46,7 +46,7 @@ describe("stay-query", () => {
     });
   });
 
-  it("marca indisponivel quando alguma noite esta fechada ou sem unidade", () => {
+  it("marca indisponível quando alguma noite está fechada ou sem unidade", () => {
     expect(
       getRoomStayAvailabilityStatus(
         {
