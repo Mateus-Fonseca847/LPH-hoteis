@@ -3082,18 +3082,12 @@ button {
   width: max-content;
   gap: var(--testimonial-card-gap);
   will-change: transform;
-  animation: testimonialMarquee 42s linear infinite;
 }
 
 .testimonial-slider-group {
   display: flex;
   flex: 0 0 auto;
   gap: var(--testimonial-card-gap);
-}
-
-.testimonial-slider:hover .testimonial-slider-track,
-.testimonial-slider:focus-within .testimonial-slider-track {
-  animation-play-state: paused;
 }
 
 .testimonial-slider:focus-visible {
@@ -3116,6 +3110,29 @@ button {
     var(--surface);
   color: var(--text);
   box-shadow: 0 22px 46px rgba(0, 0, 0, 0.12);
+  transition:
+    width 0.36s ease,
+    opacity 0.28s ease,
+    transform 0.28s ease,
+    border-color 0.28s ease,
+    box-shadow 0.28s ease;
+}
+
+.testimonial-slider:has(.testimonial-slider-card:hover) .testimonial-slider-card:not(:hover),
+.testimonial-slider:has(.testimonial-slider-card:focus-visible)
+  .testimonial-slider-card:not(:focus-visible) {
+  opacity: 0.78;
+  transform: scale(0.97);
+}
+
+.testimonial-slider-card:hover,
+.testimonial-slider-card:focus-visible {
+  z-index: 3;
+  width: clamp(390px, 40vw, 520px);
+  border-color: rgba(230, 194, 0, 0.42);
+  outline: none;
+  transform: scale(1.02);
+  box-shadow: 0 30px 68px rgba(0, 0, 0, 0.2);
 }
 
 .testimonial-slider-card p {
@@ -3130,6 +3147,11 @@ button {
   letter-spacing: -0.035em;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
+}
+
+.testimonial-slider-card:hover p,
+.testimonial-slider-card:focus-visible p {
+  -webkit-line-clamp: 6;
 }
 
 .testimonial-card-author {
@@ -7206,16 +7228,6 @@ button {
   }
 }
 
-@keyframes testimonialMarquee {
-  from {
-    transform: translateX(0);
-  }
-
-  to {
-    transform: translateX(calc(-50% - (var(--testimonial-card-gap) / 2)));
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .hotel-page--enter {
     animation: none;
@@ -7243,7 +7255,6 @@ button {
   }
 
   .testimonial-slider-track {
-    animation: none;
     will-change: auto;
   }
 }
@@ -7452,13 +7463,17 @@ button {
 
   .testimonial-slider-track {
     --testimonial-card-gap: 14px;
-    animation-duration: 38s;
   }
 
   .testimonial-slider-card {
     width: clamp(280px, 78vw, 340px);
     min-height: 238px;
     border-radius: 26px;
+  }
+
+  .testimonial-slider-card:hover,
+  .testimonial-slider-card:focus-visible {
+    width: clamp(300px, 84vw, 360px);
   }
 
   .testimonial-slider::before,

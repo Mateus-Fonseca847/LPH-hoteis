@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+
 type Testimonial = {
   name: string;
   initials: string;
@@ -64,9 +68,15 @@ function TestimonialAvatar({ testimonial }: { testimonial: Testimonial }) {
   );
 }
 
-function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
+function TestimonialCard({
+  testimonial,
+  isInteractive = true,
+}: {
+  testimonial: Testimonial;
+  isInteractive?: boolean;
+}) {
   return (
-    <article className="testimonial-slider-card">
+    <article className="testimonial-slider-card" tabIndex={isInteractive ? 0 : undefined}>
       <div className="testimonial-card-author">
         <TestimonialAvatar testimonial={testimonial} />
         <div>
@@ -81,6 +91,76 @@ function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
 }
 
 export function TestimonialsSection() {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const groupRef = useRef<HTMLDivElement>(null);
+  const targetSpeedRef = useRef(38);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    const group = groupRef.current;
+
+    if (!track || !group) {
+      return;
+    }
+
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let frameId = 0;
+    let lastFrame = performance.now();
+    let offset = 0;
+    let currentSpeed = targetSpeedRef.current;
+    let loopWidth = group.getBoundingClientRect().width + 18;
+
+    const updateLoopWidth = () => {
+      const gap = Number.parseFloat(getComputedStyle(track).columnGap || "18");
+      loopWidth = group.getBoundingClientRect().width + gap;
+      offset %= loopWidth;
+    };
+
+    const animate = (timestamp: number) => {
+      const delta = Math.min(timestamp - lastFrame, 48) / 1000;
+      lastFrame = timestamp;
+      currentSpeed += (targetSpeedRef.current - currentSpeed) * 0.08;
+      offset = (offset + currentSpeed * delta) % loopWidth;
+      track.style.transform = `translate3d(${-offset}px, 0, 0)`;
+      frameId = window.requestAnimationFrame(animate);
+    };
+
+    const start = () => {
+      updateLoopWidth();
+      lastFrame = performance.now();
+      frameId = window.requestAnimationFrame(animate);
+    };
+
+    const stop = () => {
+      window.cancelAnimationFrame(frameId);
+      track.style.transform = "translate3d(0, 0, 0)";
+    };
+
+    const handleMotionChange = () => {
+      stop();
+
+      if (!reducedMotionQuery.matches) {
+        start();
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(updateLoopWidth);
+    resizeObserver.observe(group);
+    resizeObserver.observe(track);
+
+    if (!reducedMotionQuery.matches) {
+      start();
+    }
+
+    reducedMotionQuery.addEventListener("change", handleMotionChange);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+      reducedMotionQuery.removeEventListener("change", handleMotionChange);
+    };
+  }, []);
+
   return (
     <section
       className="testimonials section reveal"
@@ -93,9 +173,27 @@ export function TestimonialsSection() {
         </div>
       </div>
 
-      <div className="testimonial-slider" tabIndex={0} aria-label="Lista contínua de depoimentos">
-        <div className="testimonial-slider-track">
-          <div className="testimonial-slider-group">
+      <div
+        className="testimonial-slider"
+        tabIndex={0}
+        aria-label="Lista contínua de depoimentos"
+        onMouseEnter={() => {
+          targetSpeedRef.current = 8;
+        }}
+        onMouseLeave={() => {
+          targetSpeedRef.current = 38;
+        }}
+        onFocus={() => {
+          targetSpeedRef.current = 8;
+        }}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            targetSpeedRef.current = 38;
+          }
+        }}
+      >
+        <div className="testimonial-slider-track" ref={trackRef}>
+          <div className="testimonial-slider-group" ref={groupRef}>
             {testimonials.map((testimonial) => (
               <TestimonialCard
                 key={`${testimonial.initials}-${testimonial.location}`}
@@ -108,6 +206,7 @@ export function TestimonialsSection() {
               <TestimonialCard
                 key={`duplicate-${testimonial.initials}-${testimonial.location}`}
                 testimonial={testimonial}
+                isInteractive={false}
               />
             ))}
           </div>
