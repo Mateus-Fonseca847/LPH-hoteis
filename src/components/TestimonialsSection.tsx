@@ -1,7 +1,3 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
 type Testimonial = {
   name: string;
   initials: string;
@@ -50,15 +46,15 @@ const testimonials: Testimonial[] = [
     tripType: "Praia",
     quote: "A navegação foi clara e as sugestões ajudaram bastante na escolha do hotel.",
   },
+  {
+    name: "Lucas Ferreira",
+    initials: "LF",
+    location: "Vitória, ES",
+    tripType: "Negócios",
+    quote:
+      "As informações estavam claras e ajudaram a escolher uma hospedagem prática para a rotina da viagem.",
+  },
 ];
-
-function getNextIndex(index: number) {
-  return (index + 1) % testimonials.length;
-}
-
-function getPreviousIndex(index: number) {
-  return (index - 1 + testimonials.length) % testimonials.length;
-}
 
 function TestimonialAvatar({ testimonial }: { testimonial: Testimonial }) {
   return (
@@ -68,19 +64,9 @@ function TestimonialAvatar({ testimonial }: { testimonial: Testimonial }) {
   );
 }
 
-function TestimonialPreviewCard({
-  testimonial,
-  position,
-}: {
-  testimonial: Testimonial;
-  position: "previous" | "next";
-}) {
+function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
   return (
-    <article
-      key={`${position}-${testimonial.name}`}
-      className={`testimonial-preview-card testimonial-preview-card--${position}`}
-      aria-hidden="true"
-    >
+    <article className="testimonial-slider-card">
       <div className="testimonial-card-author">
         <TestimonialAvatar testimonial={testimonial} />
         <div>
@@ -89,52 +75,17 @@ function TestimonialPreviewCard({
         </div>
       </div>
       <p>&quot;{testimonial.quote}&quot;</p>
+      <span className="testimonial-trip-type">{testimonial.tripType}</span>
     </article>
   );
 }
 
 export function TestimonialsSection() {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const activeTestimonial = testimonials[activeIndex];
-  const previousTestimonial = testimonials[getPreviousIndex(activeIndex)];
-  const nextTestimonial = testimonials[getNextIndex(activeIndex)];
-
-  const showPrevious = () => {
-    setActiveIndex((currentIndex) => getPreviousIndex(currentIndex));
-  };
-
-  const showNext = () => {
-    setActiveIndex((currentIndex) => getNextIndex(currentIndex));
-  };
-
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    if (isPaused || prefersReducedMotion) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setActiveIndex((currentIndex) => getNextIndex(currentIndex));
-    }, 6000);
-
-    return () => window.clearInterval(intervalId);
-  }, [isPaused]);
-
   return (
     <section
       className="testimonials section reveal"
       aria-roledescription="carrossel"
       aria-label="Depoimentos de clientes"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      onFocus={() => setIsPaused(true)}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-          setIsPaused(false);
-        }
-      }}
     >
       <div className="testimonial-header">
         <div className="section-heading">
@@ -142,44 +93,25 @@ export function TestimonialsSection() {
         </div>
       </div>
 
-      <div className="testimonial-carousel">
-        <TestimonialPreviewCard testimonial={previousTestimonial} position="previous" />
-
-        <button
-          className="testimonial-nav testimonial-nav--previous"
-          type="button"
-          onClick={showPrevious}
-          aria-label="Comentário anterior"
-        >
-          <span aria-hidden="true">&lt;</span>
-        </button>
-
-        <article
-          key={activeTestimonial.name}
-          className="quote-card testimonial-card-main"
-          aria-live="polite"
-        >
-          <div className="testimonial-card-author">
-            <TestimonialAvatar testimonial={activeTestimonial} />
-            <div>
-              <strong>{activeTestimonial.name}</strong>
-              <span>{activeTestimonial.location}</span>
-            </div>
+      <div className="testimonial-slider" tabIndex={0} aria-label="Lista contínua de depoimentos">
+        <div className="testimonial-slider-track">
+          <div className="testimonial-slider-group">
+            {testimonials.map((testimonial) => (
+              <TestimonialCard
+                key={`${testimonial.initials}-${testimonial.location}`}
+                testimonial={testimonial}
+              />
+            ))}
           </div>
-          <p>&quot;{activeTestimonial.quote}&quot;</p>
-          <span className="testimonial-trip-type">{activeTestimonial.tripType}</span>
-        </article>
-
-        <TestimonialPreviewCard testimonial={nextTestimonial} position="next" />
-
-        <button
-          className="testimonial-nav testimonial-nav--next"
-          type="button"
-          onClick={showNext}
-          aria-label="Próximo comentário"
-        >
-          <span aria-hidden="true">&gt;</span>
-        </button>
+          <div className="testimonial-slider-group" aria-hidden="true">
+            {testimonials.map((testimonial) => (
+              <TestimonialCard
+                key={`duplicate-${testimonial.initials}-${testimonial.location}`}
+                testimonial={testimonial}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );
