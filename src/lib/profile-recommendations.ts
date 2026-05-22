@@ -267,27 +267,30 @@ function isValidHotelSlug(slug: string) {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
 }
 
-function scoreHotelMatch(
+function normalizeState(value: string) {
+  return normalizeText(value).toUpperCase();
+}
+
+function isSameCityAndState(
   hotel: ProfileRecommendationHotel,
-  experience: ProfileExperienceInput,
   destinationCity: string,
   destinationState: string
 ) {
-  const hotelCity = normalizeText(hotel.city);
-  const hotelState = hotel.state.trim().toUpperCase();
-  const city = normalizeText(destinationCity);
-  const state = destinationState.trim().toUpperCase();
+  return (
+    normalizeText(hotel.city) === normalizeText(destinationCity) &&
+    normalizeState(hotel.state) === normalizeState(destinationState)
+  );
+}
+
+function isSameState(hotel: ProfileRecommendationHotel, destinationState: string) {
+  return normalizeState(hotel.state) === normalizeState(destinationState);
+}
+
+function scoreCompatibleHotel(
+  hotel: ProfileRecommendationHotel,
+  experience: ProfileExperienceInput
+) {
   let score = 0;
-
-  if (hotelCity === city && hotelState === state) {
-    score += 100;
-  } else if (hotelState === state && state) {
-    score += 38;
-  }
-
-  if (experience.fallbackHotelSlug && hotel.slug === experience.fallbackHotelSlug) {
-    score += 80;
-  }
 
   if (hotel.coverImageUrl) {
     score += 6;
@@ -324,13 +327,20 @@ function findCompatibleHotels(
   destinationCity: string,
   destinationState: string
 ) {
-  return hotels
-    .filter((hotel) => isValidHotelSlug(hotel.slug))
+  const validHotels = hotels.filter((hotel) => isValidHotelSlug(hotel.slug));
+  const exactCityHotels = validHotels.filter((hotel) =>
+    isSameCityAndState(hotel, destinationCity, destinationState)
+  );
+  const compatibleHotels =
+    exactCityHotels.length > 0
+      ? exactCityHotels
+      : validHotels.filter((hotel) => isSameState(hotel, destinationState));
+
+  return compatibleHotels
     .map((hotel) => ({
       hotel,
-      score: scoreHotelMatch(hotel, experience, destinationCity, destinationState),
+      score: scoreCompatibleHotel(hotel, experience),
     }))
-    .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score || a.hotel.name.localeCompare(b.hotel.name))
     .map(({ hotel }) => ({
       hotel,

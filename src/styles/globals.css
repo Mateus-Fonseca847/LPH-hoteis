@@ -3102,12 +3102,29 @@ button {
   aspect-ratio: 16 / 10;
   min-height: 0;
   height: 100%;
+  padding: 0;
+  border: 0;
   border-radius: 28px;
   overflow: hidden;
+  font: inherit;
+  text-align: left;
   transition:
     opacity 0.28s ease,
     transform 0.28s ease;
   animation: experienceCardEnter 0.38s ease both;
+}
+
+.experience-card--interactive {
+  cursor: pointer;
+}
+
+.experience-card--interactive:hover {
+  transform: translateY(-4px) scale(1.01);
+}
+
+.experience-card--interactive:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.92);
+  outline-offset: 4px;
 }
 
 .showcase-gallery > .gallery-card,

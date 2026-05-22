@@ -4,7 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 
-import { experienceDestinations, type ExperienceKey } from "@/data/experience-destinations";
+import {
+  experienceDestinations,
+  type ExperienceDestination,
+  type ExperienceKey,
+} from "@/data/experience-destinations";
 import type { PublishedHotelCard } from "@/lib/hotel-data";
 import {
   getProfileExperienceMatches,
@@ -733,26 +737,42 @@ const getDestinationsForCategory = (category: VisualSuggestionKey) =>
       ? budgetSuggestions[category as BudgetKey]
       : experienceDestinations[category as ExperienceKey];
 
+const getDestinationRecommendation = (
+  destination: ExperienceDestination,
+  key: string
+): Recommendation | null => {
+  const metadata = experienceDestinationMetadata[destination.title];
+
+  if (!metadata) {
+    return null;
+  }
+
+  return {
+    key,
+    title: destination.title,
+    location: `${metadata.city}, ${metadata.state}`,
+    reason: destination.description,
+    image: destination.image,
+    alt: destination.alt,
+    query: `${metadata.city} ${metadata.state}`,
+    destinationCity: metadata.city,
+    destinationState: metadata.state,
+  };
+};
+
 const getExperienceDestinationRecommendations = (experienceKey: ExperienceKey): Recommendation[] =>
   experienceDestinations[experienceKey].reduce<Recommendation[]>(
     (recommendations, destination, index) => {
-      const metadata = experienceDestinationMetadata[destination.title];
+      const recommendation = getDestinationRecommendation(
+        destination,
+        `destination-${experienceKey}-${index}`
+      );
 
-      if (!metadata) {
+      if (!recommendation) {
         return recommendations;
       }
 
-      recommendations.push({
-        key: `destination-${experienceKey}-${index}`,
-        title: destination.title,
-        location: `${metadata.city}, ${metadata.state}`,
-        reason: destination.description,
-        image: destination.image,
-        alt: destination.alt,
-        query: `${metadata.city} ${metadata.state}`,
-        destinationCity: metadata.city,
-        destinationState: metadata.state,
-      });
+      recommendations.push(recommendation);
 
       return recommendations;
     },
@@ -1194,6 +1214,84 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
   };
 
   const destinations = getDestinationsForCategory(displayedCategory);
+  const getVisualExperienceMatch = (destination: ExperienceDestination, index: number) => {
+    const recommendation = getDestinationRecommendation(
+      destination,
+      `visual-${displayedCategory}-${index}`
+    );
+
+    if (!recommendation) {
+      return null;
+    }
+
+    return (
+      getProfileExperienceMatches({
+        recommendations: [recommendation],
+        hotels,
+      }).at(0) ?? null
+    );
+  };
+
+  const renderVisualCard = (
+    destination: ExperienceDestination,
+    index: number,
+    variant: "featured" | "small"
+  ) => {
+    const match = getVisualExperienceMatch(destination, index);
+    const cardClassName = [
+      "gallery-card",
+      variant === "featured" ? "large" : "",
+      "reveal",
+      "experience-card",
+      variant === "featured" ? "experience-card--featured" : "experience-card--small",
+      match ? "experience-card--interactive" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const imageSizes =
+      variant === "featured"
+        ? "(max-width: 820px) 100vw, (max-width: 1180px) 58vw, 38vw"
+        : "(max-width: 820px) 100vw, (max-width: 1180px) 34vw, 24vw";
+    const content = (
+      <>
+        <ExperienceVisualImage
+          src={destination.image}
+          alt={destination.alt}
+          sizes={imageSizes}
+          priority={variant === "featured"}
+        />
+        <div className="gallery-caption">
+          <strong>{destination.title}</strong>
+          <span>{destination.description}</span>
+        </div>
+      </>
+    );
+
+    if (match) {
+      return (
+        <button
+          key={`experience-visual-card-${index}`}
+          type="button"
+          className={cardClassName}
+          data-card-index={index}
+          aria-label={`Ver hotÃ©is prÃ³ximos para ${destination.title}`}
+          onClick={(event) => handleExperienceOpen(match, event)}
+        >
+          {content}
+        </button>
+      );
+    }
+
+    return (
+      <article
+        key={`experience-visual-card-${index}`}
+        className={cardClassName}
+        data-card-index={index}
+      >
+        {content}
+      </article>
+    );
+  };
 
   if (showResult) {
     return (
@@ -1422,40 +1520,12 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
       </div>
 
       <div className={`showcase-gallery ${isTransitioning ? "is-transitioning" : ""}`}>
-        <article
-          className="gallery-card large reveal experience-card experience-card--featured"
-          data-card-index="0"
-        >
-          <ExperienceVisualImage
-            src={destinations[0].image}
-            alt={destinations[0].alt}
-            sizes="(max-width: 820px) 100vw, (max-width: 1180px) 58vw, 38vw"
-            priority
-          />
-          <div className="gallery-caption">
-            <strong>{destinations[0].title}</strong>
-            <span>{destinations[0].description}</span>
-          </div>
-        </article>
+        {renderVisualCard(destinations[0], 0, "featured")}
 
         <div className="gallery-side">
-          {destinations.slice(1).map((destination, index) => (
-            <article
-              key={`experience-side-card-${index}`}
-              className="gallery-card reveal experience-card experience-card--small"
-              data-card-index={index + 1}
-            >
-              <ExperienceVisualImage
-                src={destination.image}
-                alt={destination.alt}
-                sizes="(max-width: 820px) 100vw, (max-width: 1180px) 34vw, 24vw"
-              />
-              <div className="gallery-caption">
-                <strong>{destination.title}</strong>
-                <span>{destination.description}</span>
-              </div>
-            </article>
-          ))}
+          {destinations
+            .slice(1)
+            .map((destination, index) => renderVisualCard(destination, index + 1, "small"))}
         </div>
       </div>
 
