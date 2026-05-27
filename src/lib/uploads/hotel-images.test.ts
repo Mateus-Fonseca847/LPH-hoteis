@@ -33,7 +33,7 @@ describe("hotel image upload validation", () => {
 
   it("rejeita extensão suspeita intermediária", async () => {
     await expect(validateHotelImageFile(makeFile({ name: "hotel.php.png" }))).rejects.toThrow(
-      "extensoes suspeitas"
+      "extensões suspeitas"
     );
   });
 

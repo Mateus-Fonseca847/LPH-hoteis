@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   experienceDestinations,
@@ -70,6 +71,15 @@ type ExperienceVisualImageProps = {
   sizes: string;
   priority?: boolean;
 };
+
+const MODAL_FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
 
 type ExperienceSectionProps = {
   hotels: PublishedHotelCard[];
@@ -998,6 +1008,32 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setSelectedExperience(null);
+        return;
+      }
+
+      if (event.key !== "Tab" || !modalRef.current) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        modalRef.current.querySelectorAll<HTMLElement>(MODAL_FOCUSABLE_SELECTOR)
+      );
+
+      if (!focusableElements.length) {
+        event.preventDefault();
+        modalRef.current.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
       }
     };
 
@@ -1292,87 +1328,92 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
       </article>
     );
   };
-  const experienceHotelsModal = selectedExperience ? (
-    <div
-      className="experience-hotels-modal"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          setSelectedExperience(null);
-        }
-      }}
-    >
-      <div
-        ref={modalRef}
-        className="experience-hotels-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={modalTitleId}
-        tabIndex={-1}
-      >
-        <div className="experience-hotels-dialog__header">
-          <div>
-            <span>
-              {selectedExperience.destinationCity}, {selectedExperience.destinationState}
-            </span>
-            <h3 id={modalTitleId}>{selectedExperience.experience.title}</h3>
-            <p>{selectedExperience.experience.reason}</p>
-          </div>
-          <button
-            className="experience-hotels-dialog__close"
-            type="button"
-            aria-label="Fechar hotéis próximos"
-            onClick={() => setSelectedExperience(null)}
+  const experienceHotelsModal = selectedExperience
+    ? createPortal(
+        <div
+          className="experience-hotels-modal"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setSelectedExperience(null);
+            }
+          }}
+        >
+          <div
+            ref={modalRef}
+            className="experience-hotels-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={modalTitleId}
+            tabIndex={-1}
           >
-            ×
-          </button>
-        </div>
+            <div className="experience-hotels-dialog__header">
+              <div>
+                <span>
+                  {selectedExperience.destinationCity}, {selectedExperience.destinationState}
+                </span>
+                <h3 id={modalTitleId}>{selectedExperience.experience.title}</h3>
+                <p>{selectedExperience.experience.reason}</p>
+              </div>
+              <button
+                className="experience-hotels-dialog__close"
+                type="button"
+                aria-label="Fechar hotéis próximos"
+                onClick={() => setSelectedExperience(null)}
+              >
+                ×
+              </button>
+            </div>
 
-        {selectedExperience.hotels.length > 0 ? (
-          <div className="experience-hotels-list">
-            {selectedExperience.hotels.map(({ hotel, proximityLabel }) => (
-              <article className="experience-hotel-option" key={hotel.slug}>
-                <div className="experience-hotel-option__media">
-                  {hotel.coverImageUrl ? (
-                    <Image
-                      src={hotel.coverImageUrl}
-                      alt={hotel.name}
-                      fill
-                      sizes="(max-width: 720px) 92vw, 220px"
-                    />
-                  ) : (
-                    <span>{hotel.name}</span>
-                  )}
-                </div>
-                <div className="experience-hotel-option__body">
-                  <span>{proximityLabel}</span>
-                  <strong>{hotel.name}</strong>
-                  <p>
-                    {hotel.shortDescription ||
-                      `${hotel.city}, ${hotel.state} · hospedagem compatível com este destino.`}
-                  </p>
-                  <Link
-                    className="card-cta-button experience-hotel-option__link"
-                    href={`/hoteis/${hotel.slug}`}
-                  >
-                    Ver hotel
-                  </Link>
-                </div>
-              </article>
-            ))}
+            {selectedExperience.hotels.length > 0 ? (
+              <div className="experience-hotels-list">
+                {selectedExperience.hotels.map(({ hotel, proximityLabel }) => (
+                  <article className="experience-hotel-option" key={hotel.slug}>
+                    <div className="experience-hotel-option__media">
+                      {hotel.coverImageUrl ? (
+                        <Image
+                          src={hotel.coverImageUrl}
+                          alt={hotel.name}
+                          fill
+                          sizes="(max-width: 720px) 92vw, 220px"
+                        />
+                      ) : (
+                        <span>{hotel.name}</span>
+                      )}
+                    </div>
+                    <div className="experience-hotel-option__body">
+                      <span>{proximityLabel}</span>
+                      <strong>{hotel.name}</strong>
+                      <p>
+                        {hotel.shortDescription ||
+                          `${hotel.city}, ${hotel.state} · hospedagem compatível com este destino.`}
+                      </p>
+                      <Link
+                        className="card-cta-button experience-hotel-option__link"
+                        href={`/hoteis/${hotel.slug}`}
+                      >
+                        Ver hotel
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="experience-hotels-empty" role="status">
+                <strong>Ainda não temos hotéis publicados próximos a este destino.</strong>
+                <p>
+                  Você pode explorar outras opções disponíveis enquanto ampliamos nossa curadoria.
+                </p>
+                <Link className="outline-round" href="/buscar">
+                  Explorar hotéis
+                </Link>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="experience-hotels-empty" role="status">
-            <strong>Ainda não temos hotéis publicados próximos a este destino.</strong>
-            <p>Você pode explorar outras opções disponíveis enquanto ampliamos nossa curadoria.</p>
-            <Link className="outline-round" href="/buscar">
-              Explorar hotéis
-            </Link>
-          </div>
-        )}
-      </div>
-    </div>
-  ) : null;
+        </div>,
+        document.body
+      )
+    : null;
 
   if (showResult) {
     return (
@@ -1470,89 +1511,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
           </button>
         </div>
 
-        {selectedExperience ? (
-          <div
-            className="experience-hotels-modal"
-            role="presentation"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) {
-                setSelectedExperience(null);
-              }
-            }}
-          >
-            <div
-              ref={modalRef}
-              className="experience-hotels-dialog"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby={modalTitleId}
-              tabIndex={-1}
-            >
-              <div className="experience-hotels-dialog__header">
-                <div>
-                  <span>
-                    {selectedExperience.destinationCity}, {selectedExperience.destinationState}
-                  </span>
-                  <h3 id={modalTitleId}>{selectedExperience.experience.title}</h3>
-                  <p>{selectedExperience.experience.reason}</p>
-                </div>
-                <button
-                  className="experience-hotels-dialog__close"
-                  type="button"
-                  aria-label="Fechar hotéis próximos"
-                  onClick={() => setSelectedExperience(null)}
-                >
-                  ×
-                </button>
-              </div>
-
-              {selectedExperience.hotels.length > 0 ? (
-                <div className="experience-hotels-list">
-                  {selectedExperience.hotels.map(({ hotel, proximityLabel }) => (
-                    <article className="experience-hotel-option" key={hotel.slug}>
-                      <div className="experience-hotel-option__media">
-                        {hotel.coverImageUrl ? (
-                          <Image
-                            src={hotel.coverImageUrl}
-                            alt={hotel.name}
-                            fill
-                            sizes="(max-width: 720px) 92vw, 220px"
-                          />
-                        ) : (
-                          <span>{hotel.name}</span>
-                        )}
-                      </div>
-                      <div className="experience-hotel-option__body">
-                        <span>{proximityLabel}</span>
-                        <strong>{hotel.name}</strong>
-                        <p>
-                          {hotel.shortDescription ||
-                            `${hotel.city}, ${hotel.state} · hospedagem compatível com este destino.`}
-                        </p>
-                        <Link
-                          className="card-cta-button experience-hotel-option__link"
-                          href={`/hoteis/${hotel.slug}`}
-                        >
-                          Ver hotel
-                        </Link>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <div className="experience-hotels-empty" role="status">
-                  <strong>Ainda não temos hotéis publicados próximos a este destino.</strong>
-                  <p>
-                    Você pode explorar outras opções disponíveis enquanto ampliamos nossa curadoria.
-                  </p>
-                  <Link className="outline-round" href="/buscar">
-                    Explorar hotéis
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : null}
+        {experienceHotelsModal}
       </section>
     );
   }

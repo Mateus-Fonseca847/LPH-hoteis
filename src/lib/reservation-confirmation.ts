@@ -1,4 +1,5 @@
 import { ConflictError, ValidationError } from "@/lib/errors/app-error";
+import { calculatePaymentTransactionAmounts } from "@/lib/finance/payment-transactions";
 import { prisma } from "@/lib/prisma";
 import { getStayDates } from "@/lib/stay-query";
 
@@ -98,15 +99,29 @@ export async function closeUnpaidReservation({
       },
       select: {
         id: true,
+        hotelId: true,
         roomId: true,
         checkIn: true,
         checkOut: true,
         availabilityHeld: true,
         paymentStatus: true,
+        paymentProvider: true,
+        paymentMethod: true,
+        totalPriceCents: true,
+        currency: true,
+        paymentTransaction: {
+          select: {
+            status: true,
+          },
+        },
       },
     });
 
-    if (!reservation || reservation.paymentStatus === "paid") {
+    if (
+      !reservation ||
+      reservation.paymentStatus === "paid" ||
+      reservation.paymentTransaction?.status === "paid"
+    ) {
       return false;
     }
 
@@ -151,6 +166,29 @@ export async function closeUnpaidReservation({
         },
       });
 
+      const amounts = calculatePaymentTransactionAmounts(reservation.totalPriceCents);
+      await transaction.paymentTransaction.upsert({
+        where: {
+          reservationId: reservation.id,
+        },
+        create: {
+          reservationId: reservation.id,
+          hotelId: reservation.hotelId,
+          provider: reservation.paymentProvider ?? "manual",
+          providerPaymentId,
+          paymentMethod: reservation.paymentMethod,
+          status,
+          ...amounts,
+          currency: reservation.currency,
+          paidAt: null,
+        },
+        update: {
+          providerPaymentId,
+          status,
+          paidAt: null,
+        },
+      });
+
       return true;
     }
 
@@ -173,6 +211,31 @@ export async function closeUnpaidReservation({
       },
     });
 
+    if (reservationUpdate.count > 0) {
+      const amounts = calculatePaymentTransactionAmounts(reservation.totalPriceCents);
+      await transaction.paymentTransaction.upsert({
+        where: {
+          reservationId: reservation.id,
+        },
+        create: {
+          reservationId: reservation.id,
+          hotelId: reservation.hotelId,
+          provider: reservation.paymentProvider ?? "manual",
+          providerPaymentId,
+          paymentMethod: reservation.paymentMethod,
+          status,
+          ...amounts,
+          currency: reservation.currency,
+          paidAt: null,
+        },
+        update: {
+          providerPaymentId,
+          status,
+          paidAt: null,
+        },
+      });
+    }
+
     return reservationUpdate.count > 0;
   });
 }
@@ -191,12 +254,28 @@ export async function confirmPaidReservation({
       },
       select: {
         id: true,
+        hotelId: true,
         roomId: true,
         checkIn: true,
         checkOut: true,
         status: true,
         paymentStatus: true,
         availabilityHeld: true,
+        paymentProvider: true,
+        paymentMethod: true,
+        totalPriceCents: true,
+        currency: true,
+        room: {
+          select: {
+            isActive: true,
+            isAvailable: true,
+            hotel: {
+              select: {
+                isPublished: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -215,11 +294,28 @@ export async function confirmPaidReservation({
       throw new ValidationError("Reserva não pode ser confirmada.");
     }
 
+    if (
+      !reservation.room.isActive ||
+      !reservation.room.isAvailable ||
+      !reservation.room.hotel.isPublished
+    ) {
+      throw new ConflictError("Hospedagem indisponível para confirmar a reserva.");
+    }
+
     const stayDates = getStayDates(reservation.checkIn, reservation.checkOut);
     const availabilityDates = stayDates.map(toUtcDate);
     const availabilityRows = await transaction.roomAvailability.count({
       where: {
         roomId: reservation.roomId,
+        room: {
+          is: {
+            isActive: true,
+            isAvailable: true,
+            hotel: {
+              isPublished: true,
+            },
+          },
+        },
         date: {
           in: availabilityDates,
         },
@@ -235,6 +331,15 @@ export async function confirmPaidReservation({
       const availabilityUpdate = await transaction.roomAvailability.updateMany({
         where: {
           roomId: reservation.roomId,
+          room: {
+            is: {
+              isActive: true,
+              isAvailable: true,
+              hotel: {
+                isPublished: true,
+              },
+            },
+          },
           date: {
             in: availabilityDates,
           },
@@ -284,6 +389,32 @@ export async function confirmPaidReservation({
         confirmed: false,
       };
     }
+
+    const amounts = calculatePaymentTransactionAmounts(reservation.totalPriceCents);
+    await transaction.paymentTransaction.upsert({
+      where: {
+        reservationId: reservation.id,
+      },
+      create: {
+        reservationId: reservation.id,
+        hotelId: reservation.hotelId,
+        provider: reservation.paymentProvider ?? "manual",
+        providerPaymentId,
+        paymentMethod: paymentMethod ?? reservation.paymentMethod,
+        status: "paid",
+        ...amounts,
+        currency: reservation.currency,
+        paidAt,
+      },
+      update: {
+        providerPaymentId,
+        paymentMethod: paymentMethod ?? reservation.paymentMethod,
+        status: "paid",
+        ...amounts,
+        currency: reservation.currency,
+        paidAt,
+      },
+    });
 
     return {
       reservationId: reservation.id,

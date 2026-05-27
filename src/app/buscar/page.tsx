@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -8,6 +9,14 @@ import { normalizeHotelSearchQuery, searchPublishedHotels } from "@/lib/hotel-se
 
 type SearchPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Buscar hotéis",
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 function getSearchParam(searchParams: Record<string, string | string[] | undefined>, key: string) {

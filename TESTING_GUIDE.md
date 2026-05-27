@@ -136,17 +136,17 @@ Não registre senhas neste arquivo. As senhas devem ser compartilhadas por canal
 - Galeria e imagem de capa carregam.
 - Comodidades e políticas aparecem com textos claros.
 - Quartos aparecem com imagem, capacidade, camas, tamanho, comodidades e preço inicial.
-- Botão `Consultar disponibilidade` abre o modal de reserva.
+- Botão `Consultar disponibilidade` navega para `/hoteis/[slug]/reservar`, a página dedicada de reserva.
 
 ### Fluxo de reserva
 
-- Modal ocupa a tela corretamente e bloqueia o scroll do fundo.
+- Página dedicada ocupa a largura disponível sem overlay, sem botão de fechar e sem bloquear o scroll da página.
 - Timeline exibe as etapas: Datas e viajantes, Escolha do quarto, Dados do hóspede, Pagamento e Confirmação.
 - Datas, adultos e crianças são preservados ao voltar etapas.
 - Etapa de quartos mostra quartos compatíveis e só permite reservar quartos com disponibilidade configurada como `Disponível`.
 - Dados do hóspede validam nome, e-mail, telefone e CPF/passaporte.
 - Etapa de pagamento permite escolher Pix, cartão de crédito, cartão de débito ou boleto.
-- Botão `Ir para pagamento` só habilita após escolher forma de pagamento.
+- Botão `Criar reserva e iniciar pagamento` só habilita após escolher forma de pagamento.
 - Ao iniciar o pagamento, a reserva fica `awaiting_payment`/`pending` e segura uma unidade de disponibilidade para as noites selecionadas.
 - O usuário é enviado ao checkout Mercado Pago sandbox ou recebe instruções do meio de pagamento quando aplicável.
 - O sistema não confirma reserva antes do webhook de pagamento aprovado pelo provedor.
@@ -157,6 +157,18 @@ Não registre senhas neste arquivo. As senhas devem ser compartilhadas por canal
 - E-mails transacionais de reserva são enviados somente após pagamento aprovado e reserva confirmada.
 - O painel financeiro passa a considerar a reserva somente quando houver pagamento aprovado.
 - Mensagens de erro são compreensíveis.
+
+#### Cenários críticos de pagamento e disponibilidade
+
+| Cenário                      | Procedimento                                                                        | Resultado esperado                                                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Pagamento aprovado           | Criar reserva com disponibilidade e concluir pagamento sandbox aprovado.            | Reserva muda para `confirmed`, pagamento para `paid` e a unidade permanece reservada.           |
+| Pagamento pendente           | Iniciar checkout e manter o pagamento pendente.                                     | Reserva permanece `awaiting_payment`; não há confirmação nem e-mail de confirmação.             |
+| Pagamento recusado/cancelado | Recusar ou cancelar o pagamento sandbox.                                            | Reserva muda para `payment_failed` ou `cancelled`; a unidade retida é liberada uma única vez.   |
+| Webhook duplicado            | Reenviar o mesmo evento aprovado do provedor.                                       | Nenhuma reserva nova é criada, a disponibilidade não é reduzida novamente e não há novo e-mail. |
+| Sem disponibilidade          | Tentar reservar datas sem unidades ou simultaneamente até esgotar a última unidade. | A requisição é rejeitada com mensagem segura; não existe reserva confirmada em excesso.         |
+| Hotel despublicado           | Despublicar o hotel antes de iniciar a reserva ou antes da confirmação.             | O fluxo público não cria/confirma reserva para o hotel.                                         |
+| Quarto inativo               | Inativar o quarto antes de iniciar a reserva ou antes da confirmação.               | O fluxo público não cria/confirma reserva para o quarto.                                        |
 
 ### Login
 
@@ -268,7 +280,7 @@ Não registre senhas neste arquivo. As senhas devem ser compartilhadas por canal
 
 - Home funciona em mobile, tablet e desktop.
 - Página de hotel não apresenta rolagem horizontal indevida.
-- Modal de disponibilidade cabe na tela mobile e permite rolagem interna.
+- Página `/hoteis/[slug]/reservar` funciona no mobile sem overlay, sem corte de conteúdo e sem scroll horizontal.
 - Formulários admin permanecem utilizáveis em mobile.
 - Botões e campos têm área de toque confortável.
 

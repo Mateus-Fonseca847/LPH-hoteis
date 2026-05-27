@@ -7,10 +7,7 @@ import {
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
-import {
-  upsertInitialPaymentTransactionForReservation,
-  upsertPaidPaymentTransactionForReservation,
-} from "@/lib/finance/payment-transactions";
+import { upsertPaidPaymentTransactionForReservation } from "@/lib/finance/payment-transactions";
 import { getMercadoPagoPayment } from "@/lib/payments/mercado-pago";
 import { prisma } from "@/lib/prisma";
 import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
@@ -220,8 +217,6 @@ async function handleApprovedPayment(paymentId: string) {
     paymentMethod: payment.paymentTypeId || payment.paymentMethodId,
   });
 
-  await upsertPaidPaymentTransactionForReservation(reservation.id);
-
   if (confirmation?.confirmed) {
     await notifyPaidReservation(reservation.id);
   }
@@ -245,7 +240,6 @@ async function handleRejectedPayment(paymentId: string) {
     status: failedStatus,
     providerPaymentId: payment.id,
   });
-  await upsertInitialPaymentTransactionForReservation(reservation.id, failedStatus, payment.id);
 }
 
 export async function POST(request: Request) {

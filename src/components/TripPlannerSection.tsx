@@ -316,7 +316,7 @@ export function TripPlannerSection() {
                           Ver hotel
                         </Link>
                         <Link
-                          href={`/hoteis/${hotel.slug}`}
+                          href={`/hoteis/${hotel.slug}/reservar`}
                           className="trip-planner-recommendation-link trip-planner-recommendation-link--primary"
                         >
                           Consultar disponibilidade

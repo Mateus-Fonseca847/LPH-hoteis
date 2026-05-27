@@ -8,7 +8,7 @@ function formatSecurityStatus(enabled: boolean, isAdmin: boolean) {
     return "Ativo";
   }
 
-  return isAdmin ? "Ativacao pendente" : "Inativo";
+  return isAdmin ? "Ativação pendente" : "Inativo";
 }
 
 export default async function AdminSecurityPage() {
@@ -47,10 +47,10 @@ export default async function AdminSecurityPage() {
   return (
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
-        <span className="hotel-page-eyebrow">Seguranca</span>
-        <h1>Seguranca da conta</h1>
+        <span className="hotel-page-eyebrow">Segurança</span>
+        <h1>Segurança da conta</h1>
         <p className="admin-rooms-copy">
-          Configure a verificacao em duas etapas por e-mail para proteger acessos administrativos.
+          Configure a verificação em duas etapas por e-mail para proteger acessos administrativos.
         </p>
       </div>
 

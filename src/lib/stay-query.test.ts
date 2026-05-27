@@ -38,6 +38,13 @@ describe("stay-query", () => {
     expect(getStayDates("2026-07-10", "2026-07-12")).toEqual(["2026-07-10", "2026-07-11"]);
   });
 
+  it("rejeita datas inválidas ou checkout sem noite", () => {
+    expect(() => calculateStayNights("2026-02-30", "2026-03-02")).toThrow("Data inválida");
+    expect(() => calculateStayNights("2026-07-10", "2026-07-10")).toThrow(
+      "Check-out deve ser posterior"
+    );
+  });
+
   it("calcula preco total pela melhor tarifa compativel", () => {
     expect(getRoomStayPriceEstimate(room, "2026-07-10", "2026-07-12", 2, 1)).toMatchObject({
       nightlyPriceCents: 35000,

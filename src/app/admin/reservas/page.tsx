@@ -86,7 +86,7 @@ function formatCurrency(cents: number, currency = "BRL") {
 }
 
 function formatProvider(provider: PaymentProvider | null) {
-  return provider ? providerLabels[provider] : "Nao informado";
+  return provider ? providerLabels[provider] : "Não informado";
 }
 
 function buildPageHref(
@@ -253,7 +253,7 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
         <span className="hotel-page-eyebrow">Admin</span>
         <h1>Reservas</h1>
         <p className="admin-rooms-copy">
-          Acompanhe reservas e pagamentos dentro do seu escopo, sem confirmacao manual insegura.
+          Acompanhe reservas e pagamentos dentro do seu escopo, sem confirmação manual insegura.
         </p>
       </div>
 
@@ -326,7 +326,7 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
           </label>
 
           <label className="admin-form-field">
-            <span>Hospede</span>
+            <span>Hóspede</span>
             <input name="q" type="search" defaultValue={filters.q} placeholder="Nome ou e-mail" />
           </label>
         </div>
@@ -344,7 +344,7 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
       {reservations.length === 0 ? (
         <div className="hotel-empty-state admin-history-empty">
           <strong>Nenhuma reserva encontrada.</strong>
-          <p>Quando houver reservas no seu escopo, elas aparecerao aqui.</p>
+          <p>Quando houver reservas no seu escopo, elas aparecerão aqui.</p>
         </div>
       ) : (
         <article className="hotel-content-card admin-finance-table-card">
@@ -354,7 +354,7 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
                 <tr>
                   <th scope="col">Hotel</th>
                   <th scope="col">Quarto</th>
-                  <th scope="col">Hospede</th>
+                  <th scope="col">Hóspede</th>
                   <th scope="col">Check-in</th>
                   <th scope="col">Check-out</th>
                   <th scope="col">Valor</th>
@@ -408,7 +408,7 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
         </article>
       )}
 
-      <nav className="admin-audit-pagination" aria-label="Paginacao das reservas">
+      <nav className="admin-audit-pagination" aria-label="Paginação das reservas">
         <Link
           href={buildPageHref(Math.max(1, currentPage - 1), {
             ...filters,
@@ -422,7 +422,7 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
           Anterior
         </Link>
         <span>
-          Pagina {currentPage} de {totalPages}
+          Página {currentPage} de {totalPages}
         </span>
         <Link
           href={buildPageHref(Math.min(totalPages, currentPage + 1), {
@@ -434,7 +434,7 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
           className="admin-secondary-button"
           aria-disabled={currentPage >= totalPages}
         >
-          Proxima
+          Próxima
         </Link>
       </nav>
     </section>

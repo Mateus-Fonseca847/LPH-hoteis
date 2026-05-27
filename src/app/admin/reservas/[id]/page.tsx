@@ -42,7 +42,7 @@ function formatDate(value: Date) {
 
 function formatDateTime(value: Date | null) {
   if (!value) {
-    return "Nao informado";
+    return "Não informado";
   }
 
   return new Intl.DateTimeFormat("pt-BR", {
@@ -59,19 +59,19 @@ function formatCurrency(cents: number, currency = "BRL") {
 }
 
 function formatProvider(provider: PaymentProvider | null) {
-  return provider ? providerLabels[provider] : "Nao informado";
+  return provider ? providerLabels[provider] : "Não informado";
 }
 
 function formatPaymentMethod(method: string | null) {
   if (!method) {
-    return "Nao informado";
+    return "Não informado";
   }
 
   const labels: Record<string, string> = {
     account_money: "Saldo em conta",
     boleto: "Boleto",
-    credit_card: "Cartao de credito",
-    debit_card: "Cartao de debito",
+    credit_card: "Cartão de crédito",
+    debit_card: "Cartão de débito",
     pix: "Pix",
     ticket: "Boleto",
   };
@@ -153,7 +153,7 @@ export default async function AdminReservationDetailPage({
       value: formatDateTime(reservation.paidAt),
     },
     {
-      label: "Ultima atualizacao",
+      label: "Última atualização",
       value: formatDateTime(reservation.updatedAt),
     },
   ];
@@ -164,7 +164,7 @@ export default async function AdminReservationDetailPage({
         <span className="hotel-page-eyebrow">Reserva</span>
         <h1>{reservation.guestName}</h1>
         <p className="admin-rooms-copy">
-          Detalhe operacional somente leitura. Confirmacao de pagamento depende do webhook do
+          Detalhe operacional somente leitura. Confirmação de pagamento depende do webhook do
           provedor.
         </p>
       </div>
@@ -186,7 +186,7 @@ export default async function AdminReservationDetailPage({
           <span>Valor total</span>
           <strong>{formatCurrency(reservation.totalPriceCents, reservation.currency)}</strong>
           <p>
-            {reservation.nights} noite(s), diaria{" "}
+            {reservation.nights} noite(s), diária{" "}
             {formatCurrency(reservation.nightlyPriceCents, reservation.currency)}.
           </p>
         </article>
@@ -203,7 +203,7 @@ export default async function AdminReservationDetailPage({
             <strong>{reservation.room.name}</strong>
           </p>
           <p>
-            <span>Periodo</span>
+            <span>Período</span>
             <strong>
               {formatDate(reservation.checkIn)} a {formatDate(reservation.checkOut)}
             </strong>
@@ -212,7 +212,7 @@ export default async function AdminReservationDetailPage({
 
         <div className="admin-audit-meta">
           <p>
-            <span>Hospede</span>
+            <span>Hóspede</span>
             <strong>{reservation.guestName}</strong>
           </p>
           <p>
@@ -227,36 +227,36 @@ export default async function AdminReservationDetailPage({
 
         <div className="admin-audit-meta">
           <p>
-            <span>Hospedes</span>
+            <span>Hóspedes</span>
             <strong>
-              {reservation.adults} adulto(s), {reservation.children} crianca(s)
+              {reservation.adults} adulto(s), {reservation.children} criança(s)
             </strong>
           </p>
           <p>
             <span>Documento</span>
-            <strong>{reservation.guestDocument || "Nao informado"}</strong>
+            <strong>{reservation.guestDocument || "Não informado"}</strong>
           </p>
           <p>
             <span>Teste</span>
-            <strong>{reservation.isTestData ? "Sim" : "Nao"}</strong>
+            <strong>{reservation.isTestData ? "Sim" : "Não"}</strong>
           </p>
         </div>
 
         <div className="admin-audit-meta">
           <p>
-            <span>Metodo</span>
+            <span>Método</span>
             <strong>{formatPaymentMethod(reservation.paymentMethod)}</strong>
           </p>
           <p>
             <span>ID pagamento</span>
-            <strong>{reservation.providerPaymentId || "Nao informado"}</strong>
+            <strong>{reservation.providerPaymentId || "Não informado"}</strong>
           </p>
           <p>
             <span>Stripe legado</span>
             <strong>
               {reservation.stripeCheckoutSessionId ||
                 reservation.stripePaymentIntentId ||
-                "Nao informado"}
+                "Não informado"}
             </strong>
           </p>
         </div>

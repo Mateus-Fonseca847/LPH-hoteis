@@ -242,6 +242,8 @@ npm run test
 npm run quality
 ```
 
+`npm run test` executa rapidamente as regras unitárias e integrações isoladas com mocks, sem banco ou credenciais reais. `npm run quality` é o gate completo antes de merge/deploy: formatação, lint, Prisma, testes e build.
+
 O fluxo público de checkout exige credenciais Mercado Pago e URL de webhook acessível pelo provedor. Em ambiente puramente local, teste a criação/validação com mocks automatizados ou use uma URL pública de túnel apenas em sandbox.
 
 ## Comandos úteis
@@ -264,13 +266,13 @@ npm run prisma:seed
 npm run prisma:validate
 ```
 
-O quality gate executa formatação, lint, validação do Prisma e build:
+O quality gate executa formatação, lint, validação do Prisma, testes automatizados e build:
 
 ```bash
 npm run quality
 ```
 
-Os testes automatizados rodam separadamente:
+Durante desenvolvimento, os testes podem ser rodados isoladamente:
 
 ```bash
 npm run test
@@ -280,7 +282,7 @@ npm run test
 
 O repositório possui GitHub Actions em `.github/workflows/ci.yml`. O pipeline roda em `push` para `main` e em `pull_request` para `main`, usando Node.js 20.
 
-Ele executa `npm ci`, `npm run prisma:generate`, `npm run quality` e `npm run test`. As variáveis usadas no workflow são valores fake seguros apenas para build/validação; credenciais reais devem ficar somente nos ambientes de staging/produção.
+Ele executa `npm ci`, geração do Prisma Client, lint, validação do schema Prisma, testes automatizados e build. As variáveis usadas no workflow são valores fake seguros apenas para build/validação; credenciais reais devem ficar somente nos ambientes de staging/produção.
 
 ## Arquitetura
 
@@ -308,7 +310,7 @@ Ele executa `npm ci`, `npm run prisma:generate`, `npm run quality` e `npm run te
 - A página pública do hotel usa dados do banco.
 - Hotéis inexistentes ou despublicados retornam 404.
 - Quartos ativos aparecem publicamente com preço inicial baseado em tarifas ativas.
-- O botão `Consultar disponibilidade` abre um fluxo público em etapas: datas/viajantes, escolha do quarto, dados do hóspede, pagamento e confirmação.
+- O botão `Consultar disponibilidade` navega para `/hoteis/[slug]/reservar`, uma página pública em etapas: datas/viajantes, escolha do quarto, dados do hóspede, pagamento e confirmação. A URL anterior `/hoteis/[slug]/disponibilidade` apenas redireciona para preservar links existentes.
 - A etapa de quartos usa disponibilidade configurada, capacidade e tarifas ativas. Quartos com disponibilidade desconhecida ou indisponível não seguem para reserva.
 - A API `/api/reservas` cria a reserva inicialmente como `awaiting_payment`/`pending`, retém uma unidade de disponibilidade por noite e inicia checkout externo.
 - O pagamento aprovado por webhook confirma a reserva, marca `paymentStatus` como `paid`, registra transação financeira e dispara e-mails.

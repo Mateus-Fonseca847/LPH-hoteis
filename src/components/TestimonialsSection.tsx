@@ -91,20 +91,24 @@ function TestimonialCard({
 }
 
 export function TestimonialsSection() {
+  const sectionRef = useRef<HTMLElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const groupRef = useRef<HTMLDivElement>(null);
   const targetSpeedRef = useRef(38);
 
   useEffect(() => {
+    const section = sectionRef.current;
     const track = trackRef.current;
     const group = groupRef.current;
 
-    if (!track || !group) {
+    if (!section || !track || !group) {
       return;
     }
 
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     let frameId = 0;
+    let isVisible = false;
+    let isAnimating = false;
     let lastFrame = performance.now();
     let offset = 0;
     let currentSpeed = targetSpeedRef.current;
@@ -122,22 +126,32 @@ export function TestimonialsSection() {
       currentSpeed += (targetSpeedRef.current - currentSpeed) * 0.08;
       offset = (offset + currentSpeed * delta) % loopWidth;
       track.style.transform = `translate3d(${-offset}px, 0, 0)`;
-      frameId = window.requestAnimationFrame(animate);
+      if (isAnimating) {
+        frameId = window.requestAnimationFrame(animate);
+      }
     };
 
     const start = () => {
+      if (isAnimating || reducedMotionQuery.matches || !isVisible) return;
+
       updateLoopWidth();
+      isAnimating = true;
       lastFrame = performance.now();
       frameId = window.requestAnimationFrame(animate);
     };
 
-    const stop = () => {
+    const stop = (resetPosition = false) => {
+      isAnimating = false;
       window.cancelAnimationFrame(frameId);
-      track.style.transform = "translate3d(0, 0, 0)";
+
+      if (resetPosition) {
+        offset = 0;
+        track.style.transform = "translate3d(0, 0, 0)";
+      }
     };
 
     const handleMotionChange = () => {
-      stop();
+      stop(reducedMotionQuery.matches);
 
       if (!reducedMotionQuery.matches) {
         start();
@@ -148,21 +162,34 @@ export function TestimonialsSection() {
     resizeObserver.observe(group);
     resizeObserver.observe(track);
 
-    if (!reducedMotionQuery.matches) {
-      start();
-    }
+    const visibilityObserver = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+
+        if (isVisible) {
+          start();
+        } else {
+          stop();
+        }
+      },
+      { rootMargin: "120px 0px" }
+    );
+
+    visibilityObserver.observe(section);
 
     reducedMotionQuery.addEventListener("change", handleMotionChange);
 
     return () => {
-      window.cancelAnimationFrame(frameId);
+      stop();
       resizeObserver.disconnect();
+      visibilityObserver.disconnect();
       reducedMotionQuery.removeEventListener("change", handleMotionChange);
     };
   }, []);
 
   return (
     <section
+      ref={sectionRef}
       className="testimonials section reveal"
       aria-roledescription="carrossel"
       aria-label="Depoimentos de clientes"

@@ -4,7 +4,7 @@ import {
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
-import { upsertInitialPaymentTransactionForReservation } from "@/lib/finance";
+import { calculatePaymentTransactionAmounts } from "@/lib/finance";
 import { resolveHotelPaymentConfiguration, startReservationPayment } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { closeUnpaidReservation } from "@/lib/reservation-confirmation";
@@ -158,6 +158,16 @@ export async function POST(request: Request) {
       const availabilityUpdate = await transaction.roomAvailability.updateMany({
         where: {
           roomId,
+          room: {
+            is: {
+              hotelId,
+              isActive: true,
+              isAvailable: true,
+              hotel: {
+                isPublished: true,
+              },
+            },
+          },
           date: {
             in: availabilityDates,
           },
@@ -177,7 +187,7 @@ export async function POST(request: Request) {
         throw new ConflictError("O quarto não está disponível para o período selecionado.");
       }
 
-      return transaction.reservation.create({
+      const createdReservation = await transaction.reservation.create({
         data: {
           hotelId,
           roomId,
@@ -204,9 +214,23 @@ export async function POST(request: Request) {
           createdAt: true,
         },
       });
+
+      await transaction.paymentTransaction.create({
+        data: {
+          reservationId: createdReservation.id,
+          hotelId,
+          provider: paymentConfiguration.provider,
+          paymentMethod,
+          status: "pending",
+          ...calculatePaymentTransactionAmounts(totalPriceCents),
+          currency: "BRL",
+          paidAt: null,
+        },
+      });
+
+      return createdReservation;
     });
     createdReservationId = reservation.id;
-    await upsertInitialPaymentTransactionForReservation(reservation.id, "pending");
 
     const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL;
 
@@ -242,12 +266,16 @@ export async function POST(request: Request) {
     if (createdReservationId) {
       const reservationId = createdReservationId;
 
-      await closeUnpaidReservation({
+      const closed = await closeUnpaidReservation({
         reservationId,
         status: "payment_failed",
-      })
-        .then(() => upsertInitialPaymentTransactionForReservation(reservationId, "payment_failed"))
-        .catch(() => null);
+      }).catch(() => false);
+
+      if (!closed) {
+        console.warn("[reservas] Reserva não foi encerrada após falha ao iniciar pagamento.", {
+          reservationId,
+        });
+      }
     }
 
     return createApiErrorResponse(error, CREATE_RESERVATION_FAILURE);

@@ -1,49 +1,21 @@
-"use client";
-
-import { useState } from "react";
-
-import { AvailabilitySearchModal } from "@/components/AvailabilitySearchModal";
-import type { AvailabilityResultRoom } from "@/lib/availability-results";
+import Link from "next/link";
 
 type HotelAvailabilityModalTriggerProps = {
   className: string;
-  hotelSlug?: string;
-  hotelId: string;
-  hotelName: string;
+  hotelSlug: string;
   roomName?: string;
-  rooms: AvailabilityResultRoom[];
 };
 
 export function HotelAvailabilityModalTrigger({
   className,
   hotelSlug,
-  hotelId,
-  hotelName,
   roomName,
-  rooms,
 }: HotelAvailabilityModalTriggerProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const href = `/hoteis/${hotelSlug}/reservar${roomName ? `?quarto=${encodeURIComponent(roomName)}` : ""}`;
 
   return (
-    <>
-      <button
-        type="button"
-        className={`${className} hotel-availability-trigger`}
-        onClick={() => setIsOpen(true)}
-      >
-        Consultar disponibilidade
-      </button>
-
-      {isOpen ? (
-        <AvailabilitySearchModal
-          hotelSlug={hotelSlug}
-          hotelId={hotelId}
-          hotelName={hotelName}
-          roomName={roomName}
-          rooms={rooms}
-          onClose={() => setIsOpen(false)}
-        />
-      ) : null}
-    </>
+    <Link className={`${className} hotel-availability-trigger`} href={href}>
+      Consultar disponibilidade
+    </Link>
   );
 }

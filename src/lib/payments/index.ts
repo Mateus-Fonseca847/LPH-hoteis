@@ -1,5 +1,4 @@
-import { ValidationError } from "@/lib/errors/app-error";
-import { upsertInitialPaymentTransactionForReservation } from "@/lib/finance";
+import { ConflictError, ValidationError } from "@/lib/errors/app-error";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "@/lib/security/encryption";
 
@@ -94,6 +93,14 @@ export async function startReservationPayment({
     throw new ValidationError("Reserva não encontrada.");
   }
 
+  if (
+    !reservation.hotel.isPublished ||
+    !reservation.room.isActive ||
+    !reservation.room.isAvailable
+  ) {
+    throw new ConflictError("Hospedagem indisponível para iniciar pagamento.");
+  }
+
   const settings = reservation.hotel.paymentSettings;
   const paymentConfiguration = resolveHotelPaymentConfiguration(settings);
 
@@ -118,23 +125,60 @@ export async function startReservationPayment({
     accessToken: paymentConfiguration.accessToken,
   });
 
-  await prisma.reservation.update({
-    where: {
-      id: reservation.id,
-    },
-    data: {
-      status: payment.status,
-      paymentProvider: payment.provider,
-      paymentMethod: method,
-      paymentStatus: payment.status,
-      providerPaymentId: payment.providerPaymentId,
-    },
+  await prisma.$transaction(async (transaction) => {
+    const reservationUpdate = await transaction.reservation.updateMany({
+      where: {
+        id: reservation.id,
+        status: {
+          in: ["pending", "awaiting_payment"],
+        },
+        paymentStatus: {
+          in: ["pending", "awaiting_payment"],
+        },
+        hotel: {
+          is: {
+            isPublished: true,
+          },
+        },
+        room: {
+          is: {
+            isActive: true,
+            isAvailable: true,
+          },
+        },
+      },
+      data: {
+        status: payment.status,
+        paymentProvider: payment.provider,
+        paymentMethod: method,
+        paymentStatus: payment.status,
+        providerPaymentId: payment.providerPaymentId,
+      },
+    });
+
+    if (reservationUpdate.count !== 1) {
+      throw new ConflictError("Reserva não está disponível para iniciar pagamento.");
+    }
+
+    const paymentTransactionUpdate = await transaction.paymentTransaction.updateMany({
+      where: {
+        reservationId: reservation.id,
+        status: {
+          in: ["pending", "awaiting_payment"],
+        },
+      },
+      data: {
+        provider: payment.provider,
+        providerPaymentId: payment.providerPaymentId,
+        paymentMethod: method,
+        status: payment.status,
+      },
+    });
+
+    if (paymentTransactionUpdate.count !== 1) {
+      throw new ConflictError("Pagamento da reserva não pôde ser associado.");
+    }
   });
-  await upsertInitialPaymentTransactionForReservation(
-    reservation.id,
-    payment.status,
-    payment.providerPaymentId
-  );
 
   return payment;
 }

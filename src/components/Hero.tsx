@@ -13,9 +13,7 @@ export function Hero() {
         />
 
         <div className="hero-copy">
-          <p className="hero-title glitch" data-text="Explore o Brasil conosco!">
-            Explore o Brasil conosco!
-          </p>
+          <h1 className="hero-title">Explore o Brasil conosco!</h1>
 
           <div className="hero-cta">
             <a className="button-primary" href="#destinations">

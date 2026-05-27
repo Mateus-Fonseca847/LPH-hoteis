@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -12,6 +13,7 @@ import { HotelRegionDetailsSection } from "@/components/HotelRegionDetailsSectio
 import { getHotelPageData } from "@/lib/hotel-data";
 import { prisma } from "@/lib/prisma";
 import { parseBedsValue, ROOM_BED_OPTIONS } from "@/lib/room-options";
+import { DEFAULT_SOCIAL_IMAGE_PATH, SITE_NAME } from "@/lib/site-metadata";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,54 @@ type HotelPageProps = {
 };
 
 type HotelPageRoom = NonNullable<Awaited<ReturnType<typeof getHotelPageData>>>["rooms"][number];
+
+export async function generateMetadata({ params }: HotelPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const hotel = await getHotelPageData(slug);
+
+  if (!hotel) {
+    return {
+      title: "Hotel não encontrado",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  const description = `${hotel.name} em ${hotel.city}, ${hotel.state}. ${hotel.shortDescription}`;
+  const image = hotel.coverImageUrl?.trim() || DEFAULT_SOCIAL_IMAGE_PATH;
+  const title = `${hotel.name} em ${hotel.city}, ${hotel.state}`;
+  const canonicalUrl = `/hoteis/${hotel.slug}`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      type: "website",
+      locale: "pt_BR",
+      siteName: SITE_NAME,
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      url: canonicalUrl,
+      images: [
+        {
+          url: image,
+          alt: `Imagem de capa de ${hotel.name}`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      images: [image],
+    },
+  };
+}
 
 function buildAccessibility(hotel: Awaited<ReturnType<typeof getHotelPageData>>) {
   if (!hotel) {
@@ -277,23 +327,6 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
   const gallery = hotel.images.length
     ? hotel.images
     : [{ url: hotel.coverImageUrl, alt: hotel.name, position: 0 }];
-  const availabilityRooms = hotel.rooms.map((room) => ({
-    id: room.id,
-    name: room.name,
-    description: room.description,
-    imageUrl: room.imageUrl,
-    capacity: room.capacity,
-    capacityAdults: room.capacityAdults,
-    capacityChildren: room.capacityChildren,
-    beds: room.beds,
-    sizeM2: room.sizeM2,
-    size: room.size,
-    amenities: room.amenities,
-    lowestActiveRateCents: room.lowestActiveRateCents,
-    publicAvailabilityStatus: room.publicAvailabilityStatus,
-    availability: room.availability,
-    rates: room.rates,
-  }));
   const accessibility = buildAccessibility(hotel);
   const faq = buildFaq(hotel);
   const policySections = buildPolicySections(hotel);
@@ -390,9 +423,6 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
                 <HotelAvailabilityModalTrigger
                   className="card-cta-button hotel-page-cta"
                   hotelSlug={hotel.slug}
-                  hotelId={hotel.id}
-                  hotelName={hotel.name}
-                  rooms={availabilityRooms}
                 />
               </div>
             </div>
@@ -574,10 +604,7 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
                         <HotelAvailabilityModalTrigger
                           className="hotel-room-cta"
                           hotelSlug={hotel.slug}
-                          hotelId={hotel.id}
-                          hotelName={hotel.name}
                           roomName={room.name}
-                          rooms={availabilityRooms}
                         />
                       </div>
                     </div>
@@ -646,9 +673,6 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
           <HotelAvailabilityModalTrigger
             className="card-cta-button hotel-page-cta"
             hotelSlug={hotel.slug}
-            hotelId={hotel.id}
-            hotelName={hotel.name}
-            rooms={availabilityRooms}
           />
         </section>
       </main>

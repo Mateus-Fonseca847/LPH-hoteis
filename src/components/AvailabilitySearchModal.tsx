@@ -17,7 +17,8 @@ type AvailabilitySearchModalProps = {
   hotelName: string;
   roomName?: string;
   rooms: AvailabilityResultRoom[];
-  onClose: () => void;
+  onClose?: () => void;
+  variant?: "modal" | "page";
 };
 
 type CreateReservationResponse = {
@@ -364,10 +365,12 @@ export function AvailabilitySearchModal({
   roomName,
   rooms,
   onClose,
+  variant = "modal",
 }: AvailabilitySearchModalProps) {
   const titleId = useId();
   const descriptionId = useId();
   const modalRef = useRef<HTMLElement | null>(null);
+  const isPageVariant = variant === "page";
   const context = roomName ? ` para ${roomName}` : "";
   const today = startOfDay(new Date());
   const [adults, setAdults] = useState(MIN_ADULTS);
@@ -424,6 +427,11 @@ export function AvailabilitySearchModal({
           ? "Informe pelo menos 1 adulto."
           : "";
   useEffect(() => {
+    if (isPageVariant || !onClose) {
+      return;
+    }
+
+    const handleClose = onClose;
     const previouslyFocusedElement =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
@@ -432,7 +440,7 @@ export function AvailabilitySearchModal({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        onClose();
+        handleClose();
         return;
       }
 
@@ -489,7 +497,7 @@ export function AvailabilitySearchModal({
       document.removeEventListener("keydown", handleKeyDown);
       previouslyFocusedElement?.focus();
     };
-  }, [onClose]);
+  }, [isPageVariant, onClose]);
 
   function handleDateClick(date: Date) {
     if (isBeforeDay(date, today)) {
@@ -746,28 +754,30 @@ export function AvailabilitySearchModal({
     return null;
   }
 
-  const modalContent = (
-    <div className="hotel-availability-modal-backdrop" role="presentation">
-      <section
-        ref={modalRef}
-        className="hotel-availability-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        tabIndex={-1}
-      >
-        <header className="hotel-availability-modal-header">
-          <div>
-            <span className="hotel-page-eyebrow">Disponibilidade</span>
-            <h2 id={titleId}>Consultar disponibilidade</h2>
-            <p id={descriptionId}>
-              Consulte datas, escolha um quarto e avance ao pagamento seguro. A reserva só é
-              confirmada depois da aprovação do pagamento no {hotelName}
-              {context}.
-            </p>
-          </div>
+  const flowContent = (
+    <section
+      ref={modalRef}
+      className={`hotel-availability-modal ${
+        isPageVariant ? "hotel-availability-modal--page" : ""
+      }`}
+      role={isPageVariant ? undefined : "dialog"}
+      aria-modal={isPageVariant ? undefined : "true"}
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      tabIndex={isPageVariant ? undefined : -1}
+    >
+      <header className="hotel-availability-modal-header">
+        <div>
+          <span className="hotel-page-eyebrow">Disponibilidade</span>
+          <h2 id={titleId}>Consultar disponibilidade</h2>
+          <p id={descriptionId}>
+            Consulte datas, escolha um quarto e avance ao pagamento seguro. A reserva só é
+            confirmada depois da aprovação do pagamento no {hotelName}
+            {context}.
+          </p>
+        </div>
 
+        {!isPageVariant && onClose ? (
           <button
             type="button"
             className="hotel-availability-modal-close"
@@ -776,619 +786,624 @@ export function AvailabilitySearchModal({
           >
             X
           </button>
-        </header>
+        ) : null}
+      </header>
 
-        <div className="availability-flow-navigation">
-          {currentStep > 1 ? (
-            <button
-              type="button"
-              className="availability-previous-step-button"
-              onClick={handlePreviousStep}
-              aria-label="Voltar para etapa anterior"
-            >
-              <span aria-hidden="true">&lt;</span>
-              <span>Voltar</span>
-            </button>
-          ) : null}
+      <div className="availability-flow-navigation">
+        {currentStep > 1 ? (
+          <button
+            type="button"
+            className="availability-previous-step-button"
+            onClick={handlePreviousStep}
+            aria-label="Voltar para etapa anterior"
+          >
+            <span aria-hidden="true">&lt;</span>
+            <span>Voltar</span>
+          </button>
+        ) : null}
 
-          <AvailabilityFlowStepper
-            currentStep={currentStep}
-            onBackToSearch={() => setCurrentStep(1)}
-          />
-        </div>
+        <AvailabilityFlowStepper
+          currentStep={currentStep}
+          onBackToSearch={() => setCurrentStep(1)}
+        />
+      </div>
 
-        {currentStep === 1 ? (
-          <div className="availability-search-modal-grid">
+      {currentStep === 1 ? (
+        <div className="availability-search-modal-grid">
+          <section className="availability-search-modal-panel">
+            <div className="availability-search-modal-panel-heading">
+              <h3>Viajantes</h3>
+              <span>Adultos e crianças</span>
+            </div>
+            <div className="availability-traveler-list">
+              <TravelerStepper
+                label="Adultos"
+                value={adults}
+                min={MIN_ADULTS}
+                max={MAX_ADULTS}
+                onChange={handleAdultsChange}
+              />
+              <TravelerStepper
+                label="Crianças"
+                value={children}
+                min={MIN_CHILDREN}
+                max={MAX_CHILDREN}
+                onChange={handleChildrenChange}
+              />
+            </div>
+
+            <div className="availability-search-modal-panel-heading">
+              <h3>Período</h3>
+              <span>Escolha check-in e check-out</span>
+            </div>
+            <div className="availability-calendar">
+              <div className="availability-calendar-toolbar">
+                <button
+                  type="button"
+                  onClick={() => setVisibleMonth((current) => addMonths(current, -1))}
+                  disabled={!canGoToPreviousMonth}
+                  aria-label="Mês anterior"
+                >
+                  Anterior
+                </button>
+                <strong>{formatMonthLabel(visibleMonth)}</strong>
+                <button
+                  type="button"
+                  onClick={() => setVisibleMonth((current) => addMonths(current, 1))}
+                  aria-label="Próximo mês"
+                >
+                  Próximo
+                </button>
+              </div>
+
+              <div className="availability-calendar-weekdays" aria-hidden="true">
+                {WEEKDAYS.map((weekday) => (
+                  <span key={weekday}>{weekday}</span>
+                ))}
+              </div>
+
+              <div className="availability-calendar-grid">
+                {monthDays.map((date, index) =>
+                  date ? (
+                    <button
+                      key={date.toISOString()}
+                      type="button"
+                      className={[
+                        "availability-calendar-day",
+                        isSameDay(date, today) ? "is-today" : "",
+                        isSameDay(date, checkIn) ? "is-selected" : "",
+                        isSameDay(date, checkOut) ? "is-selected" : "",
+                        isBetweenDays(date, checkIn, checkOut) ? "is-in-range" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      onClick={() => handleDateClick(date)}
+                      disabled={isBeforeDay(date, today)}
+                      aria-pressed={isSameDay(date, checkIn) || isSameDay(date, checkOut)}
+                      aria-label={new Intl.DateTimeFormat("pt-BR", {
+                        dateStyle: "full",
+                      }).format(date)}
+                    >
+                      {date.getDate()}
+                    </button>
+                  ) : (
+                    <span key={`blank-${index}`} className="availability-calendar-day-spacer" />
+                  )
+                )}
+              </div>
+            </div>
+          </section>
+
+          <aside className="availability-search-modal-side">
             <section className="availability-search-modal-panel">
               <div className="availability-search-modal-panel-heading">
-                <h3>Viajantes</h3>
-                <span>Adultos e crianças</span>
+                <h3>Resumo</h3>
+                <span>Seleção atual</span>
               </div>
-              <div className="availability-traveler-list">
-                <TravelerStepper
-                  label="Adultos"
-                  value={adults}
-                  min={MIN_ADULTS}
-                  max={MAX_ADULTS}
-                  onChange={handleAdultsChange}
-                />
-                <TravelerStepper
-                  label="Crianças"
-                  value={children}
-                  min={MIN_CHILDREN}
-                  max={MAX_CHILDREN}
-                  onChange={handleChildrenChange}
-                />
-              </div>
-
-              <div className="availability-search-modal-panel-heading">
-                <h3>Período</h3>
-                <span>Escolha check-in e check-out</span>
-              </div>
-              <div className="availability-calendar">
-                <div className="availability-calendar-toolbar">
-                  <button
-                    type="button"
-                    onClick={() => setVisibleMonth((current) => addMonths(current, -1))}
-                    disabled={!canGoToPreviousMonth}
-                    aria-label="Mês anterior"
-                  >
-                    Anterior
-                  </button>
-                  <strong>{formatMonthLabel(visibleMonth)}</strong>
-                  <button
-                    type="button"
-                    onClick={() => setVisibleMonth((current) => addMonths(current, 1))}
-                    aria-label="Próximo mês"
-                  >
-                    Próximo
-                  </button>
+              <div className="availability-traveler-summary">
+                <div>
+                  <span>Check-in</span>
+                  <strong>{formatDateLabel(checkIn)}</strong>
                 </div>
-
-                <div className="availability-calendar-weekdays" aria-hidden="true">
-                  {WEEKDAYS.map((weekday) => (
-                    <span key={weekday}>{weekday}</span>
-                  ))}
+                <div>
+                  <span>Check-out</span>
+                  <strong>{formatDateLabel(checkOut)}</strong>
                 </div>
-
-                <div className="availability-calendar-grid">
-                  {monthDays.map((date, index) =>
-                    date ? (
-                      <button
-                        key={date.toISOString()}
-                        type="button"
-                        className={[
-                          "availability-calendar-day",
-                          isSameDay(date, today) ? "is-today" : "",
-                          isSameDay(date, checkIn) ? "is-selected" : "",
-                          isSameDay(date, checkOut) ? "is-selected" : "",
-                          isBetweenDays(date, checkIn, checkOut) ? "is-in-range" : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        onClick={() => handleDateClick(date)}
-                        disabled={isBeforeDay(date, today)}
-                        aria-pressed={isSameDay(date, checkIn) || isSameDay(date, checkOut)}
-                        aria-label={new Intl.DateTimeFormat("pt-BR", {
-                          dateStyle: "full",
-                        }).format(date)}
-                      >
-                        {date.getDate()}
-                      </button>
-                    ) : (
-                      <span key={`blank-${index}`} className="availability-calendar-day-spacer" />
-                    )
-                  )}
+                <div>
+                  <span>Adultos</span>
+                  <strong>{adults}</strong>
+                </div>
+                <div>
+                  <span>Crianças</span>
+                  <strong>{children}</strong>
                 </div>
               </div>
             </section>
 
-            <aside className="availability-search-modal-side">
-              <section className="availability-search-modal-panel">
-                <div className="availability-search-modal-panel-heading">
-                  <h3>Resumo</h3>
-                  <span>Seleção atual</span>
-                </div>
-                <div className="availability-traveler-summary">
-                  <div>
-                    <span>Check-in</span>
-                    <strong>{formatDateLabel(checkIn)}</strong>
-                  </div>
-                  <div>
-                    <span>Check-out</span>
-                    <strong>{formatDateLabel(checkOut)}</strong>
-                  </div>
-                  <div>
-                    <span>Adultos</span>
-                    <strong>{adults}</strong>
-                  </div>
-                  <div>
-                    <span>Crianças</span>
-                    <strong>{children}</strong>
-                  </div>
-                </div>
-              </section>
+            <button
+              type="button"
+              className="card-cta-button availability-proceed-button"
+              onClick={handleProceed}
+              disabled={!hasValidStay}
+            >
+              Prosseguir
+            </button>
 
-              <button
-                type="button"
-                className="card-cta-button availability-proceed-button"
-                onClick={handleProceed}
-                disabled={!hasValidStay}
-              >
-                Prosseguir
-              </button>
-
-              {validationMessage ? (
-                <p className="availability-search-validation-message">{validationMessage}</p>
-              ) : null}
-            </aside>
+            {validationMessage ? (
+              <p className="availability-search-validation-message">{validationMessage}</p>
+            ) : null}
+          </aside>
+        </div>
+      ) : currentStep === 2 && checkIn && checkOut ? (
+        <section className="availability-room-choice-step">
+          <div className="availability-results-header">
+            <div className="availability-search-modal-panel-heading">
+              <h3>Escolha seu quarto</h3>
+              <span>Somente quartos disponíveis podem seguir para pagamento</span>
+            </div>
           </div>
-        ) : currentStep === 2 && checkIn && checkOut ? (
-          <section className="availability-room-choice-step">
-            <div className="availability-results-header">
-              <div className="availability-search-modal-panel-heading">
-                <h3>Escolha seu quarto</h3>
-                <span>Somente quartos disponíveis podem seguir para pagamento</span>
-              </div>
+
+          <div className="availability-results-summary">
+            <div>
+              <span>Check-in</span>
+              <strong>{formatDateLabel(checkIn)}</strong>
             </div>
-
-            <div className="availability-results-summary">
-              <div>
-                <span>Check-in</span>
-                <strong>{formatDateLabel(checkIn)}</strong>
-              </div>
-              <div>
-                <span>Check-out</span>
-                <strong>{formatDateLabel(checkOut)}</strong>
-              </div>
-              <div>
-                <span>Noites</span>
-                <strong>{nights}</strong>
-              </div>
-              <div>
-                <span>Adultos</span>
-                <strong>{adults}</strong>
-              </div>
-              <div>
-                <span>Crianças</span>
-                <strong>{children}</strong>
-              </div>
+            <div>
+              <span>Check-out</span>
+              <strong>{formatDateLabel(checkOut)}</strong>
             </div>
+            <div>
+              <span>Noites</span>
+              <strong>{nights}</strong>
+            </div>
+            <div>
+              <span>Adultos</span>
+              <strong>{adults}</strong>
+            </div>
+            <div>
+              <span>Crianças</span>
+              <strong>{children}</strong>
+            </div>
+          </div>
 
-            {roomResults.length ? (
-              <div className="availability-modal-room-list">
-                {roomResults.map(({ room, availabilityStatus, priceEstimate, capacityLabel }) => {
-                  const fallbackTotalPriceCents = room.lowestActiveRateCents
-                    ? room.lowestActiveRateCents * nights
-                    : null;
-                  const roomDetailsHref = hotelSlug
-                    ? `/hoteis/${hotelSlug}#quarto-${room.id}`
-                    : null;
-                  const statusLabel =
-                    availabilityStatus === "available"
-                      ? "Disponível"
-                      : availabilityStatus === "unavailable"
-                        ? "Indisponível"
-                        : "Consultar disponibilidade";
+          {roomResults.length ? (
+            <div className="availability-modal-room-list">
+              {roomResults.map(({ room, availabilityStatus, priceEstimate, capacityLabel }) => {
+                const fallbackTotalPriceCents = room.lowestActiveRateCents
+                  ? room.lowestActiveRateCents * nights
+                  : null;
+                const roomDetailsHref = hotelSlug ? `/hoteis/${hotelSlug}#quarto-${room.id}` : null;
+                const statusLabel =
+                  availabilityStatus === "available"
+                    ? "Disponível"
+                    : availabilityStatus === "unavailable"
+                      ? "Indisponível"
+                      : "Consultar disponibilidade";
 
-                  return (
-                    <article
-                      key={room.id}
-                      className={[
-                        "availability-modal-room-card",
-                        selectedRoomId === room.id ? "is-selected" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    >
-                      <div className="availability-modal-room-card__media">
-                        <Image
-                          src={room.imageUrl}
-                          alt={`Quarto ${room.name}`}
-                          fill
-                          sizes="(max-width: 560px) 100vw, 180px"
-                          unoptimized
-                        />
+                return (
+                  <article
+                    key={room.id}
+                    className={[
+                      "availability-modal-room-card",
+                      selectedRoomId === room.id ? "is-selected" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    <div className="availability-modal-room-card__media">
+                      <Image
+                        src={room.imageUrl}
+                        alt={`Quarto ${room.name}`}
+                        fill
+                        sizes="(max-width: 560px) 100vw, 180px"
+                        unoptimized
+                      />
+                    </div>
+                    <div className="availability-modal-room-card__content">
+                      <div className="availability-modal-room-card__header">
+                        <h3>{room.name}</h3>
+                        <span
+                          className={`hotel-room-badge ${
+                            availabilityStatus === "available"
+                              ? "is-available"
+                              : availabilityStatus === "unavailable"
+                                ? "is-unavailable"
+                                : ""
+                          }`}
+                        >
+                          {statusLabel}
+                        </span>
                       </div>
-                      <div className="availability-modal-room-card__content">
-                        <div className="availability-modal-room-card__header">
-                          <h3>{room.name}</h3>
-                          <span
-                            className={`hotel-room-badge ${
-                              availabilityStatus === "available"
-                                ? "is-available"
-                                : availabilityStatus === "unavailable"
-                                  ? "is-unavailable"
-                                  : ""
-                            }`}
-                          >
-                            {statusLabel}
+                      <p className="availability-modal-room-card__description">
+                        {room.description}
+                      </p>
+                      <div className="hotel-room-meta availability-modal-room-card__meta">
+                        <span>{capacityLabel}</span>
+                        <span>{room.beds}</span>
+                        <span>{room.sizeM2 ? `${room.sizeM2} m²` : room.size}</span>
+                      </div>
+                      {room.amenities.length ? (
+                        <div className="availability-modal-room-card__amenities">
+                          {room.amenities.slice(0, 4).map((amenity) => (
+                            <span key={`${room.id}-${amenity}`}>{amenity}</span>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="availability-modal-room-card__footer">
+                        <div>
+                          <strong>
+                            {priceEstimate
+                              ? `${formatPriceInBRL(priceEstimate.nightlyPriceCents)} / noite`
+                              : room.lowestActiveRateCents
+                                ? `A partir de ${formatPriceInBRL(room.lowestActiveRateCents)}`
+                                : "Consultar valores"}
+                          </strong>
+                          <span>
+                            {priceEstimate
+                              ? `Total estimado: ${formatPriceInBRL(priceEstimate.totalPriceCents)}`
+                              : fallbackTotalPriceCents
+                                ? `Total estimado: ${formatPriceInBRL(fallbackTotalPriceCents)}`
+                                : "Valor calculado no checkout."}
                           </span>
                         </div>
-                        <p className="availability-modal-room-card__description">
-                          {room.description}
-                        </p>
-                        <div className="hotel-room-meta availability-modal-room-card__meta">
-                          <span>{capacityLabel}</span>
-                          <span>{room.beds}</span>
-                          <span>{room.sizeM2 ? `${room.sizeM2} m2` : room.size}</span>
-                        </div>
-                        {room.amenities.length ? (
-                          <div className="availability-modal-room-card__amenities">
-                            {room.amenities.slice(0, 4).map((amenity) => (
-                              <span key={`${room.id}-${amenity}`}>{amenity}</span>
-                            ))}
-                          </div>
-                        ) : null}
-                        <div className="availability-modal-room-card__footer">
-                          <div>
-                            <strong>
-                              {priceEstimate
-                                ? `${formatPriceInBRL(priceEstimate.nightlyPriceCents)} / noite`
-                                : room.lowestActiveRateCents
-                                  ? `A partir de ${formatPriceInBRL(room.lowestActiveRateCents)}`
-                                  : "Consultar valores"}
-                            </strong>
-                            <span>
-                              {priceEstimate
-                                ? `Total estimado: ${formatPriceInBRL(
-                                    priceEstimate.totalPriceCents
-                                  )}`
-                                : fallbackTotalPriceCents
-                                  ? `Total estimado: ${formatPriceInBRL(fallbackTotalPriceCents)}`
-                                  : "Valor calculado no checkout."}
+
+                        <div className="availability-modal-room-card__actions">
+                          {roomDetailsHref ? (
+                            <a
+                              href={roomDetailsHref}
+                              className="availability-modal-room-card__details-link"
+                            >
+                              Ver página do quarto
+                            </a>
+                          ) : null}
+
+                          {availabilityStatus === "available" ? (
+                            <button
+                              type="button"
+                              className="availability-modal-room-card__cta"
+                              onClick={() => {
+                                setSelectedRoomId(room.id);
+                                setSelectedPaymentMethod(null);
+                                setPaymentDetails(null);
+                                setCreatedReservationId(null);
+                                setReservationError("");
+                                setCurrentStep(3);
+                              }}
+                            >
+                              Selecionar quarto
+                            </button>
+                          ) : (
+                            <span className="availability-modal-room-card__cta is-disabled">
+                              Indisponível
                             </span>
-                          </div>
-
-                          <div className="availability-modal-room-card__actions">
-                            {roomDetailsHref ? (
-                              <a
-                                href={roomDetailsHref}
-                                className="availability-modal-room-card__details-link"
-                              >
-                                Ver página do quarto
-                              </a>
-                            ) : null}
-
-                            {availabilityStatus === "available" ? (
-                              <button
-                                type="button"
-                                className="availability-modal-room-card__cta"
-                                onClick={() => {
-                                  setSelectedRoomId(room.id);
-                                  setSelectedPaymentMethod(null);
-                                  setPaymentDetails(null);
-                                  setCreatedReservationId(null);
-                                  setReservationError("");
-                                  setCurrentStep(3);
-                                }}
-                              >
-                                Selecionar quarto
-                              </button>
-                            ) : (
-                              <span className="availability-modal-room-card__cta is-disabled">
-                                Indisponível
-                              </span>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </div>
-                    </article>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="hotel-empty-state availability-modal-empty">
-                <strong>Nenhum quarto disponível para essa consulta.</strong>
-                <p>
-                  Ajuste datas ou viajantes. Se preferir, fale com a equipe do hotel para avaliar
-                  alternativas.
-                </p>
-              </div>
-            )}
-          </section>
-        ) : currentStep === 3 && checkIn && checkOut && selectedRoomResult ? (
-          <section className="availability-guest-step">
-            <div className="availability-results-header">
-              <div className="availability-search-modal-panel-heading">
-                <h3>Dados do hóspede</h3>
-                <span>A reserva ainda não está confirmada nesta etapa</span>
-              </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-
-            <div className="availability-guest-layout">
-              <aside className="availability-reservation-summary">
-                <h3>Resumo antes do pagamento</h3>
-                <div className="availability-confirmation-details">
-                  <div>
-                    <span>Hotel</span>
-                    <strong>{hotelName}</strong>
-                  </div>
-                  <div>
-                    <span>Quarto</span>
-                    <strong>{selectedRoomResult.room.name}</strong>
-                  </div>
-                  <div>
-                    <span>Check-in</span>
-                    <strong>{formatDateLabel(checkIn)}</strong>
-                  </div>
-                  <div>
-                    <span>Check-out</span>
-                    <strong>{formatDateLabel(checkOut)}</strong>
-                  </div>
-                  <div>
-                    <span>Noites</span>
-                    <strong>{nights}</strong>
-                  </div>
-                  <div>
-                    <span>Adultos</span>
-                    <strong>{adults}</strong>
-                  </div>
-                  <div>
-                    <span>Crianças</span>
-                    <strong>{children}</strong>
-                  </div>
-                  <div>
-                    <span>Valor total</span>
-                    <strong>{selectedTotalPriceLabel}</strong>
-                  </div>
-                </div>
-              </aside>
-
-              <form
-                className="availability-reservation-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  handleGuestDataProceed();
-                }}
-              >
-                <label>
-                  Nome completo
-                  <input
-                    type="text"
-                    value={guestName}
-                    onChange={(event) => {
-                      setGuestName(event.target.value);
-                      setGuestFormErrors((current) => ({ ...current, guestName: undefined }));
-                    }}
-                    required
-                    minLength={3}
-                    maxLength={120}
-                    autoComplete="name"
-                    aria-describedby={
-                      guestFormErrors.guestName ? "availability-guest-name-error" : undefined
-                    }
-                    aria-invalid={Boolean(guestFormErrors.guestName)}
-                  />
-                  {guestFormErrors.guestName ? (
-                    <span id="availability-guest-name-error">{guestFormErrors.guestName}</span>
-                  ) : null}
-                </label>
-
-                <label>
-                  E-mail
-                  <input
-                    type="email"
-                    value={guestEmail}
-                    onChange={(event) => {
-                      setGuestEmail(event.target.value);
-                      setGuestFormErrors((current) => ({ ...current, guestEmail: undefined }));
-                    }}
-                    required
-                    maxLength={180}
-                    autoComplete="email"
-                    aria-describedby={
-                      guestFormErrors.guestEmail ? "availability-guest-email-error" : undefined
-                    }
-                    aria-invalid={Boolean(guestFormErrors.guestEmail)}
-                  />
-                  {guestFormErrors.guestEmail ? (
-                    <span id="availability-guest-email-error">{guestFormErrors.guestEmail}</span>
-                  ) : null}
-                </label>
-
-                <label>
-                  Telefone
-                  <input
-                    type="tel"
-                    value={guestPhone}
-                    onChange={(event) => {
-                      setGuestPhone(event.target.value);
-                      setGuestFormErrors((current) => ({ ...current, guestPhone: undefined }));
-                    }}
-                    required
-                    minLength={8}
-                    maxLength={30}
-                    autoComplete="tel"
-                    aria-describedby={
-                      guestFormErrors.guestPhone ? "availability-guest-phone-error" : undefined
-                    }
-                    aria-invalid={Boolean(guestFormErrors.guestPhone)}
-                  />
-                  {guestFormErrors.guestPhone ? (
-                    <span id="availability-guest-phone-error">{guestFormErrors.guestPhone}</span>
-                  ) : null}
-                </label>
-
-                <label>
-                  CPF ou passaporte
-                  <input
-                    type="text"
-                    value={guestDocument}
-                    onChange={(event) => {
-                      setGuestDocument(event.target.value);
-                      setGuestFormErrors((current) => ({ ...current, guestDocument: undefined }));
-                    }}
-                    onBlur={() => {
-                      setGuestDocumentTouched(true);
-
-                      if (!normalizeGuestDocument(guestDocument)) {
-                        setGuestFormErrors((current) => ({
-                          ...current,
-                          guestDocument: getGuestDocumentError(guestDocument),
-                        }));
-                      } else {
-                        setGuestFormErrors((current) => ({ ...current, guestDocument: undefined }));
-                      }
-                    }}
-                    maxLength={40}
-                    autoComplete="off"
-                    placeholder="Digite seu CPF ou passaporte"
-                    inputMode="text"
-                    aria-describedby={
-                      guestDocumentTouched && guestFormErrors.guestDocument
-                        ? "availability-guest-document-error"
-                        : undefined
-                    }
-                    aria-invalid={Boolean(guestFormErrors.guestDocument)}
-                  />
-                  {guestDocumentTouched && guestFormErrors.guestDocument ? (
-                    <span id="availability-guest-document-error">
-                      {guestFormErrors.guestDocument}
-                    </span>
-                  ) : null}
-                </label>
-
-                <button type="submit" className="availability-confirmation-cta">
-                  Continuar para pagamento
-                </button>
-              </form>
-            </div>
-          </section>
-        ) : currentStep === 4 && checkIn && checkOut && selectedRoomResult ? (
-          <section className="availability-confirmation-step">
-            <div className="availability-results-header">
-              <div className="availability-search-modal-panel-heading">
-                <h3>Escolha a forma de pagamento</h3>
-                <span>A reserva será criada como pendente antes do pagamento</span>
-              </div>
-            </div>
-
-            <div className="availability-confirmation-card">
-              <div className="availability-payment-summary">
-                <strong>Resumo do pagamento</strong>
-                <div className="availability-confirmation-details">
-                  <div>
-                    <span>Quarto</span>
-                    <strong>{selectedRoomResult.room.name}</strong>
-                  </div>
-                  <div>
-                    <span>Período</span>
-                    <strong>
-                      {formatDateLabel(checkIn)} a {formatDateLabel(checkOut)}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Hóspedes</span>
-                    <strong>
-                      {adults} adulto(s), {children} criança(s)
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Total estimado</span>
-                    <strong>{selectedTotalPriceLabel}</strong>
-                  </div>
-                </div>
-                <p>
-                  Ao prosseguir, a reserva fica aguardando pagamento. Confirmação e e-mails só
-                  acontecem depois da aprovação pelo provedor.
-                </p>
-              </div>
-
-              <div
-                className="availability-payment-methods"
-                role="radiogroup"
-                aria-label="Forma de pagamento"
-              >
-                {PAYMENT_METHOD_OPTIONS.map((option) => {
-                  const isSelected = selectedPaymentMethod === option.id;
-
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className={`availability-payment-method ${isSelected ? "is-selected" : ""}`}
-                      onClick={() => {
-                        setSelectedPaymentMethod(option.id);
-                        setPaymentDetails(null);
-                        setReservationError("");
-                      }}
-                      role="radio"
-                      aria-checked={isSelected}
-                    >
-                      <span className="availability-payment-method__icon">
-                        <PaymentMethodIcon method={option.id} />
-                      </span>
-                      <span>
-                        <strong>{option.name}</strong>
-                        <small>{option.description}</small>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {reservationError ? (
-                <p className="availability-reservation-error" role="alert">
-                  {reservationError}
-                </p>
-              ) : null}
-
-              {isSubmittingReservation ? (
-                <div className="availability-payment-loading" role="status">
-                  <span aria-hidden="true" />
-                  <strong>Criando reserva pendente e iniciando pagamento...</strong>
-                  <p>Você será redirecionado para um checkout seguro quando tudo estiver pronto.</p>
-                </div>
-              ) : null}
-
-              {renderPaymentInstructions()}
-
-              <button
-                type="button"
-                className="availability-confirmation-cta"
-                disabled={
-                  !selectedPaymentMethod || isSubmittingReservation || Boolean(paymentDetails)
-                }
-                onClick={handleReservationSubmit}
-              >
-                {isSubmittingReservation
-                  ? "Iniciando pagamento..."
-                  : "Criar reserva e iniciar pagamento"}
-              </button>
-            </div>
-          </section>
-        ) : currentStep === 5 && checkIn && checkOut && selectedRoomResult ? (
-          <section className="availability-confirmation-step">
-            <div className="availability-results-header">
-              <div className="availability-search-modal-panel-heading">
-                <h3>Confirmação</h3>
-                <span>Acompanhe a confirmação do pagamento</span>
-              </div>
-            </div>
-
-            <div className="availability-confirmation-card">
-              <div className="availability-reservation-success" role="status">
-                <span className="hotel-page-eyebrow">Pagamento iniciado</span>
-                <h3>Reserva aguardando confirmação</h3>
-                <p>
-                  Código da reserva: <strong>{createdReservationId}</strong>
-                </p>
-                <p>A confirmação ocorre somente após aprovação do pagamento.</p>
-              </div>
-            </div>
-          </section>
-        ) : (
-          <section className="availability-search-results-placeholder">
+          ) : (
             <div className="hotel-empty-state availability-modal-empty">
-              <strong>Complete os dados da busca para continuar.</strong>
-              <p>{validationMessage || "Volte para selecionar datas e viajantes."}</p>
+              <strong>Nenhum quarto disponível para essa consulta.</strong>
+              <p>
+                Ajuste datas ou viajantes. Se preferir, fale com a equipe do hotel para avaliar
+                alternativas.
+              </p>
             </div>
-          </section>
-        )}
-      </section>
-    </div>
+          )}
+        </section>
+      ) : currentStep === 3 && checkIn && checkOut && selectedRoomResult ? (
+        <section className="availability-guest-step">
+          <div className="availability-results-header">
+            <div className="availability-search-modal-panel-heading">
+              <h3>Dados do hóspede</h3>
+              <span>A reserva ainda não está confirmada nesta etapa</span>
+            </div>
+          </div>
+
+          <div className="availability-guest-layout">
+            <aside className="availability-reservation-summary">
+              <h3>Resumo antes do pagamento</h3>
+              <div className="availability-confirmation-details">
+                <div>
+                  <span>Hotel</span>
+                  <strong>{hotelName}</strong>
+                </div>
+                <div>
+                  <span>Quarto</span>
+                  <strong>{selectedRoomResult.room.name}</strong>
+                </div>
+                <div>
+                  <span>Check-in</span>
+                  <strong>{formatDateLabel(checkIn)}</strong>
+                </div>
+                <div>
+                  <span>Check-out</span>
+                  <strong>{formatDateLabel(checkOut)}</strong>
+                </div>
+                <div>
+                  <span>Noites</span>
+                  <strong>{nights}</strong>
+                </div>
+                <div>
+                  <span>Adultos</span>
+                  <strong>{adults}</strong>
+                </div>
+                <div>
+                  <span>Crianças</span>
+                  <strong>{children}</strong>
+                </div>
+                <div>
+                  <span>Valor total</span>
+                  <strong>{selectedTotalPriceLabel}</strong>
+                </div>
+              </div>
+            </aside>
+
+            <form
+              className="availability-reservation-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleGuestDataProceed();
+              }}
+            >
+              <label>
+                Nome completo
+                <input
+                  type="text"
+                  value={guestName}
+                  onChange={(event) => {
+                    setGuestName(event.target.value);
+                    setGuestFormErrors((current) => ({ ...current, guestName: undefined }));
+                  }}
+                  required
+                  minLength={3}
+                  maxLength={120}
+                  autoComplete="name"
+                  aria-describedby={
+                    guestFormErrors.guestName ? "availability-guest-name-error" : undefined
+                  }
+                  aria-invalid={Boolean(guestFormErrors.guestName)}
+                />
+                {guestFormErrors.guestName ? (
+                  <span id="availability-guest-name-error">{guestFormErrors.guestName}</span>
+                ) : null}
+              </label>
+
+              <label>
+                E-mail
+                <input
+                  type="email"
+                  value={guestEmail}
+                  onChange={(event) => {
+                    setGuestEmail(event.target.value);
+                    setGuestFormErrors((current) => ({ ...current, guestEmail: undefined }));
+                  }}
+                  required
+                  maxLength={180}
+                  autoComplete="email"
+                  aria-describedby={
+                    guestFormErrors.guestEmail ? "availability-guest-email-error" : undefined
+                  }
+                  aria-invalid={Boolean(guestFormErrors.guestEmail)}
+                />
+                {guestFormErrors.guestEmail ? (
+                  <span id="availability-guest-email-error">{guestFormErrors.guestEmail}</span>
+                ) : null}
+              </label>
+
+              <label>
+                Telefone
+                <input
+                  type="tel"
+                  value={guestPhone}
+                  onChange={(event) => {
+                    setGuestPhone(event.target.value);
+                    setGuestFormErrors((current) => ({ ...current, guestPhone: undefined }));
+                  }}
+                  required
+                  minLength={8}
+                  maxLength={30}
+                  autoComplete="tel"
+                  aria-describedby={
+                    guestFormErrors.guestPhone ? "availability-guest-phone-error" : undefined
+                  }
+                  aria-invalid={Boolean(guestFormErrors.guestPhone)}
+                />
+                {guestFormErrors.guestPhone ? (
+                  <span id="availability-guest-phone-error">{guestFormErrors.guestPhone}</span>
+                ) : null}
+              </label>
+
+              <label>
+                CPF ou passaporte
+                <input
+                  type="text"
+                  value={guestDocument}
+                  onChange={(event) => {
+                    setGuestDocument(event.target.value);
+                    setGuestFormErrors((current) => ({ ...current, guestDocument: undefined }));
+                  }}
+                  onBlur={() => {
+                    setGuestDocumentTouched(true);
+
+                    if (!normalizeGuestDocument(guestDocument)) {
+                      setGuestFormErrors((current) => ({
+                        ...current,
+                        guestDocument: getGuestDocumentError(guestDocument),
+                      }));
+                    } else {
+                      setGuestFormErrors((current) => ({ ...current, guestDocument: undefined }));
+                    }
+                  }}
+                  maxLength={40}
+                  autoComplete="off"
+                  placeholder="Digite seu CPF ou passaporte"
+                  inputMode="text"
+                  aria-describedby={
+                    guestDocumentTouched && guestFormErrors.guestDocument
+                      ? "availability-guest-document-error"
+                      : undefined
+                  }
+                  aria-invalid={Boolean(guestFormErrors.guestDocument)}
+                />
+                {guestDocumentTouched && guestFormErrors.guestDocument ? (
+                  <span id="availability-guest-document-error">
+                    {guestFormErrors.guestDocument}
+                  </span>
+                ) : null}
+              </label>
+
+              <button type="submit" className="availability-confirmation-cta">
+                Continuar para pagamento
+              </button>
+            </form>
+          </div>
+        </section>
+      ) : currentStep === 4 && checkIn && checkOut && selectedRoomResult ? (
+        <section className="availability-confirmation-step">
+          <div className="availability-results-header">
+            <div className="availability-search-modal-panel-heading">
+              <h3>Escolha a forma de pagamento</h3>
+              <span>A reserva será criada como pendente antes do pagamento</span>
+            </div>
+          </div>
+
+          <div className="availability-confirmation-card">
+            <div className="availability-payment-summary">
+              <strong>Resumo do pagamento</strong>
+              <div className="availability-confirmation-details">
+                <div>
+                  <span>Quarto</span>
+                  <strong>{selectedRoomResult.room.name}</strong>
+                </div>
+                <div>
+                  <span>Período</span>
+                  <strong>
+                    {formatDateLabel(checkIn)} a {formatDateLabel(checkOut)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Hóspedes</span>
+                  <strong>
+                    {adults} adulto(s), {children} criança(s)
+                  </strong>
+                </div>
+                <div>
+                  <span>Total estimado</span>
+                  <strong>{selectedTotalPriceLabel}</strong>
+                </div>
+              </div>
+              <p>
+                Ao prosseguir, a reserva fica aguardando pagamento. Confirmação e e-mails só
+                acontecem depois da aprovação pelo provedor.
+              </p>
+            </div>
+
+            <div
+              className="availability-payment-methods"
+              role="radiogroup"
+              aria-label="Forma de pagamento"
+            >
+              {PAYMENT_METHOD_OPTIONS.map((option) => {
+                const isSelected = selectedPaymentMethod === option.id;
+
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`availability-payment-method ${isSelected ? "is-selected" : ""}`}
+                    onClick={() => {
+                      setSelectedPaymentMethod(option.id);
+                      setPaymentDetails(null);
+                      setReservationError("");
+                    }}
+                    role="radio"
+                    aria-checked={isSelected}
+                  >
+                    <span className="availability-payment-method__icon">
+                      <PaymentMethodIcon method={option.id} />
+                    </span>
+                    <span>
+                      <strong>{option.name}</strong>
+                      <small>{option.description}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {reservationError ? (
+              <p className="availability-reservation-error" role="alert">
+                {reservationError}
+              </p>
+            ) : null}
+
+            {isSubmittingReservation ? (
+              <div className="availability-payment-loading" role="status">
+                <span aria-hidden="true" />
+                <strong>Criando reserva pendente e iniciando pagamento...</strong>
+                <p>Você será redirecionado para um checkout seguro quando tudo estiver pronto.</p>
+              </div>
+            ) : null}
+
+            {renderPaymentInstructions()}
+
+            <button
+              type="button"
+              className="availability-confirmation-cta"
+              disabled={
+                !selectedPaymentMethod || isSubmittingReservation || Boolean(paymentDetails)
+              }
+              onClick={handleReservationSubmit}
+            >
+              {isSubmittingReservation
+                ? "Iniciando pagamento..."
+                : "Criar reserva e iniciar pagamento"}
+            </button>
+          </div>
+        </section>
+      ) : currentStep === 5 && checkIn && checkOut && selectedRoomResult ? (
+        <section className="availability-confirmation-step">
+          <div className="availability-results-header">
+            <div className="availability-search-modal-panel-heading">
+              <h3>Confirmação</h3>
+              <span>Acompanhe a confirmação do pagamento</span>
+            </div>
+          </div>
+
+          <div className="availability-confirmation-card">
+            <div className="availability-reservation-success" role="status">
+              <span className="hotel-page-eyebrow">Pagamento iniciado</span>
+              <h3>Reserva aguardando confirmação</h3>
+              <p>
+                Código da reserva: <strong>{createdReservationId}</strong>
+              </p>
+              <p>A confirmação ocorre somente após aprovação do pagamento.</p>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="availability-search-results-placeholder">
+          <div className="hotel-empty-state availability-modal-empty">
+            <strong>Complete os dados da busca para continuar.</strong>
+            <p>{validationMessage || "Volte para selecionar datas e viajantes."}</p>
+          </div>
+        </section>
+      )}
+    </section>
   );
 
-  return createPortal(modalContent, document.body);
+  if (isPageVariant) {
+    return flowContent;
+  }
+
+  return createPortal(
+    <div className="hotel-availability-modal-backdrop" role="presentation">
+      {flowContent}
+    </div>,
+    document.body
+  );
 }

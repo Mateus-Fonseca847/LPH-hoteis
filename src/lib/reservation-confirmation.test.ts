@@ -18,6 +18,21 @@ const reservation = {
   status: "awaiting_payment",
   paymentStatus: "awaiting_payment",
   availabilityHeld: true,
+  hotelId: "hotel-1",
+  paymentProvider: "mercado_pago",
+  paymentMethod: "pix",
+  totalPriceCents: 120000,
+  currency: "BRL",
+  paymentTransaction: {
+    status: "awaiting_payment",
+  },
+  room: {
+    isActive: true,
+    isAvailable: true,
+    hotel: {
+      isPublished: true,
+    },
+  },
 };
 
 function createTransactionMock(overrides?: {
@@ -44,6 +59,11 @@ function createTransactionMock(overrides?: {
       count: vi.fn().mockResolvedValue(overrides?.availabilityRows ?? 2),
       updateMany: vi.fn().mockResolvedValue({
         count: overrides?.availabilityUpdateCount ?? 2,
+      }),
+    },
+    paymentTransaction: {
+      upsert: vi.fn().mockResolvedValue({
+        id: "payment-transaction-1",
       }),
     },
   };
@@ -81,6 +101,14 @@ describe("reservation payment status transitions", () => {
           paymentStatus: "paid",
           providerPaymentId: "payment-1",
           availabilityHeld: true,
+        }),
+      })
+    );
+    expect(tx.paymentTransaction.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          providerPaymentId: "payment-1",
+          status: "paid",
         }),
       })
     );
@@ -132,6 +160,7 @@ describe("reservation payment status transitions", () => {
 
     expect(tx.roomAvailability.updateMany).not.toHaveBeenCalled();
     expect(tx.reservation.updateMany).not.toHaveBeenCalled();
+    expect(tx.paymentTransaction.upsert).not.toHaveBeenCalled();
   });
 
   it("não confirma quando a disponibilidade configurada não cobre toda a estadia", async () => {
@@ -145,6 +174,29 @@ describe("reservation payment status transitions", () => {
         providerPaymentId: "payment-1",
       })
     ).rejects.toThrow("Quarto indisponível");
+  });
+
+  it("não confirma quando o hotel deixa de estar publicado", async () => {
+    const tx = createTransactionMock({
+      reservation: {
+        room: {
+          ...reservation.room,
+          hotel: {
+            isPublished: false,
+          },
+        },
+      },
+    });
+
+    await expect(
+      confirmPaidReservation({
+        reservationId: "reservation-1",
+        providerPaymentId: "payment-1",
+      })
+    ).rejects.toThrow("Hospedagem indisponível");
+
+    expect(tx.reservation.updateMany).not.toHaveBeenCalled();
+    expect(tx.paymentTransaction.upsert).not.toHaveBeenCalled();
   });
 
   it("falha ou cancelamento liberam disponibilidade uma unica vez", async () => {
@@ -176,6 +228,14 @@ describe("reservation payment status transitions", () => {
         },
       })
     );
+    expect(tx.paymentTransaction.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          providerPaymentId: "payment-1",
+          status: "payment_failed",
+        }),
+      })
+    );
 
     const duplicateTx = createTransactionMock({
       reservationUpdateCount: 0,
@@ -189,5 +249,28 @@ describe("reservation payment status transitions", () => {
       })
     ).resolves.toBe(false);
     expect(duplicateTx.roomAvailability.updateMany).not.toHaveBeenCalled();
+    expect(duplicateTx.paymentTransaction.upsert).not.toHaveBeenCalled();
+  });
+
+  it("não encerra reserva quando a transação financeira já está paga", async () => {
+    const tx = createTransactionMock({
+      reservation: {
+        paymentTransaction: {
+          status: "paid",
+        },
+      },
+    });
+
+    await expect(
+      closeUnpaidReservation({
+        reservationId: "reservation-1",
+        status: "cancelled",
+        providerPaymentId: "payment-1",
+      })
+    ).resolves.toBe(false);
+
+    expect(tx.reservation.updateMany).not.toHaveBeenCalled();
+    expect(tx.roomAvailability.updateMany).not.toHaveBeenCalled();
+    expect(tx.paymentTransaction.upsert).not.toHaveBeenCalled();
   });
 });

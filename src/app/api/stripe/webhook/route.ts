@@ -5,10 +5,7 @@ import {
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
-import {
-  upsertInitialPaymentTransactionForReservation,
-  upsertPaidPaymentTransactionForReservation,
-} from "@/lib/finance/payment-transactions";
+import { upsertPaidPaymentTransactionForReservation } from "@/lib/finance/payment-transactions";
 import { prisma } from "@/lib/prisma";
 import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
 import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
@@ -95,7 +92,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     stripePaymentIntentId,
   });
 
-  await upsertPaidPaymentTransactionForReservation(reservation.id);
   if (confirmation?.confirmed) {
     await notifyPaidReservation(reservation.id);
   }
@@ -113,7 +109,6 @@ async function handleCheckoutFailed(session: Stripe.Checkout.Session) {
     status: "cancelled",
     stripeCheckoutSessionId: session.id,
   });
-  await upsertInitialPaymentTransactionForReservation(reservationId, "cancelled");
 }
 
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
@@ -128,7 +123,6 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
     status: "payment_failed",
     stripePaymentIntentId: paymentIntent.id,
   });
-  await upsertInitialPaymentTransactionForReservation(reservationId, "payment_failed");
 }
 
 export async function POST(request: Request) {

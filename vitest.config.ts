@@ -17,6 +17,8 @@ export default defineConfig({
       include: [
         "src/lib/auth/authorization.ts",
         "src/lib/auth/two-factor.ts",
+        "src/lib/payments/mercado-pago.ts",
+        "src/lib/profile-recommendations.ts",
         "src/lib/reservation-confirmation.ts",
         "src/lib/stay-query.ts",
         "src/lib/validations/reservation.ts",

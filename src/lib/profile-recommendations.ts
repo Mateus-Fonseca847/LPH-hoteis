@@ -5,6 +5,7 @@ export type ProfileRecommendationHotel = {
   state: string;
   coverImageUrl: string;
   shortDescription?: string;
+  isPublished?: boolean;
 };
 
 export type TouristAttractionIconType =
@@ -327,7 +328,9 @@ function findCompatibleHotels(
   destinationCity: string,
   destinationState: string
 ) {
-  const validHotels = hotels.filter((hotel) => isValidHotelSlug(hotel.slug));
+  const validHotels = hotels.filter(
+    (hotel) => hotel.isPublished !== false && isValidHotelSlug(hotel.slug)
+  );
   const exactCityHotels = validHotels.filter((hotel) =>
     isSameCityAndState(hotel, destinationCity, destinationState)
   );
