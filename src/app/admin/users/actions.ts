@@ -12,6 +12,7 @@ import {
   type HotelPermissionAuditSnapshot,
 } from "@/lib/audit/admin-user-audit";
 import { requireAuthenticatedRequestUser, isAdminUser } from "@/lib/auth";
+import { assertCanManageAdministrativeTarget } from "@/lib/auth/admin-permissions";
 import { validateAdminTwoFactor } from "@/lib/auth/admin-security";
 import { requireHotelAdminAccess } from "@/lib/auth/authorization";
 import {
@@ -496,6 +497,7 @@ export async function createAdministratorAction(
           passwordHash,
           globalRole: parsedPayload.data.globalRole,
           isActive: parsedPayload.data.isActive,
+          emailTwoFactorEnabled: true,
         },
       });
 
@@ -568,6 +570,7 @@ export async function addUserHotelPermissionAction(
     assertCanAssignHotelRole(context, parsedPayload.data.role as HotelRole);
 
     const targetUser = await ensureAdminTargetUser(parsedPayload.data.userId);
+    assertCanManageAdministrativeTarget(context.actor, targetUser);
 
     if (!isAdminUser(targetUser.globalRole)) {
       throw new ConflictError("O usuário precisa ter papel global administrativo.");
@@ -645,6 +648,8 @@ export async function updateHotelPermissionAction(
     }
 
     const currentPermission = await ensurePermissionBelongsToHotel(permissionId, context.hotelId);
+    const targetUser = await ensureAdminTargetUser(currentPermission.userId);
+    assertCanManageAdministrativeTarget(context.actor, targetUser);
 
     if (parsedPayload.data.userId !== currentPermission.userId) {
       throw new AuthorizationError("Usuário inválido para este vínculo.");
@@ -714,6 +719,8 @@ export async function removeUserHotelPermissionAction(
   try {
     const context = await getScopedActorContext(scopeHotelId);
     const currentPermission = await ensurePermissionBelongsToHotel(permissionId, context.hotelId);
+    const targetUser = await ensureAdminTargetUser(currentPermission.userId);
+    assertCanManageAdministrativeTarget(context.actor, targetUser);
 
     if (
       context.actor.globalRole !== "super_admin" &&

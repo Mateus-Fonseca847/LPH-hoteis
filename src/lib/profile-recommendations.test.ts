@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { getProfileExperienceMatches } from "@/lib/profile-recommendations";
+import {
+  getProfileExperienceMatches,
+  normalizeLocationState,
+  normalizeLocationText,
+} from "@/lib/profile-recommendations";
 
 const experience = {
   key: "recife",
@@ -15,6 +19,12 @@ const experience = {
 };
 
 describe("profile experience recommendations", () => {
+  it("normaliza cidade e estado para comparacao geografica", () => {
+    expect(normalizeLocationText("  São Paulo ")).toBe("sao paulo");
+    expect(normalizeLocationText("Brasília")).toBe("brasilia");
+    expect(normalizeLocationState(" pe ")).toBe("PE");
+  });
+
   it("normaliza cidade/estado e prioriza somente hotéis da cidade exata", () => {
     const matches = getProfileExperienceMatches({
       recommendations: [experience],

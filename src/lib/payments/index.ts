@@ -101,6 +101,13 @@ export async function startReservationPayment({
     throw new ConflictError("Hospedagem indisponível para iniciar pagamento.");
   }
 
+  if (
+    !["pending", "awaiting_payment"].includes(reservation.status) ||
+    !["pending", "awaiting_payment"].includes(reservation.paymentStatus)
+  ) {
+    throw new ConflictError("Reserva não está disponível para iniciar pagamento.");
+  }
+
   const settings = reservation.hotel.paymentSettings;
   const paymentConfiguration = resolveHotelPaymentConfiguration(settings);
 

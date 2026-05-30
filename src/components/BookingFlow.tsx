@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useId, useState } from "react";
 
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import {
   getCompatibleRoomAvailabilityResults,
   type AvailabilityResultRoom,
@@ -11,14 +11,12 @@ import {
 import { getGuestDocumentError, normalizeGuestDocument } from "@/lib/guest-document";
 import { formatPriceInBRL } from "@/lib/stay-query";
 
-type AvailabilitySearchModalProps = {
+type BookingFlowProps = {
   hotelSlug?: string;
   hotelId: string;
   hotelName: string;
   roomName?: string;
   rooms: AvailabilityResultRoom[];
-  onClose?: () => void;
-  variant?: "modal" | "page";
 };
 
 type CreateReservationResponse = {
@@ -111,15 +109,6 @@ const PAYMENT_METHOD_OPTIONS: PaymentMethodOption[] = [
     description: "Gere um boleto para pagamento dentro do prazo.",
   },
 ];
-const FOCUSABLE_SELECTOR = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  '[tabindex]:not([tabindex="-1"])',
-].join(",");
-
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -358,19 +347,9 @@ function AvailabilityFlowStepper({ currentStep, onBackToSearch }: AvailabilityFl
   );
 }
 
-export function AvailabilitySearchModal({
-  hotelSlug,
-  hotelId,
-  hotelName,
-  roomName,
-  rooms,
-  onClose,
-  variant = "modal",
-}: AvailabilitySearchModalProps) {
+export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: BookingFlowProps) {
   const titleId = useId();
   const descriptionId = useId();
-  const modalRef = useRef<HTMLElement | null>(null);
-  const isPageVariant = variant === "page";
   const context = roomName ? ` para ${roomName}` : "";
   const today = startOfDay(new Date());
   const [adults, setAdults] = useState(MIN_ADULTS);
@@ -426,79 +405,6 @@ export function AvailabilitySearchModal({
         : adults < MIN_ADULTS
           ? "Informe pelo menos 1 adulto."
           : "";
-  useEffect(() => {
-    if (isPageVariant || !onClose) {
-      return;
-    }
-
-    const handleClose = onClose;
-    const previouslyFocusedElement =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    modalRef.current?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        handleClose();
-        return;
-      }
-
-      if (event.key !== "Tab" || !modalRef.current) {
-        return;
-      }
-
-      const focusableElements = Array.from(
-        modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-      ).filter(
-        (element) =>
-          !element.hasAttribute("disabled") &&
-          element.getAttribute("aria-hidden") !== "true" &&
-          element.getClientRects().length > 0
-      );
-
-      if (!focusableElements.length) {
-        event.preventDefault();
-        modalRef.current.focus();
-        return;
-      }
-
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements[focusableElements.length - 1];
-      const activeElement = document.activeElement;
-
-      if (!(activeElement instanceof Node) || !modalRef.current.contains(activeElement)) {
-        event.preventDefault();
-        firstElement.focus();
-        return;
-      }
-
-      if (activeElement === modalRef.current) {
-        event.preventDefault();
-        (event.shiftKey ? lastElement : firstElement).focus();
-        return;
-      }
-
-      if (event.shiftKey && activeElement === firstElement) {
-        event.preventDefault();
-        lastElement.focus();
-        return;
-      }
-
-      if (!event.shiftKey && activeElement === lastElement) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-      previouslyFocusedElement?.focus();
-    };
-  }, [isPageVariant, onClose]);
-
   function handleDateClick(date: Date) {
     if (isBeforeDay(date, today)) {
       return;
@@ -754,19 +660,9 @@ export function AvailabilitySearchModal({
     return null;
   }
 
-  const flowContent = (
-    <section
-      ref={modalRef}
-      className={`hotel-availability-modal ${
-        isPageVariant ? "hotel-availability-modal--page" : ""
-      }`}
-      role={isPageVariant ? undefined : "dialog"}
-      aria-modal={isPageVariant ? undefined : "true"}
-      aria-labelledby={titleId}
-      aria-describedby={descriptionId}
-      tabIndex={isPageVariant ? undefined : -1}
-    >
-      <header className="hotel-availability-modal-header">
+  return (
+    <section className="booking-flow" aria-labelledby={titleId} aria-describedby={descriptionId}>
+      <header className="booking-flow-header">
         <div>
           <span className="hotel-page-eyebrow">Disponibilidade</span>
           <h2 id={titleId}>Consultar disponibilidade</h2>
@@ -776,17 +672,6 @@ export function AvailabilitySearchModal({
             {context}.
           </p>
         </div>
-
-        {!isPageVariant && onClose ? (
-          <button
-            type="button"
-            className="hotel-availability-modal-close"
-            onClick={onClose}
-            aria-label="Fechar consulta de disponibilidade"
-          >
-            X
-          </button>
-        ) : null}
       </header>
 
       <div className="availability-flow-navigation">
@@ -809,9 +694,9 @@ export function AvailabilitySearchModal({
       </div>
 
       {currentStep === 1 ? (
-        <div className="availability-search-modal-grid">
-          <section className="availability-search-modal-panel">
-            <div className="availability-search-modal-panel-heading">
+        <div className="availability-flow-grid">
+          <section className="availability-flow-panel">
+            <div className="availability-flow-panel-heading">
               <h3>Viajantes</h3>
               <span>Adultos e crianças</span>
             </div>
@@ -832,7 +717,7 @@ export function AvailabilitySearchModal({
               />
             </div>
 
-            <div className="availability-search-modal-panel-heading">
+            <div className="availability-flow-panel-heading">
               <h3>Período</h3>
               <span>Escolha check-in e check-out</span>
             </div>
@@ -894,9 +779,9 @@ export function AvailabilitySearchModal({
             </div>
           </section>
 
-          <aside className="availability-search-modal-side">
-            <section className="availability-search-modal-panel">
-              <div className="availability-search-modal-panel-heading">
+          <aside className="availability-flow-side">
+            <section className="availability-flow-panel">
+              <div className="availability-flow-panel-heading">
                 <h3>Resumo</h3>
                 <span>Seleção atual</span>
               </div>
@@ -937,7 +822,7 @@ export function AvailabilitySearchModal({
       ) : currentStep === 2 && checkIn && checkOut ? (
         <section className="availability-room-choice-step">
           <div className="availability-results-header">
-            <div className="availability-search-modal-panel-heading">
+            <div className="availability-flow-panel-heading">
               <h3>Escolha seu quarto</h3>
               <span>Somente quartos disponíveis podem seguir para pagamento</span>
             </div>
@@ -967,7 +852,7 @@ export function AvailabilitySearchModal({
           </div>
 
           {roomResults.length ? (
-            <div className="availability-modal-room-list">
+            <div className="availability-room-list">
               {roomResults.map(({ room, availabilityStatus, priceEstimate, capacityLabel }) => {
                 const fallbackTotalPriceCents = room.lowestActiveRateCents
                   ? room.lowestActiveRateCents * nights
@@ -984,23 +869,28 @@ export function AvailabilitySearchModal({
                   <article
                     key={room.id}
                     className={[
-                      "availability-modal-room-card",
+                      "availability-room-card",
                       selectedRoomId === room.id ? "is-selected" : "",
                     ]
                       .filter(Boolean)
                       .join(" ")}
                   >
-                    <div className="availability-modal-room-card__media">
-                      <Image
-                        src={room.imageUrl}
-                        alt={`Quarto ${room.name}`}
-                        fill
-                        sizes="(max-width: 560px) 100vw, 180px"
-                        unoptimized
-                      />
+                    <div className="availability-room-card__media">
+                      {room.imageUrl ? (
+                        <ImageWithFallback
+                          src={room.imageUrl}
+                          alt={`Quarto ${room.name}`}
+                          fallbackLabel={`Imagem indisponível do quarto ${room.name}`}
+                          fill
+                          sizes="(max-width: 560px) 100vw, 180px"
+                          unoptimized
+                        />
+                      ) : (
+                        <span>{room.name}</span>
+                      )}
                     </div>
-                    <div className="availability-modal-room-card__content">
-                      <div className="availability-modal-room-card__header">
+                    <div className="availability-room-card__content">
+                      <div className="availability-room-card__header">
                         <h3>{room.name}</h3>
                         <span
                           className={`hotel-room-badge ${
@@ -1014,22 +904,20 @@ export function AvailabilitySearchModal({
                           {statusLabel}
                         </span>
                       </div>
-                      <p className="availability-modal-room-card__description">
-                        {room.description}
-                      </p>
-                      <div className="hotel-room-meta availability-modal-room-card__meta">
+                      <p className="availability-room-card__description">{room.description}</p>
+                      <div className="hotel-room-meta availability-room-card__meta">
                         <span>{capacityLabel}</span>
                         <span>{room.beds}</span>
                         <span>{room.sizeM2 ? `${room.sizeM2} m²` : room.size}</span>
                       </div>
                       {room.amenities.length ? (
-                        <div className="availability-modal-room-card__amenities">
+                        <div className="availability-room-card__amenities">
                           {room.amenities.slice(0, 4).map((amenity) => (
                             <span key={`${room.id}-${amenity}`}>{amenity}</span>
                           ))}
                         </div>
                       ) : null}
-                      <div className="availability-modal-room-card__footer">
+                      <div className="availability-room-card__footer">
                         <div>
                           <strong>
                             {priceEstimate
@@ -1047,11 +935,11 @@ export function AvailabilitySearchModal({
                           </span>
                         </div>
 
-                        <div className="availability-modal-room-card__actions">
+                        <div className="availability-room-card__actions">
                           {roomDetailsHref ? (
                             <a
                               href={roomDetailsHref}
-                              className="availability-modal-room-card__details-link"
+                              className="availability-room-card__details-link"
                             >
                               Ver página do quarto
                             </a>
@@ -1060,7 +948,7 @@ export function AvailabilitySearchModal({
                           {availabilityStatus === "available" ? (
                             <button
                               type="button"
-                              className="availability-modal-room-card__cta"
+                              className="availability-room-card__cta"
                               onClick={() => {
                                 setSelectedRoomId(room.id);
                                 setSelectedPaymentMethod(null);
@@ -1073,7 +961,7 @@ export function AvailabilitySearchModal({
                               Selecionar quarto
                             </button>
                           ) : (
-                            <span className="availability-modal-room-card__cta is-disabled">
+                            <span className="availability-room-card__cta is-disabled">
                               Indisponível
                             </span>
                           )}
@@ -1085,7 +973,7 @@ export function AvailabilitySearchModal({
               })}
             </div>
           ) : (
-            <div className="hotel-empty-state availability-modal-empty">
+            <div className="hotel-empty-state availability-flow-empty">
               <strong>Nenhum quarto disponível para essa consulta.</strong>
               <p>
                 Ajuste datas ou viajantes. Se preferir, fale com a equipe do hotel para avaliar
@@ -1097,7 +985,7 @@ export function AvailabilitySearchModal({
       ) : currentStep === 3 && checkIn && checkOut && selectedRoomResult ? (
         <section className="availability-guest-step">
           <div className="availability-results-header">
-            <div className="availability-search-modal-panel-heading">
+            <div className="availability-flow-panel-heading">
               <h3>Dados do hóspede</h3>
               <span>A reserva ainda não está confirmada nesta etapa</span>
             </div>
@@ -1265,7 +1153,7 @@ export function AvailabilitySearchModal({
       ) : currentStep === 4 && checkIn && checkOut && selectedRoomResult ? (
         <section className="availability-confirmation-step">
           <div className="availability-results-header">
-            <div className="availability-search-modal-panel-heading">
+            <div className="availability-flow-panel-heading">
               <h3>Escolha a forma de pagamento</h3>
               <span>A reserva será criada como pendente antes do pagamento</span>
             </div>
@@ -1368,7 +1256,7 @@ export function AvailabilitySearchModal({
       ) : currentStep === 5 && checkIn && checkOut && selectedRoomResult ? (
         <section className="availability-confirmation-step">
           <div className="availability-results-header">
-            <div className="availability-search-modal-panel-heading">
+            <div className="availability-flow-panel-heading">
               <h3>Confirmação</h3>
               <span>Acompanhe a confirmação do pagamento</span>
             </div>
@@ -1387,23 +1275,12 @@ export function AvailabilitySearchModal({
         </section>
       ) : (
         <section className="availability-search-results-placeholder">
-          <div className="hotel-empty-state availability-modal-empty">
+          <div className="hotel-empty-state availability-flow-empty">
             <strong>Complete os dados da busca para continuar.</strong>
             <p>{validationMessage || "Volte para selecionar datas e viajantes."}</p>
           </div>
         </section>
       )}
     </section>
-  );
-
-  if (isPageVariant) {
-    return flowContent;
-  }
-
-  return createPortal(
-    <div className="hotel-availability-modal-backdrop" role="presentation">
-      {flowContent}
-    </div>,
-    document.body
   );
 }

@@ -230,7 +230,7 @@ const stateFallbackAttractions: Record<string, ProfileTouristAttraction[]> = {
   ],
 };
 
-function normalizeText(value: string) {
+export function normalizeLocationText(value: string) {
   return value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -238,8 +238,12 @@ function normalizeText(value: string) {
     .trim();
 }
 
+export function normalizeLocationState(value: string) {
+  return normalizeLocationText(value).toUpperCase();
+}
+
 function getDestinationKey(city: string, state: string) {
-  return `${normalizeText(city).replace(/[^a-z0-9]+/g, "-")}-${state.trim().toUpperCase()}`;
+  return `${normalizeLocationText(city).replace(/[^a-z0-9]+/g, "-")}-${state.trim().toUpperCase()}`;
 }
 
 function getDestinationParts(experience: ProfileExperienceInput) {
@@ -268,23 +272,19 @@ function isValidHotelSlug(slug: string) {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
 }
 
-function normalizeState(value: string) {
-  return normalizeText(value).toUpperCase();
-}
-
 function isSameCityAndState(
   hotel: ProfileRecommendationHotel,
   destinationCity: string,
   destinationState: string
 ) {
   return (
-    normalizeText(hotel.city) === normalizeText(destinationCity) &&
-    normalizeState(hotel.state) === normalizeState(destinationState)
+    normalizeLocationText(hotel.city) === normalizeLocationText(destinationCity) &&
+    normalizeLocationState(hotel.state) === normalizeLocationState(destinationState)
   );
 }
 
 function isSameState(hotel: ProfileRecommendationHotel, destinationState: string) {
-  return normalizeState(hotel.state) === normalizeState(destinationState);
+  return normalizeLocationState(hotel.state) === normalizeLocationState(destinationState);
 }
 
 function scoreCompatibleHotel(
@@ -308,14 +308,14 @@ function getHotelProximityLabel(
   destinationState: string
 ) {
   const sameCity =
-    normalizeText(hotel.city) === normalizeText(destinationCity) &&
-    hotel.state.trim().toUpperCase() === destinationState.trim().toUpperCase();
+    normalizeLocationText(hotel.city) === normalizeLocationText(destinationCity) &&
+    normalizeLocationState(hotel.state) === normalizeLocationState(destinationState);
 
   if (sameCity) {
     return "Na mesma cidade";
   }
 
-  if (hotel.state.trim().toUpperCase() === destinationState.trim().toUpperCase()) {
+  if (normalizeLocationState(hotel.state) === normalizeLocationState(destinationState)) {
     return "No mesmo estado";
   }
 
@@ -394,7 +394,7 @@ export function getProfileExperienceMatches<TExperience extends ProfileExperienc
           ? `/hoteis/${hotel.slug}`
           : `/buscar?destino=${encodeURIComponent(experience.query)}`,
         image: hotel?.coverImageUrl || experience.image,
-        ctaLabel: hotel ? "Ver opções" : "Explorar hotéis",
+        ctaLabel: hotel ? "Ver hotel" : "Explorar hotéis",
         destinationCity: destination.city,
         destinationState: destination.state,
         touristAttractions: getAttractions(experience, destination.city, destination.state),

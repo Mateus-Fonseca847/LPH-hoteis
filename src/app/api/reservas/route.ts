@@ -70,7 +70,15 @@ export async function POST(request: Request) {
       throw new ValidationError("Check-in não pode estar no passado.");
     }
 
-    const nights = calculateStayNights(checkIn, checkOut);
+    let nights: number;
+
+    try {
+      nights = calculateStayNights(checkIn, checkOut);
+    } catch (error) {
+      throw new ValidationError(
+        error instanceof Error ? error.message : "Datas da reserva inválidas."
+      );
+    }
     const room = await prisma.hotelRoom.findFirst({
       where: {
         id: roomId,

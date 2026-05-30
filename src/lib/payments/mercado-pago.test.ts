@@ -61,6 +61,8 @@ describe("Mercado Pago integration", () => {
           external_reference: "reservation-1",
           payment_method_id: "pix",
           payment_type_id: "bank_transfer",
+          transaction_amount: 750,
+          currency_id: "BRL",
         }),
       })
     );
@@ -72,6 +74,27 @@ describe("Mercado Pago integration", () => {
       reservationId: "reservation-1",
       paymentMethodId: "pix",
       paymentTypeId: "bank_transfer",
+      totalPriceCents: 75000,
+      currency: "BRL",
     });
+  });
+
+  it("rejeita retorno do provedor sem valor verificável", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          id: 12345,
+          status: "approved",
+          external_reference: "reservation-1",
+          currency_id: "BRL",
+        }),
+      })
+    );
+
+    await expect(getMercadoPagoPayment("12345")).rejects.toThrow(
+      "Valor do pagamento inválido no Mercado Pago."
+    );
   });
 });

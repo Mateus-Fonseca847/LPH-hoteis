@@ -1,8 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 
 type PublishedHotelCard = {
   slug: string;
@@ -230,9 +231,11 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
                 aria-hidden={index >= hotels.length}
                 tabIndex={index >= hotels.length ? -1 : 0}
               >
-                <Image
+                <ImageWithFallback
                   src={hotel.coverImageUrl}
-                  alt={hotel.name}
+                  alt={`Vista de ${hotel.name} em ${hotel.city}, ${hotel.state}`}
+                  fallbackLabel={`Imagem indisponível de ${hotel.name}`}
+                  wrapperClassName="hotel-card-image-frame"
                   width={420}
                   height={260}
                   sizes="(max-width: 560px) 292px, (max-width: 900px) 360px, 33vw"

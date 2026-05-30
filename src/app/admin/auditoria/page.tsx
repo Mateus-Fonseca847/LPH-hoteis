@@ -27,6 +27,7 @@ const auditActionLabels: Record<string, string> = {
   "hotel.room.updated": "Quarto atualizado",
   "hotel.room.activated": "Quarto ativado",
   "hotel.room.deactivated": "Quarto desativado",
+  "hotel.room_image.uploaded": "Imagem de quarto enviada",
   "hotel.room_rate.created": "Tarifa criada",
   "hotel.room_rate.updated": "Tarifa atualizada",
   "hotel.room_rate.activated": "Tarifa ativada",

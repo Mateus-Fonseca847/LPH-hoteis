@@ -3,6 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Página não encontrada",
+  description: "A página solicitada não foi encontrada na LPH Hotéis.",
   robots: {
     index: false,
     follow: false,

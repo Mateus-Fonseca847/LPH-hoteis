@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import { RevealObserver } from "@/components/RevealObserver";
 import { normalizeHotelSearchQuery, searchPublishedHotels } from "@/lib/hotel-search";
 
@@ -13,6 +13,11 @@ type SearchPageProps = {
 
 export const metadata: Metadata = {
   title: "Buscar hotéis",
+  description:
+    "Pesquise hotéis publicados da LPH por cidade, estado, região, endereço ou nome do hotel.",
+  alternates: {
+    canonical: "/buscar",
+  },
   robots: {
     index: false,
     follow: true,
@@ -42,7 +47,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <h1>{hasQuery ? `Hotéis para ${query}` : "Busque um destino"}</h1>
           <p>Resultados encontrados por cidade, estado, nome do hotel, endereço ou região.</p>
           <Link href="/" className="outline-round hotel-search-home-link">
-            Voltar à home
+            Voltar à página inicial
           </Link>
         </div>
 
@@ -50,8 +55,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <div className="hotel-empty-state hotel-search-empty-state">
             <strong>Informe um destino para encontrar hotéis.</strong>
             <p>
-              Use a busca da header para pesquisar por cidade, estado, região, endereço ou nome do
-              hotel.
+              Use a busca do cabeçalho para pesquisar por cidade, estado, região, endereço ou nome
+              do hotel.
             </p>
           </div>
         ) : null}
@@ -67,9 +72,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <div className="hotel-search-results-grid">
             {hotels.map((hotel) => (
               <article key={hotel.slug} className="hotel-card hotel-search-result-card">
-                <Image
+                <ImageWithFallback
                   src={hotel.coverImageUrl}
-                  alt={hotel.name}
+                  alt={`Vista de ${hotel.name} em ${hotel.city}, ${hotel.state}`}
+                  fallbackLabel={`Imagem indisponível de ${hotel.name}`}
+                  wrapperClassName="hotel-card-image-frame"
                   width={420}
                   height={260}
                   sizes="(max-width: 820px) 100vw, 33vw"
@@ -84,7 +91,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   href={`/hoteis/${hotel.slug}`}
                   className="card-cta-button hotel-search-result-link"
                 >
-                  Abrir hotel
+                  Ver hotel
                 </Link>
               </article>
             ))}

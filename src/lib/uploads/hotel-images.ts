@@ -54,6 +54,7 @@ type ImageStorageProvider = {
     buffer: Uint8Array;
     mimeType: string;
     extension: string;
+    sanitizedBaseName: string;
     size: number;
   }): Promise<StoredHotelImage>;
   deleteHotelImage(imageUrl: string): Promise<{ status: "removed" | "missing" | "skipped" }>;
@@ -93,6 +94,18 @@ function sanitizeStorageSegment(value: string, label: string) {
   return sanitized;
 }
 
+function sanitizeFileBaseName(value: string) {
+  return (
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "imagem"
+  );
+}
+
 function parseFileName(fileName: string) {
   const normalizedName = path
     .basename(fileName)
@@ -100,7 +113,7 @@ function parseFileName(fileName: string) {
     .trim();
 
   if (!normalizedName || normalizedName.length > 180) {
-    throw new Error("O arquivo precisa ter um nome valido.");
+    throw new Error("O arquivo precisa ter um nome válido.");
   }
 
   const parts = normalizedName
@@ -117,7 +130,7 @@ function parseFileName(fileName: string) {
   const intermediateExtensions = parts.slice(1, -1).map((part) => part.toLowerCase());
 
   if (!baseName) {
-    throw new Error("O arquivo precisa ter um nome valido.");
+    throw new Error("O arquivo precisa ter um nome válido.");
   }
 
   if (!extension) {
@@ -130,6 +143,7 @@ function parseFileName(fileName: string) {
 
   return {
     extension,
+    sanitizedBaseName: sanitizeFileBaseName(baseName),
   };
 }
 
@@ -163,10 +177,11 @@ function assertMagicNumber(buffer: Uint8Array, mimeType: string) {
 }
 
 const localStorageProvider: ImageStorageProvider = {
-  async storeHotelImage({ hotelId, buffer, mimeType, extension, size }) {
+  async storeHotelImage({ hotelId, buffer, mimeType, extension, sanitizedBaseName, size }) {
     const safeHotelId = sanitizeStorageSegment(hotelId, "Hotel");
     const safeExtension = sanitizeStorageSegment(extension, "Extensão");
-    const fileName = `${randomUUID()}.${safeExtension}`;
+    const safeBaseName = sanitizeStorageSegment(sanitizedBaseName, "Nome do arquivo");
+    const fileName = `${randomUUID()}-${safeBaseName}.${safeExtension}`;
     const relativeDir = path.posix.join("uploads", "hotels", safeHotelId);
     const relativePath = path.posix.join(relativeDir, fileName);
     const outputDir = path.join(process.cwd(), "public", "uploads", "hotels", safeHotelId);
@@ -189,7 +204,12 @@ const localStorageProvider: ImageStorageProvider = {
     }
 
     const relativePath = imageUrl.replace(/^\//, "").split("/").join(path.sep);
-    const absolutePath = path.join(process.cwd(), "public", relativePath);
+    const uploadRoot = path.resolve(process.cwd(), "public", "uploads", "hotels");
+    const absolutePath = path.resolve(process.cwd(), "public", relativePath);
+
+    if (absolutePath !== uploadRoot && !absolutePath.startsWith(`${uploadRoot}${path.sep}`)) {
+      throw new Error("Caminho de imagem inválido para remoção.");
+    }
 
     try {
       await rm(absolutePath, { force: false });
@@ -210,7 +230,7 @@ const localStorageProvider: ImageStorageProvider = {
 const externalUrlProvider: ImageStorageProvider = {
   async storeHotelImage() {
     throw new Error(
-      "Storage externo ainda não configurado. Use UPLOAD_STORAGE_PROVIDER=local com disco persistente ou integre S3/R2/Supabase Storage."
+      "Storage externo ainda não configurado. Use UPLOAD_STORAGE_PROVIDER=local com disco persistente ou cadastre URLs externas manualmente até integrar S3, R2 ou Supabase Storage."
     );
   },
 
@@ -249,7 +269,7 @@ export async function validateHotelImageFile(file: File) {
   }
 
   const mimeType = file.type.toLowerCase();
-  const { extension } = parseFileName(file.name);
+  const { extension, sanitizedBaseName } = parseFileName(file.name);
 
   if (!allowedMimeTypes.has(mimeType)) {
     throw new Error("Formato inválido. Use JPG, JPEG, PNG ou WEBP.");
@@ -278,11 +298,12 @@ export async function validateHotelImageFile(file: File) {
     buffer,
     mimeType,
     extension: mimeType === "image/jpeg" ? "jpg" : expectedExtension,
+    sanitizedBaseName,
   };
 }
 
 export async function storeHotelImageFile(hotelId: string, file: File) {
-  const { buffer, mimeType, extension } = await validateHotelImageFile(file);
+  const { buffer, mimeType, extension, sanitizedBaseName } = await validateHotelImageFile(file);
   const provider = getImageStorageProvider();
 
   return provider.storeHotelImage({
@@ -290,6 +311,7 @@ export async function storeHotelImageFile(hotelId: string, file: File) {
     buffer,
     mimeType,
     extension,
+    sanitizedBaseName,
     size: file.size,
   });
 }

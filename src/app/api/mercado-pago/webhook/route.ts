@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 import {
+  ConflictError,
   createApiErrorResponse,
   createApiSuccessResponse,
   ValidationError,
@@ -28,6 +29,7 @@ const mercadoPagoWebhookPayloadSchema = z
   .passthrough();
 
 type MercadoPagoWebhookPayload = z.infer<typeof mercadoPagoWebhookPayloadSchema>;
+type MercadoPagoPayment = Awaited<ReturnType<typeof getMercadoPagoPayment>>;
 
 function getRequiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -166,11 +168,18 @@ async function findPaymentTransaction(paymentId: string, reservationId?: string 
     },
     select: {
       id: true,
+      provider: true,
+      providerPaymentId: true,
       status: true,
+      grossAmountCents: true,
+      currency: true,
       reservation: {
         select: {
           id: true,
+          providerPaymentId: true,
           paymentStatus: true,
+          totalPriceCents: true,
+          currency: true,
         },
       },
     },
@@ -186,25 +195,65 @@ async function findPaymentTransaction(paymentId: string, reservationId?: string 
     },
     select: {
       id: true,
+      provider: true,
+      providerPaymentId: true,
       status: true,
+      grossAmountCents: true,
+      currency: true,
       reservation: {
         select: {
           id: true,
+          providerPaymentId: true,
           paymentStatus: true,
+          totalPriceCents: true,
+          currency: true,
         },
       },
     },
   });
 }
 
-async function handleApprovedPayment(paymentId: string) {
-  const payment = await getMercadoPagoPayment(paymentId);
+function validatePaymentReservationLink(
+  payment: MercadoPagoPayment,
+  paymentTransaction: NonNullable<Awaited<ReturnType<typeof findPaymentTransaction>>>
+) {
+  const reservation = paymentTransaction.reservation;
+
+  if (
+    paymentTransaction.provider !== "mercado_pago" ||
+    !payment.reservationId ||
+    payment.reservationId !== reservation.id
+  ) {
+    throw new ValidationError("Pagamento não corresponde à reserva.");
+  }
+
+  if (
+    payment.totalPriceCents !== reservation.totalPriceCents ||
+    payment.totalPriceCents !== paymentTransaction.grossAmountCents ||
+    payment.currency !== reservation.currency ||
+    payment.currency !== paymentTransaction.currency
+  ) {
+    throw new ValidationError("Valor do pagamento não corresponde à reserva.");
+  }
+
+  if (
+    (paymentTransaction.status === "paid" || reservation.paymentStatus === "paid") &&
+    reservation.providerPaymentId &&
+    reservation.providerPaymentId !== payment.id
+  ) {
+    throw new ConflictError("Reserva já vinculada a outro pagamento aprovado.");
+  }
+}
+
+async function handleApprovedPayment(payment: MercadoPagoPayment) {
   const paymentTransaction = await findPaymentTransaction(payment.id, payment.reservationId);
   const reservation = paymentTransaction?.reservation;
 
-  if (!reservation) {
+  if (!paymentTransaction || !reservation) {
     throw new ValidationError("Reserva do pagamento não encontrada.");
   }
+
+  validatePaymentReservationLink(payment, paymentTransaction);
 
   if (paymentTransaction.status === "paid" || reservation.paymentStatus === "paid") {
     await upsertPaidPaymentTransactionForReservation(reservation.id);
@@ -222,12 +271,17 @@ async function handleApprovedPayment(paymentId: string) {
   }
 }
 
-async function handleRejectedPayment(paymentId: string) {
-  const payment = await getMercadoPagoPayment(paymentId);
+async function handleRejectedPayment(payment: MercadoPagoPayment) {
   const paymentTransaction = await findPaymentTransaction(payment.id, payment.reservationId);
   const reservation = paymentTransaction?.reservation;
 
-  if (!reservation || reservation.paymentStatus === "paid") {
+  if (!paymentTransaction || !reservation) {
+    throw new ValidationError("Reserva do pagamento não encontrada.");
+  }
+
+  validatePaymentReservationLink(payment, paymentTransaction);
+
+  if (reservation.paymentStatus === "paid") {
     return;
   }
 
@@ -266,11 +320,11 @@ export async function POST(request: Request) {
     const payment = await getMercadoPagoPayment(paymentId);
 
     if (payment.status === "approved") {
-      await handleApprovedPayment(payment.id);
+      await handleApprovedPayment(payment);
     }
 
     if (["rejected", "cancelled", "refunded", "charged_back"].includes(payment.status)) {
-      await handleRejectedPayment(payment.id);
+      await handleRejectedPayment(payment);
     }
 
     return createApiSuccessResponse({

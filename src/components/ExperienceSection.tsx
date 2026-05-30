@@ -5,6 +5,7 @@ import Link from "next/link";
 import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import {
   experienceDestinations,
   type ExperienceDestination,
@@ -1249,7 +1250,9 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
     setSelectedExperience(recommendation);
   };
 
-  const destinations = getDestinationsForCategory(displayedCategory);
+  const categoryDestinations = getDestinationsForCategory(displayedCategory) ?? [];
+  const destinations =
+    categoryDestinations.length > 0 ? categoryDestinations : experienceDestinations.descanso;
   const getVisualExperienceMatch = (destination: ExperienceDestination, index: number) => {
     const recommendation = getDestinationRecommendation(
       destination,
@@ -1298,6 +1301,11 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
         />
         <div className="gallery-caption">
           <strong>{destination.title}</strong>
+          {match ? (
+            <small className="gallery-caption-location">
+              {match.destinationCity}, {match.destinationState}
+            </small>
+          ) : null}
           <span>{destination.description}</span>
         </div>
       </>
@@ -1371,9 +1379,10 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
                   <article className="experience-hotel-option" key={hotel.slug}>
                     <div className="experience-hotel-option__media">
                       {hotel.coverImageUrl ? (
-                        <Image
+                        <ImageWithFallback
                           src={hotel.coverImageUrl}
-                          alt={hotel.name}
+                          alt={`Vista de ${hotel.name} em ${hotel.city}, ${hotel.state}`}
+                          fallbackLabel={`Imagem indisponível de ${hotel.name}`}
                           fill
                           sizes="(max-width: 720px) 92vw, 220px"
                         />

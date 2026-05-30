@@ -68,15 +68,9 @@ function TestimonialAvatar({ testimonial }: { testimonial: Testimonial }) {
   );
 }
 
-function TestimonialCard({
-  testimonial,
-  isInteractive = true,
-}: {
-  testimonial: Testimonial;
-  isInteractive?: boolean;
-}) {
+function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
   return (
-    <article className="testimonial-slider-card" tabIndex={isInteractive ? 0 : undefined}>
+    <article className="testimonial-slider-card">
       <div className="testimonial-card-author">
         <TestimonialAvatar testimonial={testimonial} />
         <div>
@@ -233,7 +227,6 @@ export function TestimonialsSection() {
               <TestimonialCard
                 key={`duplicate-${testimonial.initials}-${testimonial.location}`}
                 testimonial={testimonial}
-                isInteractive={false}
               />
             ))}
           </div>

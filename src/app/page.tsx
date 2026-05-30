@@ -9,7 +9,13 @@ import { RevealObserver } from "@/components/RevealObserver";
 import { StayDetailsSection } from "@/components/StayDetailsSection";
 import { TestimonialsSection } from "@/components/TestimonialsSection";
 import { getPublishedHotels } from "@/lib/hotel-data";
-import { DEFAULT_SOCIAL_IMAGE_PATH, SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site-metadata";
+import {
+  DEFAULT_SOCIAL_IMAGE_ALT,
+  DEFAULT_SOCIAL_IMAGE_PATH,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TITLE,
+} from "@/lib/site-metadata";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +28,20 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: SITE_NAME,
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     url: "/",
-    images: [{ url: DEFAULT_SOCIAL_IMAGE_PATH, alt: "LPH Hotéis" }],
+    images: [
+      {
+        url: DEFAULT_SOCIAL_IMAGE_PATH,
+        width: 1200,
+        height: 630,
+        alt: DEFAULT_SOCIAL_IMAGE_ALT,
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -8,6 +9,15 @@ import { getAuthSession } from "@/lib/auth/session";
 
 type LoginPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Entrar",
+  description: "Acesse sua conta LPH Hotéis com e-mail e senha.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 function getSearchParam(searchParams: Record<string, string | string[] | undefined>, key: string) {

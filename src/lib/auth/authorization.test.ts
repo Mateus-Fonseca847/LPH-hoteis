@@ -58,6 +58,19 @@ describe("admin authorization scope", () => {
     await expect(canEditHotel("user-1", "hotel-a")).resolves.toBe(true);
   });
 
+  it("permite owner vinculado nas operacoes administrativas do hotel", async () => {
+    mockUser({ globalRole: "hotel_admin", hotelRole: HotelRole.owner });
+
+    await expect(requireHotelAdminAccess("user-1", "hotel-a")).resolves.toEqual({
+      globalRole: "hotel_admin",
+      hotelRole: HotelRole.owner,
+    });
+    await expect(requireHotelEditAccess("user-1", "hotel-a")).resolves.toEqual({
+      globalRole: "hotel_admin",
+      hotelRole: HotelRole.owner,
+    });
+  });
+
   it("bloqueia hotel_admin sem permissao no hotel", async () => {
     mockUser({ globalRole: "hotel_admin" });
 

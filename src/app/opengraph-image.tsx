@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "LPH Hotéis - hospedagens e experiências pelo Brasil";
+export const alt = "LPH Hotéis - hospedagens selecionadas e experiências pelo Brasil";
 export const size = {
   width: 1200,
   height: 630,
@@ -38,10 +38,10 @@ export default function OpenGraphImage() {
           LPH HOTÉIS
         </div>
         <div style={{ display: "flex", fontSize: 72, fontWeight: 700, lineHeight: 1.12 }}>
-          Hospedagens e experiências pelo Brasil
+          Hospedagens selecionadas pelo Brasil
         </div>
         <div style={{ color: "#415367", display: "flex", fontSize: 29 }}>
-          Curadoria premium para descobrir e consultar sua próxima estadia.
+          Curadoria para descobrir experiências e consultar sua próxima estadia.
         </div>
       </div>
     </div>,

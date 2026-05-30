@@ -199,6 +199,47 @@ describe("reservation payment status transitions", () => {
     expect(tx.paymentTransaction.upsert).not.toHaveBeenCalled();
   });
 
+  it("não confirma reserva cancelada ou falhada mesmo com pagamento aprovado recebido depois", async () => {
+    const tx = createTransactionMock({
+      reservation: {
+        status: "cancelled",
+        paymentStatus: "cancelled",
+      },
+    });
+
+    await expect(
+      confirmPaidReservation({
+        reservationId: "reservation-1",
+        providerPaymentId: "payment-1",
+      })
+    ).rejects.toThrow("Reserva não pode ser confirmada");
+
+    expect(tx.roomAvailability.updateMany).not.toHaveBeenCalled();
+    expect(tx.reservation.updateMany).not.toHaveBeenCalled();
+    expect(tx.paymentTransaction.upsert).not.toHaveBeenCalled();
+  });
+
+  it("não confirma quando o quarto fica inativo antes do webhook aprovado", async () => {
+    const tx = createTransactionMock({
+      reservation: {
+        room: {
+          ...reservation.room,
+          isActive: false,
+        },
+      },
+    });
+
+    await expect(
+      confirmPaidReservation({
+        reservationId: "reservation-1",
+        providerPaymentId: "payment-1",
+      })
+    ).rejects.toThrow("Hospedagem indisponível");
+
+    expect(tx.reservation.updateMany).not.toHaveBeenCalled();
+    expect(tx.paymentTransaction.upsert).not.toHaveBeenCalled();
+  });
+
   it("falha ou cancelamento liberam disponibilidade uma unica vez", async () => {
     const tx = createTransactionMock();
 
@@ -258,6 +299,27 @@ describe("reservation payment status transitions", () => {
         paymentTransaction: {
           status: "paid",
         },
+      },
+    });
+
+    await expect(
+      closeUnpaidReservation({
+        reservationId: "reservation-1",
+        status: "cancelled",
+        providerPaymentId: "payment-1",
+      })
+    ).resolves.toBe(false);
+
+    expect(tx.reservation.updateMany).not.toHaveBeenCalled();
+    expect(tx.roomAvailability.updateMany).not.toHaveBeenCalled();
+    expect(tx.paymentTransaction.upsert).not.toHaveBeenCalled();
+  });
+
+  it("não encerra nem libera disponibilidade de reserva que já saiu do estado pendente", async () => {
+    const tx = createTransactionMock({
+      reservation: {
+        status: "confirmed",
+        paymentStatus: "awaiting_payment",
       },
     });
 

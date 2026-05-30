@@ -130,11 +130,11 @@ npm start
 Antes de liberar para o cliente:
 
 - O banco de staging deve ter as migrations aplicadas.
-- O banco deve conter hotéis publicados para a home e páginas públicas.
+- O banco deve conter hotéis publicados para a página inicial e páginas públicas.
 - Deve existir ao menos um usuário `super_admin` ativo para acessar `/admin`.
 - Para testar reserva pública completa, o hotel deve ter quartos ativos, tarifas ativas, disponibilidade futura com unidades disponíveis e pagamento Mercado Pago habilitado nas configurações do hotel.
 - O webhook Mercado Pago precisa apontar para a URL pública de staging. Sem webhook público, o checkout pode iniciar, mas a confirmação automática não será validada no ambiente.
-- Se usar as variáveis `SEED_STAGING_*`, rode `npm run prisma:seed` após as migrations; o primeiro login exigirá ativação de 2FA.
+- Se usar as variáveis `SEED_STAGING_*`, rode `npm run prisma:seed` após as migrations e provisione `emailTwoFactorEnabled=true` para administradores antes do primeiro login.
 - Credenciais `SEED_STAGING_*` são apenas para homologação/testes do cliente. Não use esses usuários nem essas senhas em produção.
 - `NODE_ENV` deve ser `production` no runtime de staging.
 - Não use `.env` local, SQLite, seed ou mocks como fonte de dados do staging.
@@ -145,6 +145,24 @@ Antes de liberar para o cliente:
 - Pagamentos Mercado Pago falham de forma explícita se `PAYMENT_PROVIDER`, credenciais, webhook ou credenciais criptografadas do hotel estiverem ausentes/incompatíveis.
 - Credenciais de pagamento por hotel falham de forma explícita se `PAYMENT_SECRETS_ENCRYPTION_KEY` estiver ausente ou não for base64 de 32 bytes.
 - Uploads com `UPLOAD_STORAGE_PROVIDER="local"` são gravados em `public/uploads` e dependem de disco persistente. Em Railway, configure um Volume persistente montado no caminho da aplicação antes de usar upload em staging/produção. Sem volume, arquivos enviados podem ser perdidos em redeploy/restart.
+
+## Produção
+
+Produção deve usar banco, domínio, e-mail, pagamento e storage separados de staging. Não use seed, mocks, credenciais sandbox ou dados locais como fonte de produção.
+
+Requisitos mínimos:
+
+- `NEXT_PUBLIC_APP_URL` com o domínio público final, usando HTTPS.
+- `DATABASE_URL` apontando para PostgreSQL de produção.
+- `AUTH_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` e `PAYMENT_SECRETS_ENCRYPTION_KEY` fortes e exclusivos do ambiente.
+- `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"`.
+- Migrations aplicadas com `npm run prisma:migrate:deploy`.
+- Pelo menos um `super_admin` ativo, com senha forte e 2FA por e-mail habilitado.
+- Mercado Pago em modo produção apenas quando o hotel for operar reservas pagas online.
+- Webhook Mercado Pago configurado para `https://seu-dominio.com/api/mercado-pago/webhook`.
+- E-mail transacional configurado para 2FA e confirmação de reserva.
+- Decisão formal de storage: volume persistente temporário ou storage externo gerenciado.
+- `npm run quality` passando antes do deploy.
 
 ## Deploy na Railway
 
@@ -278,34 +296,42 @@ Durante desenvolvimento, os testes podem ser rodados isoladamente:
 npm run test
 ```
 
+`npm run test` executa somente a suíte Vitest em ambiente Node, com mocks de Prisma, Mercado Pago, Resend e Stripe legado onde há integração externa. Ele não usa banco real, internet, credenciais reais ou serviços de terceiros.
+
+`npm run quality` é o gate completo antes de publicar: valida formatação, lint, schema Prisma, testes automatizados e build de produção.
+
 ## CI
 
 O repositório possui GitHub Actions em `.github/workflows/ci.yml`. O pipeline roda em `push` para `main` e em `pull_request` para `main`, usando Node.js 20.
 
-Ele executa `npm ci`, geração do Prisma Client, lint, validação do schema Prisma, testes automatizados e build. As variáveis usadas no workflow são valores fake seguros apenas para build/validação; credenciais reais devem ficar somente nos ambientes de staging/produção.
+Ele executa `npm ci`, geração do Prisma Client, lint, validação do schema Prisma, testes automatizados e build. O workflow falha se qualquer etapa falhar. As variáveis usadas no workflow são valores fake seguros apenas para build/validação; credenciais reais devem ficar somente nos ambientes de staging/produção. O CI não faz deploy automático.
 
 ## Arquitetura
 
 - A entrada da aplicação é o App Router em `src/app`; não há HTML/CSS/JS estático legado na raiz.
 - `src/app`: rotas públicas, rotas administrativas e APIs.
-- `src/components`: componentes reutilizáveis da home e páginas públicas.
+- `src/components`: componentes reutilizáveis da página inicial e páginas públicas.
 - `src/lib`: autenticação, autorização, validações, auditoria, upload, erros e Prisma.
 - `src/data`: dados locais de apoio para desenvolvimento.
 - `prisma`: schema, migrations e seed.
 
 ## Uploads e imagens
 
-- Hotéis, capas, galeria e quartos usam URLs salvas no banco. URLs antigas continuam válidas enquanto o arquivo ou URL externa existir.
+- Hotéis, capas, galeria e quartos usam URLs salvas no banco. URLs antigas continuam válidas enquanto o arquivo local ou a URL externa existir.
 - O provider atual `local` grava arquivos em `public/uploads/hotels/[hotelId]` e retorna URLs `/uploads/hotels/...`.
 - O provider `external_url` existe como placeholder seguro: ele bloqueia novos uploads até a integração real com S3/R2/Supabase Storage ser implementada. Isso evita falsa sensação de persistência em produção sem disco.
+- URLs externas manuais continuam aceitas nos campos de capa, galeria e quarto quando o arquivo já estiver hospedado fora da aplicação.
 - Para desenvolvimento local, use `UPLOAD_STORAGE_PROVIDER="local"`.
 - Para staging no Railway com upload real, use `UPLOAD_STORAGE_PROVIDER="local"` somente se houver Railway Volume persistente configurado.
 - Para produção, a recomendação é migrar para storage externo gerenciado antes de liberar upload público/administrativo em larga escala.
 - A validação de upload rejeita arquivos sem conteúdo, arquivos acima de `UPLOAD_MAX_IMAGE_SIZE_BYTES`, MIME types fora de JPG/PNG/WEBP, extensões inseguras, dupla extensão suspeita e conteúdo cujo magic number não corresponda ao MIME declarado.
+- O nome salvo é sanitizado e recebe prefixo aleatório para evitar colisão e preservar uma extensão segura.
+- A interface pública e o admin mantêm fallback visual para capa, galeria e quartos quando uma URL antiga estiver ausente ou a imagem não carregar.
+- A remoção de arquivos locais só atua dentro de `public/uploads/hotels`, preservando URLs externas e evitando limpeza fora do diretório de uploads.
 
 ## Fluxo público
 
-- A home lista hotéis publicados.
+- A página inicial lista hotéis publicados.
 - Cards da seção `Conheça nossos hotéis` navegam para `/hoteis/[slug]`.
 - A página pública do hotel usa dados do banco.
 - Hotéis inexistentes ou despublicados retornam 404.
@@ -482,7 +508,8 @@ As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
 - O fluxo atual de login administrativo usa 2FA por e-mail.
 - `emailTwoFactorEnabled` controla a exigência de código por e-mail no login.
 - `twoFactorEnabled` e `twoFactorSecret` são campos legados de app autenticador/TOTP e não controlam o login atual.
-- Usuários comuns e administradores com `emailTwoFactorEnabled=false` entram apenas com e-mail e senha.
+- Usuários comuns entram apenas com e-mail e senha.
+- Administradores com `emailTwoFactorEnabled=false` são bloqueados no login administrativo.
 - Administradores com `emailTwoFactorEnabled=true` recebem um código de 6 dígitos por e-mail antes de acessar o painel.
 - Usuário desativado não autentica como usuário válido.
 - Escritas administrativas exigem autenticação e autorização no backend.
@@ -503,11 +530,21 @@ As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
 - `npm audit` deve ser revisado antes de produção.
 - Dados locais de apoio continuam existindo para desenvolvimento e não devem contaminar produção.
 
-## Checklist operacional
+## Checklist para ir ao ar
 
-- Rode `npm run quality` antes de merge/deploy.
-- Revise migrations antes de aplicar em ambientes compartilhados.
-- Use `DATABASE_URL` real e separado por ambiente.
-- Nunca use mocks em produção.
-- Nunca exponha segredos no frontend.
-- Nunca commite `.env`, credenciais ou chaves reais.
+- Domínio final configurado com HTTPS.
+- `NEXT_PUBLIC_APP_URL` aponta para o domínio final.
+- `DATABASE_URL` de produção configurado.
+- Migrations aplicadas com `npm run prisma:migrate:deploy`.
+- Seed não usado para popular produção.
+- `super_admin` criado com senha forte.
+- 2FA por e-mail ativado para administradores.
+- Mercado Pago em modo produção, se reservas online forem usadas.
+- Webhook Mercado Pago configurado no provedor.
+- E-mail transacional configurado e testado.
+- Uploads/storage decidido antes de liberar uso real.
+- Testes manuais de homologação concluídos.
+- `npm run quality` passando.
+- Backup do banco planejado.
+- Nenhum segredo real commitado no repositório.
+- `npm audit` revisado antes da publicação final.

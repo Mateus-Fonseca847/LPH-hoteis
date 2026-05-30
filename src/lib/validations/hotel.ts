@@ -93,7 +93,31 @@ const timeSchema = z
   .trim()
   .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Horário inválido. Use HH:MM.");
 
-const urlSchema = z.string().trim().pipe(z.url("URL inválida.").max(500, "URL muito longa."));
+const localUploadImagePathRegex =
+  /^\/uploads\/hotels\/[a-zA-Z0-9_-]{1,191}\/[a-zA-Z0-9][a-zA-Z0-9._-]{0,220}\.(?:jpg|jpeg|png|webp)$/i;
+
+function isAllowedImageUrl(value: string) {
+  if (localUploadImagePathRegex.test(value)) {
+    return true;
+  }
+
+  try {
+    const url = new URL(value);
+
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+const imageUrlSchema = z
+  .string()
+  .trim()
+  .max(500, "URL muito longa.")
+  .refine(
+    isAllowedImageUrl,
+    "URL de imagem inválida. Use uma URL HTTP/HTTPS ou um caminho local de upload."
+  );
 
 const hotelAmenitySchema = z
   .object({
@@ -112,7 +136,7 @@ const hotelPolicySchema = z
 
 const hotelImageSchema = z
   .object({
-    url: urlSchema,
+    url: imageUrlSchema,
     alt: textField("Texto alternativo da imagem", 2, 140),
     position: z.number().int().min(0).max(200),
   })
@@ -133,7 +157,7 @@ export const hotelPayloadSchema = z
       .max(160, "E-mail muito longo.")
       .transform((value) => value.trim().toLowerCase()),
     whatsapp: phoneSchema,
-    coverImageUrl: urlSchema,
+    coverImageUrl: imageUrlSchema,
     images: z
       .array(hotelImageSchema)
       .min(1, "Adicione pelo menos uma imagem.")

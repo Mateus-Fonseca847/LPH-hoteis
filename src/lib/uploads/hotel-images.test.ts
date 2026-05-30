@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { storeHotelImageFile, validateHotelImageFile } from "@/lib/uploads/hotel-images";
+import {
+  deleteStoredHotelImageFile,
+  storeHotelImageFile,
+  validateHotelImageFile,
+} from "@/lib/uploads/hotel-images";
 
 const pngBytes = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
@@ -24,10 +28,13 @@ describe("hotel image upload validation", () => {
     delete process.env.UPLOAD_STORAGE_PROVIDER;
   });
 
-  it("aceita imagem PNG válida", async () => {
-    await expect(validateHotelImageFile(makeFile())).resolves.toMatchObject({
+  it("aceita imagem PNG válida e normaliza o nome base", async () => {
+    await expect(
+      validateHotelImageFile(makeFile({ name: "Hotel Luxo.png" }))
+    ).resolves.toMatchObject({
       mimeType: "image/png",
       extension: "png",
+      sanitizedBaseName: "hotel-luxo",
     });
   });
 
@@ -60,6 +67,12 @@ describe("hotel image upload validation", () => {
 
     await expect(storeHotelImageFile("hotel_12345", makeFile())).rejects.toThrow(
       "Storage externo ainda não configurado"
+    );
+  });
+
+  it("bloqueia remoção local fora do diretório de uploads", async () => {
+    await expect(deleteStoredHotelImageFile("/uploads/hotels/../../package.json")).rejects.toThrow(
+      "Caminho de imagem inválido"
     );
   });
 });

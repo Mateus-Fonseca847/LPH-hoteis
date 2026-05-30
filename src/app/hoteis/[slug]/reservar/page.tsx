@@ -2,20 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { AvailabilitySearchModal } from "@/components/AvailabilitySearchModal";
+import { BookingFlow } from "@/components/BookingFlow";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { getHotelPageData } from "@/lib/hotel-data";
+import {
+  DEFAULT_SOCIAL_IMAGE_ALT,
+  DEFAULT_SOCIAL_IMAGE_PATH,
+  SITE_NAME,
+} from "@/lib/site-metadata";
 
 export const dynamic = "force-dynamic";
-
-export const metadata: Metadata = {
-  title: "Consultar disponibilidade",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
 
 type HotelBookingPageProps = {
   params: Promise<{
@@ -25,6 +22,56 @@ type HotelBookingPageProps = {
     quarto?: string;
   }>;
 };
+
+export async function generateMetadata({ params }: HotelBookingPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const hotel = await getHotelPageData(slug);
+
+  if (!hotel) {
+    return {
+      title: "Hospedagem não encontrada",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  const title = `Consultar disponibilidade em ${hotel.name}`;
+  const description = `Consulte datas, quartos e pagamento para sua estadia em ${hotel.name}, ${hotel.city}, ${hotel.state}. A reserva só é confirmada após pagamento aprovado.`;
+  const image = hotel.coverImageUrl?.trim() || DEFAULT_SOCIAL_IMAGE_PATH;
+  const imageAlt = hotel.coverImageUrl?.trim()
+    ? `Vista de ${hotel.name} em ${hotel.city}, ${hotel.state}`
+    : DEFAULT_SOCIAL_IMAGE_ALT;
+  const url = `/hoteis/${hotel.slug}/reservar`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: url,
+    },
+    robots: {
+      index: false,
+      follow: true,
+    },
+    openGraph: {
+      type: "website",
+      locale: "pt_BR",
+      siteName: SITE_NAME,
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      url,
+      images: [{ url: image, width: 1200, height: 630, alt: imageAlt }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      images: [image],
+    },
+  };
+}
 
 export default async function HotelBookingPage({ params, searchParams }: HotelBookingPageProps) {
   const { slug } = await params;
@@ -78,8 +125,7 @@ export default async function HotelBookingPage({ params, searchParams }: HotelBo
         </section>
 
         <section className="section booking-page-flow reveal is-visible">
-          <AvailabilitySearchModal
-            variant="page"
+          <BookingFlow
             hotelSlug={hotel.slug}
             hotelId={hotel.id}
             hotelName={hotel.name}

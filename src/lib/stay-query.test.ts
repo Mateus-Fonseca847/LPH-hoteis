@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   calculateStayNights,
+  formatPriceInBRL,
   getRoomStayAvailabilityStatus,
   getRoomStayPriceEstimate,
   getStayDates,
@@ -38,9 +39,19 @@ describe("stay-query", () => {
     expect(getStayDates("2026-07-10", "2026-07-12")).toEqual(["2026-07-10", "2026-07-11"]);
   });
 
-  it("rejeita datas inválidas ou checkout sem noite", () => {
+  it("rejeita check-in inválido", () => {
     expect(() => calculateStayNights("2026-02-30", "2026-03-02")).toThrow("Data inválida");
+  });
+
+  it("rejeita check-out inválido", () => {
+    expect(() => calculateStayNights("2026-07-10", "2026-13-01")).toThrow("Data inválida");
+  });
+
+  it("exige check-out depois do check-in", () => {
     expect(() => calculateStayNights("2026-07-10", "2026-07-10")).toThrow(
+      "Check-out deve ser posterior"
+    );
+    expect(() => calculateStayNights("2026-07-12", "2026-07-10")).toThrow(
       "Check-out deve ser posterior"
     );
   });
@@ -51,6 +62,13 @@ describe("stay-query", () => {
       totalPriceCents: 70000,
       nights: 2,
     });
+  });
+
+  it("formata o preço total em BRL sem depender de servico externo", () => {
+    const estimate = getRoomStayPriceEstimate(room, "2026-07-10", "2026-07-12", 2, 1);
+
+    expect(estimate?.totalPriceCents).toBe(70000);
+    expect(formatPriceInBRL(estimate?.totalPriceCents ?? 0)).toContain("700");
   });
 
   it("marca indisponível quando alguma noite está fechada ou sem unidade", () => {

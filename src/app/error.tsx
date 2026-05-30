@@ -17,7 +17,7 @@ export default function PublicErrorPage({ reset }: { reset: () => void }) {
               Tentar novamente
             </button>
             <Link href="/" className="admin-secondary-button">
-              Voltar para a home
+              Voltar para a página inicial
             </Link>
           </div>
         </div>

@@ -1,8 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
+
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 
 const tripTypes = ["Lazer", "Família", "Casal", "Negócios", "Aventura"];
 const preferenceOptions = ["Praia", "Serra", "Urbano", "Descanso", "Gastronomia", "Eventos"];
@@ -289,9 +290,11 @@ export function TripPlannerSection() {
 
                   return (
                     <article key={hotel.slug} className="trip-planner-recommendation-card">
-                      <Image
+                      <ImageWithFallback
                         src={hotel.coverImageUrl}
-                        alt={hotel.name}
+                        alt={`Vista de ${hotel.name} em ${hotel.city}, ${hotel.state}`}
+                        fallbackLabel={`Imagem indisponível de ${hotel.name}`}
+                        wrapperClassName="trip-planner-recommendation-image"
                         width={96}
                         height={72}
                         sizes="96px"

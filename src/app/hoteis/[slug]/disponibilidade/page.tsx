@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Consultar disponibilidade",
+  description: "Redirecionamento para a página dedicada de consulta de disponibilidade.",
   robots: {
     index: false,
-    follow: false,
+    follow: true,
   },
 };
 

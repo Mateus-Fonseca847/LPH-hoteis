@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { type FormEvent, useActionState, useEffect, useMemo, useState } from "react";
 
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import {
   findAmenityOptionByLabel,
   HOTEL_AMENITY_OPTIONS,
@@ -570,9 +570,10 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
 
           <div className="admin-image-preview-card">
             <span className="admin-image-preview-label">Preview da capa</span>
-            <Image
+            <ImageWithFallback
               src={coverPreviewUrl || coverImageUrl}
               alt={`Capa de ${hotel.name}`}
+              fallbackLabel={`Imagem indisponível de ${hotel.name}`}
               className="admin-cover-preview-image"
               width={960}
               height={520}
@@ -632,9 +633,10 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
               <div className="admin-preview-grid">
                 {galleryPreviewUrls.map((image) => (
                   <figure key={image.id} className="admin-preview-item">
-                    <Image
+                    <ImageWithFallback
                       src={image.url}
                       alt={image.alt}
+                      fallbackLabel="Preview indisponível"
                       width={360}
                       height={180}
                       sizes="(max-width: 900px) 50vw, 240px"
@@ -668,9 +670,10 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
               <div className="admin-preview-grid">
                 {galleryImages.map((image) => (
                   <article key={image.id} className="admin-preview-card">
-                    <Image
+                    <ImageWithFallback
                       src={image.url}
                       alt={image.alt}
+                      fallbackLabel={`Imagem indisponível de ${hotel.name}`}
                       width={360}
                       height={180}
                       sizes="(max-width: 900px) 50vw, 240px"

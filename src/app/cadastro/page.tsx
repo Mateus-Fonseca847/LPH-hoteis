@@ -1,6 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CadastroForm } from "./CadastroForm";
+
+export const metadata: Metadata = {
+  title: "Criar conta",
+  description: "Crie sua conta para acessar a plataforma LPH Hotéis.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default function CadastroPage() {
   return (

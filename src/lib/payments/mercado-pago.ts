@@ -29,6 +29,8 @@ type MercadoPagoPaymentResponse = {
   external_reference?: string;
   payment_method_id?: string;
   payment_type_id?: string;
+  transaction_amount?: number | string;
+  currency_id?: string;
 };
 
 function getAccessToken(inputToken?: string | null) {
@@ -130,6 +132,18 @@ export async function getMercadoPagoPayment(paymentId: string, accessToken?: str
     throw new ValidationError("Pagamento não encontrado no Mercado Pago.");
   }
 
+  const amount = Number(payment.transaction_amount);
+  const totalPriceCents = Math.round(amount * 100);
+  const currency = payment.currency_id?.trim().toUpperCase();
+
+  if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(totalPriceCents)) {
+    throw new ValidationError("Valor do pagamento inválido no Mercado Pago.");
+  }
+
+  if (!currency) {
+    throw new ValidationError("Moeda do pagamento inválida no Mercado Pago.");
+  }
+
   return {
     id: String(payment.id),
     status: payment.status || "unknown",
@@ -137,5 +151,7 @@ export async function getMercadoPagoPayment(paymentId: string, accessToken?: str
     reservationId: payment.external_reference,
     paymentMethodId: payment.payment_method_id,
     paymentTypeId: payment.payment_type_id,
+    totalPriceCents,
+    currency,
   };
 }

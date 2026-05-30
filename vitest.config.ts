@@ -15,6 +15,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       include: [
+        "src/app/api/reservas/route.ts",
         "src/lib/auth/authorization.ts",
         "src/lib/auth/two-factor.ts",
         "src/lib/payments/mercado-pago.ts",

@@ -1,6 +1,7 @@
 import { createApiSuccessResponse, NotFoundError, ValidationError } from "@/lib/errors/app-error";
 import {
   createHotelWriteApiErrorResponse,
+  getRequestIpAddress,
   parseHotelRouteParams,
   requireAuthorizedHotelWrite,
 } from "@/lib/hotel-write";
@@ -23,7 +24,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const hotelId = parsedParams.data.hotelId;
-    await requireAuthorizedHotelWrite(hotelId);
+    const user = await requireAuthorizedHotelWrite(hotelId);
 
     const contentType = request.headers.get("content-type") || "";
 
@@ -52,6 +53,21 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const storedImage = await storeHotelImageFile(hotelId, fileEntry);
+    const ipAddress = getRequestIpAddress(request.headers);
+
+    await prisma.hotelAuditLog.create({
+      data: {
+        userId: user.id,
+        hotelId,
+        action: "hotel.room_image.uploaded",
+        changedFields: ["roomImageUrl"],
+        previousValue: {},
+        newValue: {
+          url: storedImage.url,
+        },
+        ipAddress,
+      },
+    });
 
     return createApiSuccessResponse({
       image: {

@@ -33,6 +33,10 @@ function formatAuditAction(action: string) {
     return "Pagamentos atualizados";
   }
 
+  if (action === "hotel.room_image.uploaded") {
+    return "Imagem de quarto enviada";
+  }
+
   return action;
 }
 

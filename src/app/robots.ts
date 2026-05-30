@@ -18,6 +18,8 @@ export default function robots(): MetadataRoute.Robots {
         "/buscar",
         "/hoteis/*/reservar",
         "/hoteis/*/disponibilidade",
+        "/pagamento/",
+        "/checkout/",
       ],
     },
     sitemap: new URL("/sitemap.xml", siteUrl).toString(),

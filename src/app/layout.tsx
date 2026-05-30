@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { Manrope, Sora } from "next/font/google";
 
 import {
+  DEFAULT_SOCIAL_IMAGE_ALT,
   DEFAULT_SOCIAL_IMAGE_PATH,
   getSiteUrl,
   SITE_DESCRIPTION,
+  SITE_KEYWORDS,
   SITE_NAME,
   SITE_TITLE,
 } from "@/lib/site-metadata";
@@ -28,6 +30,16 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
+  keywords: SITE_KEYWORDS,
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: "travel",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
   openGraph: {
     type: "website",
     locale: "pt_BR",
@@ -38,7 +50,9 @@ export const metadata: Metadata = {
     images: [
       {
         url: DEFAULT_SOCIAL_IMAGE_PATH,
-        alt: SITE_NAME,
+        width: 1200,
+        height: 630,
+        alt: DEFAULT_SOCIAL_IMAGE_ALT,
       },
     ],
   },
@@ -51,6 +65,14 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+  },
+  appleWebApp: {
+    title: SITE_NAME,
+    capable: true,
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 

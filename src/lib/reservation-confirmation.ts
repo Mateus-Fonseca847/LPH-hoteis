@@ -103,6 +103,7 @@ export async function closeUnpaidReservation({
         roomId: true,
         checkIn: true,
         checkOut: true,
+        status: true,
         availabilityHeld: true,
         paymentStatus: true,
         paymentProvider: true,
@@ -119,6 +120,7 @@ export async function closeUnpaidReservation({
 
     if (
       !reservation ||
+      !["pending", "awaiting_payment"].includes(reservation.status) ||
       reservation.paymentStatus === "paid" ||
       reservation.paymentTransaction?.status === "paid"
     ) {
@@ -130,6 +132,9 @@ export async function closeUnpaidReservation({
         where: {
           id: reservation.id,
           availabilityHeld: true,
+          status: {
+            in: ["pending", "awaiting_payment"],
+          },
           paymentStatus: {
             not: "paid",
           },
