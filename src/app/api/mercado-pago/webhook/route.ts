@@ -8,8 +8,11 @@ import {
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
-import { upsertPaidPaymentTransactionForReservation } from "@/lib/finance/payment-transactions";
 import { getMercadoPagoPayment } from "@/lib/payments/mercado-pago";
+import {
+  isPaymentWebhookAlreadyProcessed,
+  validatePaymentWebhookIdentity,
+} from "@/lib/payments/webhook-idempotency";
 import { prisma } from "@/lib/prisma";
 import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
 import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
@@ -243,6 +246,13 @@ function validatePaymentReservationLink(
   ) {
     throw new ConflictError("Reserva já vinculada a outro pagamento aprovado.");
   }
+
+  validatePaymentWebhookIdentity({
+    reservation,
+    externalReference: payment.reservationId,
+    providerPaymentId: payment.id,
+    paymentTransaction,
+  });
 }
 
 async function handleApprovedPayment(payment: MercadoPagoPayment) {
@@ -255,8 +265,14 @@ async function handleApprovedPayment(payment: MercadoPagoPayment) {
 
   validatePaymentReservationLink(payment, paymentTransaction);
 
-  if (paymentTransaction.status === "paid" || reservation.paymentStatus === "paid") {
-    await upsertPaidPaymentTransactionForReservation(reservation.id);
+  if (
+    isPaymentWebhookAlreadyProcessed({
+      reservation,
+      externalReference: payment.reservationId,
+      providerPaymentId: payment.id,
+      paymentTransaction,
+    })
+  ) {
     return;
   }
 
@@ -281,7 +297,14 @@ async function handleRejectedPayment(payment: MercadoPagoPayment) {
 
   validatePaymentReservationLink(payment, paymentTransaction);
 
-  if (reservation.paymentStatus === "paid") {
+  if (
+    isPaymentWebhookAlreadyProcessed({
+      reservation,
+      externalReference: payment.reservationId,
+      providerPaymentId: payment.id,
+      paymentTransaction,
+    })
+  ) {
     return;
   }
 

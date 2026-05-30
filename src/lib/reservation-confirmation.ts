@@ -31,6 +31,8 @@ function toUtcDate(date: string) {
 }
 
 export async function releaseReservationAvailability(reservationId: string) {
+  // Liberação manual da retenção usa a flag availabilityHeld como trava idempotente.
+  // A reserva só perde o hold se o incremento de disponibilidade ocorrer na mesma transação.
   return prisma.$transaction(async (transaction) => {
     const reservation = await transaction.reservation.findUnique({
       where: {
@@ -67,7 +69,7 @@ export async function releaseReservationAvailability(reservationId: string) {
       return false;
     }
 
-    await transaction.roomAvailability.updateMany({
+    const availabilityUpdate = await transaction.roomAvailability.updateMany({
       where: {
         roomId: reservation.roomId,
         date: {
@@ -81,6 +83,10 @@ export async function releaseReservationAvailability(reservationId: string) {
       },
     });
 
+    if (availabilityUpdate.count !== availabilityDates.length) {
+      throw new ConflictError("Disponibilidade inconsistente para liberar a reserva.");
+    }
+
     return true;
   });
 }
@@ -92,6 +98,8 @@ export async function closeUnpaidReservation({
   stripeCheckoutSessionId,
   stripePaymentIntentId,
 }: CloseUnpaidReservationInput) {
+  // Falha/cancelamento de pagamento atualiza reserva, transação financeira e disponibilidade juntos.
+  // O rollback do Prisma evita status final sem devolução da diária ou devolução sem mudança de status.
   return prisma.$transaction(async (transaction) => {
     const reservation = await transaction.reservation.findUnique({
       where: {
@@ -157,7 +165,7 @@ export async function closeUnpaidReservation({
         toUtcDate
       );
 
-      await transaction.roomAvailability.updateMany({
+      const availabilityUpdate = await transaction.roomAvailability.updateMany({
         where: {
           roomId: reservation.roomId,
           date: {
@@ -170,6 +178,10 @@ export async function closeUnpaidReservation({
           },
         },
       });
+
+      if (availabilityUpdate.count !== availabilityDates.length) {
+        throw new ConflictError("Disponibilidade inconsistente para encerrar a reserva.");
+      }
 
       const amounts = calculatePaymentTransactionAmounts(reservation.totalPriceCents);
       await transaction.paymentTransaction.upsert({
@@ -252,6 +264,8 @@ export async function confirmPaidReservation({
   stripeCheckoutSessionId,
   stripePaymentIntentId,
 }: ConfirmPaidReservationInput): Promise<ConfirmPaidReservationResult | null> {
+  // Confirmação paga é o ponto crítico: reserva, pagamento e eventual baixa de disponibilidade
+  // são gravados em uma única transação para impedir confirmação sem pagamento aprovado.
   return prisma.$transaction(async (transaction) => {
     const reservation = await transaction.reservation.findUnique({
       where: {

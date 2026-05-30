@@ -1,16 +1,14 @@
-import { ConflictError, ValidationError } from "@/lib/errors/app-error";
-import { prisma } from "@/lib/prisma";
+import { ValidationError } from "@/lib/errors/app-error";
 import { decryptSecret } from "@/lib/security/encryption";
 
 import {
   assertConfiguredPaymentProvider,
   getConfiguredPaymentProvider,
   getPaymentAccessToken,
-  getPaymentWebhookUrl,
   type RealPaymentProvider,
 } from "./config";
 import { createMercadoPagoPayment } from "./mercado-pago";
-import type { CreatePaymentInput, CreatePaymentResult, PaymentMethod } from "./types";
+import type { CreatePaymentInput, CreatePaymentResult } from "./types";
 
 export type {
   CreatePaymentInput,
@@ -23,12 +21,6 @@ export type {
 export type PaymentConfiguration = {
   provider: RealPaymentProvider;
   accessToken: string;
-};
-
-type StartReservationPaymentInput = {
-  reservationId: string;
-  method: PaymentMethod;
-  origin: string;
 };
 
 function getConfiguredAccessToken(encryptedAccessToken?: string | null) {
@@ -68,124 +60,4 @@ export function resolveHotelPaymentConfiguration(
     provider,
     accessToken: getConfiguredAccessToken(settings.encryptedAccessToken),
   };
-}
-
-export async function startReservationPayment({
-  reservationId,
-  method,
-  origin,
-}: StartReservationPaymentInput) {
-  const reservation = await prisma.reservation.findUnique({
-    where: {
-      id: reservationId,
-    },
-    include: {
-      hotel: {
-        include: {
-          paymentSettings: true,
-        },
-      },
-      room: true,
-    },
-  });
-
-  if (!reservation) {
-    throw new ValidationError("Reserva não encontrada.");
-  }
-
-  if (
-    !reservation.hotel.isPublished ||
-    !reservation.room.isActive ||
-    !reservation.room.isAvailable
-  ) {
-    throw new ConflictError("Hospedagem indisponível para iniciar pagamento.");
-  }
-
-  if (
-    !["pending", "awaiting_payment"].includes(reservation.status) ||
-    !["pending", "awaiting_payment"].includes(reservation.paymentStatus)
-  ) {
-    throw new ConflictError("Reserva não está disponível para iniciar pagamento.");
-  }
-
-  const settings = reservation.hotel.paymentSettings;
-  const paymentConfiguration = resolveHotelPaymentConfiguration(settings);
-
-  const successUrl = `${origin}/hoteis/${reservation.hotel.slug}?checkout=success&reservation=${reservation.id}`;
-  const failureUrl = `${origin}/hoteis/${reservation.hotel.slug}?checkout=cancelled&reservation=${reservation.id}`;
-  const payment = await createPayment({
-    provider: paymentConfiguration.provider,
-    method,
-    reservationId: reservation.id,
-    hotelName: reservation.hotel.name,
-    roomName: reservation.room.name,
-    guestName: reservation.guestName,
-    guestEmail: reservation.guestEmail,
-    totalPriceCents: reservation.totalPriceCents,
-    currency: "BRL",
-    description: `${reservation.nights} ${
-      reservation.nights === 1 ? "noite" : "noites"
-    } para ${reservation.adults} adulto(s) e ${reservation.children} crianca(s).`,
-    successUrl,
-    failureUrl,
-    notificationUrl: getPaymentWebhookUrl(paymentConfiguration.provider, origin),
-    accessToken: paymentConfiguration.accessToken,
-  });
-
-  await prisma.$transaction(async (transaction) => {
-    const reservationUpdate = await transaction.reservation.updateMany({
-      where: {
-        id: reservation.id,
-        status: {
-          in: ["pending", "awaiting_payment"],
-        },
-        paymentStatus: {
-          in: ["pending", "awaiting_payment"],
-        },
-        hotel: {
-          is: {
-            isPublished: true,
-          },
-        },
-        room: {
-          is: {
-            isActive: true,
-            isAvailable: true,
-          },
-        },
-      },
-      data: {
-        status: payment.status,
-        paymentProvider: payment.provider,
-        paymentMethod: method,
-        paymentStatus: payment.status,
-        providerPaymentId: payment.providerPaymentId,
-      },
-    });
-
-    if (reservationUpdate.count !== 1) {
-      throw new ConflictError("Reserva não está disponível para iniciar pagamento.");
-    }
-
-    const paymentTransactionUpdate = await transaction.paymentTransaction.updateMany({
-      where: {
-        reservationId: reservation.id,
-        status: {
-          in: ["pending", "awaiting_payment"],
-        },
-      },
-      data: {
-        provider: payment.provider,
-        providerPaymentId: payment.providerPaymentId,
-        paymentMethod: method,
-        status: payment.status,
-      },
-    });
-
-    if (paymentTransactionUpdate.count !== 1) {
-      throw new ConflictError("Pagamento da reserva não pôde ser associado.");
-    }
-  });
-
-  return payment;
 }

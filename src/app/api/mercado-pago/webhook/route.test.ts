@@ -3,20 +3,20 @@ import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/mercado-pago/webhook/route";
-import { upsertPaidPaymentTransactionForReservation } from "@/lib/finance/payment-transactions";
 import { getMercadoPagoPayment } from "@/lib/payments/mercado-pago";
 import { prisma } from "@/lib/prisma";
 import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
+import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
 
-vi.mock("@/lib/finance/payment-transactions", () => ({
-  upsertPaidPaymentTransactionForReservation: vi.fn(),
-}));
 vi.mock("@/lib/payments/mercado-pago", () => ({
   getMercadoPagoPayment: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     paymentTransaction: {
+      findUnique: vi.fn(),
+    },
+    reservation: {
       findUnique: vi.fn(),
     },
   },
@@ -45,6 +45,28 @@ const transaction = {
     paymentStatus: "awaiting_payment",
     totalPriceCents: 75000,
     currency: "BRL",
+  },
+};
+const reservationWithEmailData = {
+  id: "reservation-1",
+  guestName: "Maria Silva",
+  guestEmail: "maria@example.test",
+  guestPhone: "11999999999",
+  guestDocument: "AB123456",
+  checkIn: new Date(Date.UTC(2099, 6, 10)),
+  checkOut: new Date(Date.UTC(2099, 6, 12)),
+  adults: 2,
+  children: 1,
+  nights: 2,
+  nightlyPriceCents: 37500,
+  totalPriceCents: 75000,
+  paymentMethod: "pix",
+  hotel: {
+    email: "hotel@example.test",
+    name: "Hotel LPH",
+  },
+  room: {
+    name: "Suite Vista Mar",
   },
 };
 
@@ -84,9 +106,11 @@ describe("Mercado Pago webhook", () => {
     vi.stubEnv("PAYMENT_WEBHOOK_SECRET", secret);
     vi.mocked(getMercadoPagoPayment).mockReset();
     vi.mocked(prisma.paymentTransaction.findUnique).mockReset();
+    vi.mocked(prisma.reservation.findUnique).mockReset();
     vi.mocked(confirmPaidReservation).mockReset();
     vi.mocked(closeUnpaidReservation).mockReset();
-    vi.mocked(upsertPaidPaymentTransactionForReservation).mockReset();
+    vi.mocked(sendGuestReservationEmail).mockReset();
+    vi.mocked(sendHotelReservationEmail).mockReset();
   });
 
   afterEach(() => {
@@ -119,6 +143,31 @@ describe("Mercado Pago webhook", () => {
       paymentMethod: "bank_transfer",
     });
     expect(closeUnpaidReservation).not.toHaveBeenCalled();
+  });
+
+  it("envia e-mails uma vez quando pagamento aprovado confirma a reserva", async () => {
+    mockTransactionLookup();
+    vi.mocked(getMercadoPagoPayment).mockResolvedValue({
+      id: paymentId,
+      status: "approved",
+      statusDetail: undefined,
+      reservationId: "reservation-1",
+      paymentMethodId: "pix",
+      paymentTypeId: "bank_transfer",
+      totalPriceCents: 75000,
+      currency: "BRL",
+    });
+    vi.mocked(confirmPaidReservation).mockResolvedValue({
+      reservationId: "reservation-1",
+      confirmed: true,
+    });
+    vi.mocked(prisma.reservation.findUnique).mockResolvedValue(reservationWithEmailData as never);
+
+    const response = await POST(createWebhookRequest());
+
+    expect(response.status).toBe(200);
+    expect(sendHotelReservationEmail).toHaveBeenCalledTimes(1);
+    expect(sendGuestReservationEmail).toHaveBeenCalledTimes(1);
   });
 
   it("mantem reserva pendente quando o provedor retorna pagamento pendente", async () => {
@@ -161,6 +210,30 @@ describe("Mercado Pago webhook", () => {
     expect(closeUnpaidReservation).toHaveBeenCalledWith({
       reservationId: "reservation-1",
       status: "payment_failed",
+      providerPaymentId: paymentId,
+    });
+  });
+
+  it("cancela reserva nao paga quando o provedor retorna pagamento cancelado", async () => {
+    mockTransactionLookup();
+    vi.mocked(getMercadoPagoPayment).mockResolvedValue({
+      id: paymentId,
+      status: "cancelled",
+      statusDetail: undefined,
+      reservationId: "reservation-1",
+      paymentMethodId: "pix",
+      paymentTypeId: "bank_transfer",
+      totalPriceCents: 75000,
+      currency: "BRL",
+    });
+
+    const response = await POST(createWebhookRequest());
+
+    expect(response.status).toBe(200);
+    expect(confirmPaidReservation).not.toHaveBeenCalled();
+    expect(closeUnpaidReservation).toHaveBeenCalledWith({
+      reservationId: "reservation-1",
+      status: "cancelled",
       providerPaymentId: paymentId,
     });
   });
@@ -254,6 +327,37 @@ describe("Mercado Pago webhook", () => {
 
     expect(response.status).toBe(200);
     expect(confirmPaidReservation).not.toHaveBeenCalled();
-    expect(upsertPaidPaymentTransactionForReservation).toHaveBeenCalledWith("reservation-1");
+    expect(closeUnpaidReservation).not.toHaveBeenCalled();
+    expect(sendHotelReservationEmail).not.toHaveBeenCalled();
+    expect(sendGuestReservationEmail).not.toHaveBeenCalled();
+  });
+
+  it("nao encerra novamente webhook recusado repetido", async () => {
+    mockTransactionLookup({
+      ...transaction,
+      providerPaymentId: paymentId,
+      status: "payment_failed",
+      reservation: {
+        ...transaction.reservation,
+        providerPaymentId: paymentId,
+        paymentStatus: "payment_failed",
+      },
+    });
+    vi.mocked(getMercadoPagoPayment).mockResolvedValue({
+      id: paymentId,
+      status: "rejected",
+      statusDetail: undefined,
+      reservationId: "reservation-1",
+      paymentMethodId: "pix",
+      paymentTypeId: "bank_transfer",
+      totalPriceCents: 75000,
+      currency: "BRL",
+    });
+
+    const response = await POST(createWebhookRequest());
+
+    expect(response.status).toBe(200);
+    expect(confirmPaidReservation).not.toHaveBeenCalled();
+    expect(closeUnpaidReservation).not.toHaveBeenCalled();
   });
 });

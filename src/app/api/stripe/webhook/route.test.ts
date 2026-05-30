@@ -1,15 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/stripe/webhook/route";
-import { upsertPaidPaymentTransactionForReservation } from "@/lib/finance/payment-transactions";
 import { prisma } from "@/lib/prisma";
 import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
 import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
 
-vi.mock("@/lib/finance/payment-transactions", () => ({
-  upsertPaidPaymentTransactionForReservation: vi.fn(),
-}));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     reservation: {
@@ -78,7 +74,6 @@ describe("Stripe legacy webhook", () => {
     vi.mocked(prisma.reservation.findUnique).mockReset();
     vi.mocked(confirmPaidReservation).mockReset();
     vi.mocked(closeUnpaidReservation).mockReset();
-    vi.mocked(upsertPaidPaymentTransactionForReservation).mockReset();
     vi.mocked(sendGuestReservationEmail).mockReset();
     vi.mocked(sendHotelReservationEmail).mockReset();
 
@@ -163,7 +158,8 @@ describe("Stripe legacy webhook", () => {
 
     expect(response.status).toBe(200);
     expect(confirmPaidReservation).not.toHaveBeenCalled();
-    expect(upsertPaidPaymentTransactionForReservation).toHaveBeenCalledWith("reservation-1");
+    expect(closeUnpaidReservation).not.toHaveBeenCalled();
+    expect(sendHotelReservationEmail).not.toHaveBeenCalled();
   });
 
   it("fecha reserva não paga quando checkout legado expira", async () => {
@@ -178,6 +174,7 @@ describe("Stripe legacy webhook", () => {
         },
       },
     });
+    vi.mocked(prisma.reservation.findUnique).mockResolvedValue(paidReservation as never);
 
     const response = await POST(createStripeRequest());
 
@@ -187,6 +184,31 @@ describe("Stripe legacy webhook", () => {
       status: "cancelled",
       stripeCheckoutSessionId: "cs_expired",
     });
+  });
+
+  it("nao encerra novamente checkout legado expirado repetido", async () => {
+    constructEvent.mockReturnValue({
+      type: "checkout.session.expired",
+      data: {
+        object: {
+          id: "cs_expired",
+          metadata: {
+            reservationId: "reservation-1",
+          },
+        },
+      },
+    });
+    vi.mocked(prisma.reservation.findUnique).mockResolvedValue({
+      ...paidReservation,
+      paymentStatus: "cancelled",
+      stripeCheckoutSessionId: "cs_expired",
+    } as never);
+
+    const response = await POST(createStripeRequest());
+
+    expect(response.status).toBe(200);
+    expect(closeUnpaidReservation).not.toHaveBeenCalled();
+    expect(confirmPaidReservation).not.toHaveBeenCalled();
   });
 
   it("fecha reserva não paga quando payment intent legado falha", async () => {
@@ -201,6 +223,7 @@ describe("Stripe legacy webhook", () => {
         },
       },
     });
+    vi.mocked(prisma.reservation.findUnique).mockResolvedValue(paidReservation as never);
 
     const response = await POST(createStripeRequest());
 
@@ -210,5 +233,30 @@ describe("Stripe legacy webhook", () => {
       status: "payment_failed",
       stripePaymentIntentId: "pi_failed",
     });
+  });
+
+  it("nao encerra novamente payment intent legado falho repetido", async () => {
+    constructEvent.mockReturnValue({
+      type: "payment_intent.payment_failed",
+      data: {
+        object: {
+          id: "pi_failed",
+          metadata: {
+            reservationId: "reservation-1",
+          },
+        },
+      },
+    });
+    vi.mocked(prisma.reservation.findUnique).mockResolvedValue({
+      ...paidReservation,
+      paymentStatus: "payment_failed",
+      stripePaymentIntentId: "pi_failed",
+    } as never);
+
+    const response = await POST(createStripeRequest());
+
+    expect(response.status).toBe(200);
+    expect(closeUnpaidReservation).not.toHaveBeenCalled();
+    expect(confirmPaidReservation).not.toHaveBeenCalled();
   });
 });

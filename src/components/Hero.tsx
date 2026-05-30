@@ -9,6 +9,7 @@ export function Hero() {
           alt="Família aproveitando uma experiência tropical no mar"
           fill
           priority
+          quality={82}
           sizes="100vw"
         />
 

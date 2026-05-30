@@ -80,12 +80,39 @@ describe("admin authorization scope", () => {
     );
   });
 
+  it("lança erro quando usuario nao existe ao exigir permissao", async () => {
+    findUser.mockResolvedValue(null);
+
+    await expect(requireHotelAdminAccess("user-404", "hotel-a")).rejects.toBeInstanceOf(
+      AuthorizationError
+    );
+  });
+
   it("bloqueia editor em operacoes administrativas criticas do hotel", async () => {
     mockUser({ globalRole: "hotel_admin", hotelRole: HotelRole.editor });
 
+    await expect(canViewHotelAdmin("user-1", "hotel-a")).resolves.toBe(true);
     await expect(canEditHotel("user-1", "hotel-a")).resolves.toBe(true);
     await expect(requireHotelAdminAccess("user-1", "hotel-a")).rejects.toBeInstanceOf(
       AuthorizationError
+    );
+  });
+
+  it("consulta permissao sempre limitada ao hotel solicitado", async () => {
+    mockUser({ globalRole: "hotel_admin", hotelRole: HotelRole.admin });
+
+    await canEditHotel("user-1", "hotel-b");
+
+    expect(findUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          hotelPermissions: expect.objectContaining({
+            where: {
+              hotelId: "hotel-b",
+            },
+          }),
+        }),
+      })
     );
   });
 

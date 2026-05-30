@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Manrope, Sora } from "next/font/google";
 
 import {
@@ -15,12 +15,27 @@ import "@/styles/globals.css";
 const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-manrope",
+  display: "swap",
+  preload: true,
+  fallback: ["Arial", "sans-serif"],
+  adjustFontFallback: true,
 });
 
 const sora = Sora({
   subsets: ["latin"],
   variable: "--font-sora",
+  display: "swap",
+  preload: true,
+  fallback: ["Arial", "sans-serif"],
+  adjustFontFallback: true,
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#06294f",
+  colorScheme: "light",
+};
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
@@ -65,6 +80,13 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
   appleWebApp: {
     title: SITE_NAME,

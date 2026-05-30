@@ -15,9 +15,16 @@ export function ImageWithFallback({
   alt,
   onError,
   fill,
+  src,
+  priority,
+  loading,
+  decoding,
   ...props
 }: ImageWithFallbackProps) {
-  const [hasError, setHasError] = useState(false);
+  const hasInvalidSource = typeof src === "string" && !src.trim();
+  const sourceKey = typeof src === "string" ? src : "";
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const hasError = hasInvalidSource || failedSource === sourceKey;
   const frameClassName = [
     "image-fallback-frame",
     fill ? "image-fallback-frame--fill" : "",
@@ -32,11 +39,15 @@ export function ImageWithFallback({
       {!hasError ? (
         <Image
           {...props}
+          src={src}
           alt={alt}
           className={className}
           fill={fill}
+          priority={priority}
+          loading={priority ? undefined : (loading ?? "lazy")}
+          decoding={decoding ?? "async"}
           onError={(event) => {
-            setHasError(true);
+            setFailedSource(sourceKey);
             onError?.(event);
           }}
         />

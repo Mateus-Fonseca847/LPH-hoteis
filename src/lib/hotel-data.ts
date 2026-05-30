@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import {
   hotels as fallbackHotels,
   getHotelBySlug,
@@ -325,7 +327,7 @@ function getPublicAvailabilityStatus(
     : "unavailable";
 }
 
-export async function getPublishedHotels(): Promise<PublishedHotelCard[]> {
+async function fetchPublishedHotels(): Promise<PublishedHotelCard[]> {
   if (!(await hasCompatibleHotelSchema())) {
     return getFallbackPublishedHotels();
   }
@@ -348,6 +350,15 @@ export async function getPublishedHotels(): Promise<PublishedHotelCard[]> {
   } catch (error) {
     return handleDatabaseFallback(error, getFallbackPublishedHotels());
   }
+}
+
+const getCachedPublishedHotels = unstable_cache(fetchPublishedHotels, ["published-hotels"], {
+  revalidate: 300,
+  tags: ["published-hotels"],
+});
+
+export async function getPublishedHotels(): Promise<PublishedHotelCard[]> {
+  return getCachedPublishedHotels();
 }
 
 export async function getHotelSlugs(): Promise<string[]> {

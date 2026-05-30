@@ -4,9 +4,10 @@ on:
   push:
     branches:
       - main
+      - staging
   pull_request:
     branches:
-      - main
+      - "**"
 
 permissions:
   contents: read
@@ -40,13 +41,13 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma client
-        run: npm run prisma:generate
+        run: npx prisma generate
 
       - name: Run lint
         run: npm run lint
 
       - name: Validate Prisma schema
-        run: npm run prisma:validate
+        run: npx prisma validate
 
       - name: Run tests
         run: npm run test

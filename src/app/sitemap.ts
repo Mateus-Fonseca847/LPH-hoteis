@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 import { getPublishedHotels } from "@/lib/hotel-data";
 import { getSiteUrl } from "@/lib/site-metadata";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = getSiteUrl();

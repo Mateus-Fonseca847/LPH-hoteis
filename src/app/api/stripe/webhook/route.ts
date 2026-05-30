@@ -5,13 +5,36 @@ import {
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
-import { upsertPaidPaymentTransactionForReservation } from "@/lib/finance/payment-transactions";
+import {
+  isPaymentWebhookAlreadyProcessed,
+  validatePaymentWebhookIdentity,
+} from "@/lib/payments/webhook-idempotency";
 import { prisma } from "@/lib/prisma";
 import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
 import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
 
 const WEBHOOK_FAILURE_MESSAGE = "Não foi possível processar o webhook de pagamento.";
+
+function getStripePaymentIntentId(value: Stripe.Checkout.Session["payment_intent"]) {
+  return typeof value === "string" ? value : value?.id;
+}
+
+async function findReservationForWebhook(reservationId: string) {
+  return prisma.reservation.findUnique({
+    where: {
+      id: reservationId,
+    },
+    select: {
+      id: true,
+      status: true,
+      paymentStatus: true,
+      providerPaymentId: true,
+      stripeCheckoutSessionId: true,
+      stripePaymentIntentId: true,
+    },
+  });
+}
 
 async function notifyPaidReservation(reservationId: string) {
   const reservation = await prisma.reservation.findUnique({
@@ -62,30 +85,31 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  const reservation = await prisma.reservation.findUnique({
-    where: {
-      id: reservationId,
-    },
-    select: {
-      id: true,
-      status: true,
-      paymentStatus: true,
-    },
-  });
+  const reservation = await findReservationForWebhook(reservationId);
 
   if (!reservation) {
     return;
   }
 
-  if (reservation.paymentStatus === "paid") {
-    await upsertPaidPaymentTransactionForReservation(reservation.id);
+  const stripePaymentIntentId = getStripePaymentIntentId(session.payment_intent);
+  validatePaymentWebhookIdentity({
+    reservation,
+    reservationId,
+    stripeCheckoutSessionId: session.id,
+    stripePaymentIntentId,
+  });
+
+  if (
+    isPaymentWebhookAlreadyProcessed({
+      reservation,
+      reservationId,
+      stripeCheckoutSessionId: session.id,
+      stripePaymentIntentId,
+    })
+  ) {
     return;
   }
 
-  const stripePaymentIntentId =
-    typeof session.payment_intent === "string"
-      ? session.payment_intent
-      : session.payment_intent?.id;
   const confirmation = await confirmPaidReservation({
     reservationId: reservation.id,
     stripeCheckoutSessionId: session.id,
@@ -104,6 +128,28 @@ async function handleCheckoutFailed(session: Stripe.Checkout.Session) {
     return;
   }
 
+  const reservation = await findReservationForWebhook(reservationId);
+
+  if (!reservation) {
+    return;
+  }
+
+  validatePaymentWebhookIdentity({
+    reservation,
+    reservationId,
+    stripeCheckoutSessionId: session.id,
+  });
+
+  if (
+    isPaymentWebhookAlreadyProcessed({
+      reservation,
+      reservationId,
+      stripeCheckoutSessionId: session.id,
+    })
+  ) {
+    return;
+  }
+
   await closeUnpaidReservation({
     reservationId,
     status: "cancelled",
@@ -115,6 +161,28 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
   const reservationId = paymentIntent.metadata.reservationId;
 
   if (!reservationId) {
+    return;
+  }
+
+  const reservation = await findReservationForWebhook(reservationId);
+
+  if (!reservation) {
+    return;
+  }
+
+  validatePaymentWebhookIdentity({
+    reservation,
+    reservationId,
+    stripePaymentIntentId: paymentIntent.id,
+  });
+
+  if (
+    isPaymentWebhookAlreadyProcessed({
+      reservation,
+      reservationId,
+      stripePaymentIntentId: paymentIntent.id,
+    })
+  ) {
     return;
   }
 

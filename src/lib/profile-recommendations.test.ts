@@ -113,4 +113,29 @@ describe("profile experience recommendations", () => {
     expect(matches[0].hotels).toEqual([]);
     expect(matches[0].hotel).toBeNull();
   });
+
+  it("ignora hotel com slug invalido ao associar experiencia a hotel", () => {
+    const matches = getProfileExperienceMatches({
+      recommendations: [experience],
+      hotels: [
+        {
+          slug: "../recife",
+          name: "Slug invalido",
+          city: "Recife",
+          state: "PE",
+          coverImageUrl: "/invalid.jpg",
+        },
+        {
+          slug: "boa-viagem",
+          name: "Boa Viagem",
+          city: "Recife",
+          state: "PE",
+          coverImageUrl: "/boa-viagem.jpg",
+        },
+      ],
+    });
+
+    expect(matches[0].hotel?.slug).toBe("boa-viagem");
+    expect(matches[0].href).toBe("/hoteis/boa-viagem");
+  });
 });

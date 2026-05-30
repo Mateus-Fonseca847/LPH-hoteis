@@ -57,11 +57,60 @@ describe("stay-query", () => {
   });
 
   it("calcula preco total pela melhor tarifa compativel", () => {
-    expect(getRoomStayPriceEstimate(room, "2026-07-10", "2026-07-12", 2, 1)).toMatchObject({
-      nightlyPriceCents: 35000,
-      totalPriceCents: 70000,
+    expect(
+      getRoomStayPriceEstimate(
+        {
+          ...room,
+          rates: [
+            ...room.rates,
+            {
+              ...room.rates[0],
+              id: "rate-2",
+              priceCents: 30000,
+            },
+          ],
+        },
+        "2026-07-10",
+        "2026-07-12",
+        2,
+        1
+      )
+    ).toMatchObject({
+      rateId: "rate-2",
+      nightlyPriceCents: 30000,
+      totalPriceCents: 60000,
       nights: 2,
     });
+  });
+
+  it("nao calcula valor quando tarifa nao cobre noites, moeda ou ocupacao", () => {
+    expect(
+      getRoomStayPriceEstimate(
+        {
+          ...room,
+          rates: [
+            {
+              ...room.rates[0],
+              minNights: 3,
+            },
+            {
+              ...room.rates[0],
+              id: "usd",
+              currency: "USD",
+            },
+            {
+              ...room.rates[0],
+              id: "guests",
+              maxGuests: 1,
+            },
+          ],
+        },
+        "2026-07-10",
+        "2026-07-12",
+        2,
+        1
+      )
+    ).toBeNull();
   });
 
   it("formata o preço total em BRL sem depender de servico externo", () => {
@@ -102,5 +151,11 @@ describe("stay-query", () => {
         1
       )
     ).toBe("unknown");
+  });
+
+  it("marca disponivel quando capacidade e todas as noites estao abertas", () => {
+    expect(getRoomStayAvailabilityStatus(room, "2026-07-10", "2026-07-12", 2, 1)).toBe(
+      "available"
+    );
   });
 });

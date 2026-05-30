@@ -1,5 +1,7 @@
 # LPH Hotéis
 
+[![CI](https://github.com/Mateus-Fonseca847/PH-hot-is/actions/workflows/ci.yml/badge.svg)](https://github.com/Mateus-Fonseca847/PH-hot-is/actions/workflows/ci.yml)
+
 Plataforma web da rede LPH para catálogo público de hotéis e operação administrativa interna.
 
 ## Stack
