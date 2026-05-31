@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/reservas/route";
 import { createPayment, resolveHotelPaymentConfiguration } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
+import { expirePendingReservations } from "@/lib/reservation-expiration";
 
 vi.mock("@/lib/payments", () => ({
   createPayment: vi.fn(),
@@ -16,6 +17,13 @@ vi.mock("@/lib/prisma", () => ({
     },
     $transaction: vi.fn(),
   },
+}));
+
+vi.mock("@/lib/reservation-expiration", () => ({
+  expirePendingReservations: vi.fn(),
+  getBookingPaymentExpiresAt: vi.fn(
+    () => new Date(Date.UTC(2099, 6, 1, 0, 30))
+  ),
 }));
 
 const validPayload = {
@@ -123,6 +131,7 @@ describe("POST /api/reservas", () => {
     vi.mocked(prisma.$transaction).mockReset();
     vi.mocked(createPayment).mockReset();
     vi.mocked(resolveHotelPaymentConfiguration).mockReset();
+    vi.mocked(expirePendingReservations).mockReset();
 
     vi.mocked(prisma.hotelRoom.findFirst).mockResolvedValue(room as never);
     vi.mocked(resolveHotelPaymentConfiguration).mockReturnValue({
@@ -134,6 +143,10 @@ describe("POST /api/reservas", () => {
       providerPaymentId: "payment-1",
       checkoutUrl: "https://checkout.example.test",
       status: "awaiting_payment",
+    });
+    vi.mocked(expirePendingReservations).mockResolvedValue({
+      expired: 0,
+      scanned: 0,
     });
   });
 
@@ -159,6 +172,7 @@ describe("POST /api/reservas", () => {
         data: expect.objectContaining({
           status: "pending",
           paymentStatus: "pending",
+          expiresAt: new Date(Date.UTC(2099, 6, 1, 0, 30)),
           availabilityHeld: true,
           totalPriceCents: 70000,
         }),

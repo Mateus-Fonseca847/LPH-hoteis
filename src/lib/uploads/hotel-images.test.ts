@@ -27,7 +27,6 @@ describe("hotel image upload validation", () => {
   afterEach(() => {
     delete process.env.UPLOAD_MAX_IMAGE_SIZE_BYTES;
     delete process.env.UPLOAD_MAX_FILE_NAME_LENGTH;
-    delete process.env.UPLOAD_STORAGE_PROVIDER;
     delete process.env.STORAGE_PROVIDER;
     setStorageProviderForTesting(null);
   });
@@ -115,7 +114,7 @@ describe("hotel image upload validation", () => {
     process.env.STORAGE_PROVIDER = "s3";
 
     await expect(storeHotelImageFile("hotel_12345", makeFile())).rejects.toThrow(
-      "S3 ainda nao configurado"
+      "S3_ENDPOINT nao configurado"
     );
   });
 

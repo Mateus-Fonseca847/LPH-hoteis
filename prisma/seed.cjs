@@ -105,6 +105,40 @@ function room({
   };
 }
 
+function buildStorageSeedUrl(key) {
+  const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL?.trim();
+
+  if (!publicBaseUrl) {
+    return null;
+  }
+
+  return `${publicBaseUrl.replace(/\/+$/, "")}/${key
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/")}`;
+}
+
+function withStorageSeedUrls(hotel) {
+  const coverImageUrl = buildStorageSeedUrl(`seed/hotels/${hotel.slug}/cover.webp`);
+
+  if (!coverImageUrl) {
+    return hotel;
+  }
+
+  return {
+    ...hotel,
+    coverImageUrl,
+    galleryImages: hotel.galleryImages.map((image, index) => ({
+      ...image,
+      url: buildStorageSeedUrl(`seed/hotels/${hotel.slug}/gallery-${index + 1}.webp`),
+    })),
+    rooms: hotel.rooms.map((roomData, index) => ({
+      ...roomData,
+      imageUrl: buildStorageSeedUrl(`seed/hotels/${hotel.slug}/rooms-${index + 1}.webp`),
+    })),
+  };
+}
+
 const hotels = [
   {
     slug: "lph-marina-santos",
@@ -680,23 +714,24 @@ async function upsertSeedAdmin() {
 }
 
 async function upsertHotel(hotel) {
+  const storageHotel = withStorageSeedUrls(hotel);
   const baseData = {
-    slug: hotel.slug,
-    name: hotel.name,
-    shortDescription: hotel.shortDescription,
-    fullDescription: hotel.fullDescription,
-    city: hotel.city,
-    state: hotel.state,
-    address: hotel.address,
-    phone: hotel.phone,
-    email: hotel.email,
-    whatsapp: hotel.whatsapp,
-    coverImageUrl: hotel.coverImageUrl,
-    checkInTime: hotel.checkInTime,
-    checkOutTime: hotel.checkOutTime,
-    latitude: new Prisma.Decimal(hotel.latitude),
-    longitude: new Prisma.Decimal(hotel.longitude),
-    isPublished: hotel.isPublished,
+    slug: storageHotel.slug,
+    name: storageHotel.name,
+    shortDescription: storageHotel.shortDescription,
+    fullDescription: storageHotel.fullDescription,
+    city: storageHotel.city,
+    state: storageHotel.state,
+    address: storageHotel.address,
+    phone: storageHotel.phone,
+    email: storageHotel.email,
+    whatsapp: storageHotel.whatsapp,
+    coverImageUrl: storageHotel.coverImageUrl,
+    checkInTime: storageHotel.checkInTime,
+    checkOutTime: storageHotel.checkOutTime,
+    latitude: new Prisma.Decimal(storageHotel.latitude),
+    longitude: new Prisma.Decimal(storageHotel.longitude),
+    isPublished: storageHotel.isPublished,
   };
 
   await prisma.$transaction(async (tx) => {
@@ -712,7 +747,7 @@ async function upsertHotel(hotel) {
     await tx.hotelPolicy.deleteMany({ where: { hotelId: savedHotel.id } });
 
     await tx.hotelImage.createMany({
-      data: hotel.galleryImages.map((image, index) => ({
+      data: storageHotel.galleryImages.map((image, index) => ({
         hotelId: savedHotel.id,
         url: image.url,
         alt: image.alt,
@@ -737,7 +772,7 @@ async function upsertHotel(hotel) {
       })),
     });
 
-    for (const roomData of hotel.rooms) {
+    for (const roomData of storageHotel.rooms) {
       const savedRoom = await tx.hotelRoom.create({
         data: {
           hotelId: savedHotel.id,

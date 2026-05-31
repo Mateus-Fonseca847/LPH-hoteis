@@ -11,6 +11,33 @@ const immutableAssetHeaders = [
   { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
 ];
 
+function getStorageRemotePattern() {
+  const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL?.trim();
+
+  if (!publicBaseUrl) {
+    return null;
+  }
+
+  try {
+    const url = new URL(publicBaseUrl);
+
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return null;
+    }
+
+    return {
+      protocol: url.protocol.replace(":", "") as "http" | "https",
+      hostname: url.hostname,
+      port: url.port || undefined,
+      pathname: `${url.pathname.replace(/\/+$/, "") || ""}/**`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const storageRemotePattern = getStorageRemotePattern();
+
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
@@ -25,6 +52,7 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      ...(storageRemotePattern ? [storageRemotePattern] : []),
     ],
   },
   async headers() {

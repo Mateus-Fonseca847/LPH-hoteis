@@ -18,6 +18,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: lph_ci
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d lph_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       DATABASE_URL: postgresql://ci_user:ci_password@localhost:5432/lph_ci?schema=public
       AUTH_SECRET: ci-auth-secret-not-real-change-in-real-env
@@ -25,6 +40,16 @@ jobs:
       PAYMENT_SECRETS_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       ALLOW_LOCAL_HOTEL_DATA_FALLBACK: "false"
+      EMAIL_PROVIDER: development
+      PAYMENT_PROVIDER: mercado_pago
+      PAYMENT_ACCESS_TOKEN: ci-mercado-pago-token-not-real
+      PAYMENT_WEBHOOK_SECRET: ci-mercado-pago-webhook-secret-not-real
+      PAYMENT_WEBHOOK_URL: http://localhost:3000/api/mercado-pago/webhook
+      MERCADO_PAGO_ACCESS_TOKEN: ci-mercado-pago-token-not-real
+      MERCADO_PAGO_WEBHOOK_SECRET: ci-mercado-pago-webhook-secret-not-real
+      MERCADO_PAGO_SANDBOX: "true"
+      STORAGE_PROVIDER: local
+      RUN_DATABASE_TESTS: "true"
       CI: "true"
 
     steps:
@@ -41,13 +66,16 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma client
-        run: npx prisma generate
+        run: npm run prisma:generate
 
       - name: Run lint
         run: npm run lint
 
       - name: Validate Prisma schema
-        run: npx prisma validate
+        run: npm run prisma:validate
+
+      - name: Apply database migrations
+        run: npm run prisma:migrate:deploy
 
       - name: Run tests
         run: npm run test

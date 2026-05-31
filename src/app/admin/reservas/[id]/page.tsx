@@ -5,10 +5,16 @@ import { notFound } from "next/navigation";
 import { AdminAccessDenied } from "@/app/admin/AdminAccessDenied";
 import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { reconcileReservationPaymentAction, reservationOperationAction } from "./actions";
 
 type AdminReservationDetailPageProps = {
   params: Promise<{
     id: string;
+  }>;
+  searchParams?: Promise<{
+    message?: string;
+    operation?: string;
+    paymentReconciliation?: string;
   }>;
 };
 
@@ -19,6 +25,7 @@ const reservationStatusLabels: Record<ReservationStatus, string> = {
   paid: "Paga",
   payment_failed: "Pagamento falhou",
   cancelled: "Cancelada",
+  expired: "Expirada",
 };
 
 const paymentStatusLabels: Record<PaymentStatus, string> = {
@@ -32,6 +39,14 @@ const paymentStatusLabels: Record<PaymentStatus, string> = {
 const providerLabels: Record<PaymentProvider, string> = {
   manual: "Manual",
   mercado_pago: "Mercado Pago",
+};
+
+const operationLabels: Record<string, string> = {
+  "reservation.cancelled": "Reserva cancelada",
+  "reservation.manually_confirmed": "Reserva confirmada manualmente",
+  "reservation.payment_failed": "Pagamento marcado como falho",
+  "reservation.confirmation_email_resent": "E-mail de confirmacao reenviado",
+  "reservation.internal_note_added": "Observacao interna",
 };
 
 function formatDate(value: Date) {
@@ -79,10 +94,48 @@ function formatPaymentMethod(method: string | null) {
   return labels[method] ?? method.replaceAll("_", " ");
 }
 
+function ReservationOperationForm({
+  reservationId,
+  operation,
+  title,
+  buttonLabel,
+}: {
+  reservationId: string;
+  operation: string;
+  title: string;
+  buttonLabel: string;
+}) {
+  return (
+    <form action={reservationOperationAction} className="admin-form-section">
+      <input type="hidden" name="reservationId" value={reservationId} />
+      <input type="hidden" name="operation" value={operation} />
+      <label className="admin-form-field">
+        <span>{title}</span>
+        <textarea
+          name="reason"
+          rows={3}
+          minLength={5}
+          maxLength={1000}
+          required
+          placeholder="Motivo ou observacao interna"
+        />
+      </label>
+      <button type="submit" className="card-cta-button admin-edit-button">
+        {buttonLabel}
+      </button>
+    </form>
+  );
+}
+
 export default async function AdminReservationDetailPage({
   params,
+  searchParams,
 }: AdminReservationDetailPageProps) {
   const { id } = await params;
+  const currentSearchParams = await searchParams;
+  const paymentReconciliation = currentSearchParams?.paymentReconciliation;
+  const operation = currentSearchParams?.operation;
+  const operationMessage = currentSearchParams?.message;
   let user;
 
   try {
@@ -131,6 +184,26 @@ export default async function AdminReservationDetailPage({
         },
       },
       paymentTransaction: true,
+      paymentReconciliationLogs: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      },
+      operationLogs: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 20,
+        include: {
+          createdBy: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
       room: {
         select: {
           name: true,
@@ -169,6 +242,26 @@ export default async function AdminReservationDetailPage({
         </p>
       </div>
 
+      {paymentReconciliation ? (
+        <div
+          className={`admin-form-message is-${
+            paymentReconciliation === "success" ? "success" : "error"
+          }`}
+        >
+          {paymentReconciliation === "success"
+            ? "Reconciliacao executada."
+            : "Nao foi possivel reconciliar o pagamento."}
+        </div>
+      ) : null}
+
+      {operation ? (
+        <div className={`admin-form-message is-${operation === "success" ? "success" : "error"}`}>
+          {operation === "success"
+            ? "Operacao executada."
+            : operationMessage || "Operacao nao concluida."}
+        </div>
+      ) : null}
+
       <div className="admin-overview-grid">
         <article className="hotel-content-card admin-overview-card">
           <span>Status da reserva</span>
@@ -193,6 +286,15 @@ export default async function AdminReservationDetailPage({
       </div>
 
       <section className="hotel-content-card admin-reservation-detail-card">
+        {reservation.paymentProvider === "mercado_pago" ? (
+          <form action={reconcileReservationPaymentAction} className="admin-editor-actions">
+            <input type="hidden" name="reservationId" value={reservation.id} />
+            <button type="submit" className="card-cta-button admin-edit-button">
+              Reconciliar Mercado Pago
+            </button>
+          </form>
+        ) : null}
+
         <div className="admin-audit-meta">
           <p>
             <span>Hotel</span>
@@ -265,6 +367,48 @@ export default async function AdminReservationDetailPage({
       <section className="hotel-content-card admin-reservation-detail-card">
         <div className="admin-finance-chart__header">
           <div>
+            <h3>Acoes operacionais</h3>
+          </div>
+          <p>Cada acao exige motivo e fica registrada no historico da reserva.</p>
+        </div>
+
+        <div className="admin-form-grid admin-form-grid--three">
+          <ReservationOperationForm
+            reservationId={reservation.id}
+            operation="cancel"
+            title="Cancelar reserva"
+            buttonLabel="Cancelar reserva"
+          />
+          <ReservationOperationForm
+            reservationId={reservation.id}
+            operation="confirm"
+            title="Confirmar manualmente"
+            buttonLabel="Confirmar"
+          />
+          <ReservationOperationForm
+            reservationId={reservation.id}
+            operation="fail-payment"
+            title="Marcar pagamento como falho"
+            buttonLabel="Marcar falha"
+          />
+          <ReservationOperationForm
+            reservationId={reservation.id}
+            operation="resend-email"
+            title="Reenviar e-mail de confirmacao"
+            buttonLabel="Reenviar"
+          />
+          <ReservationOperationForm
+            reservationId={reservation.id}
+            operation="note"
+            title="Adicionar observacao interna"
+            buttonLabel="Adicionar"
+          />
+        </div>
+      </section>
+
+      <section className="hotel-content-card admin-reservation-detail-card">
+        <div className="admin-finance-chart__header">
+          <div>
             <h3>Historico basico</h3>
           </div>
           <p>Eventos inferidos dos campos gravados na reserva.</p>
@@ -293,6 +437,18 @@ export default async function AdminReservationDetailPage({
 
           <div className="admin-audit-meta">
             <p>
+              <span>Status</span>
+              <strong>{paymentStatusLabels[reservation.paymentTransaction.status]}</strong>
+            </p>
+            <p>
+              <span>ID provedor</span>
+              <strong>{reservation.paymentTransaction.providerPaymentId || "Nao informado"}</strong>
+            </p>
+            <p>
+              <span>Pago em</span>
+              <strong>{formatDateTime(reservation.paymentTransaction.paidAt)}</strong>
+            </p>
+            <p>
               <span>Bruto</span>
               <strong>
                 {formatCurrency(
@@ -319,6 +475,63 @@ export default async function AdminReservationDetailPage({
                 )}
               </strong>
             </p>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="hotel-content-card admin-reservation-detail-card">
+        <div className="admin-finance-chart__header">
+          <div>
+            <h3>Historico operacional</h3>
+          </div>
+          <p>Auditoria com responsavel, data, motivo e transicao.</p>
+        </div>
+
+        {reservation.operationLogs.length ? (
+          <div className="admin-history-list">
+            {reservation.operationLogs.map((log) => (
+              <article key={log.id} className="admin-history-item">
+                <div className="admin-history-item-top">
+                  <strong>{operationLabels[log.action] ?? log.action}</strong>
+                  <span>{formatDateTime(log.createdAt)}</span>
+                </div>
+                <p>{log.reason}</p>
+                <small>
+                  {log.createdBy.name} ({log.createdBy.email}) - {log.previousStatus} para{" "}
+                  {log.nextStatus}; pagamento {log.previousPaymentStatus} para{" "}
+                  {log.nextPaymentStatus}.
+                </small>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="hotel-empty-state admin-history-empty">
+            <strong>Nenhuma acao operacional registrada.</strong>
+          </div>
+        )}
+      </section>
+
+      {reservation.paymentReconciliationLogs.length ? (
+        <section className="hotel-content-card admin-reservation-detail-card">
+          <div className="admin-finance-chart__header">
+            <div>
+              <h3>Reconciliacoes</h3>
+            </div>
+            <p>Ultimas tentativas registradas.</p>
+          </div>
+
+          <div className="admin-history-list">
+            {reservation.paymentReconciliationLogs.map((log) => (
+              <article key={log.id} className="admin-history-item">
+                <div className="admin-history-item-top">
+                  <strong>{log.remoteStatus || "sem status"}</strong>
+                  <span>{formatDateTime(log.createdAt)}</span>
+                </div>
+                <p>
+                  {log.source} - {log.success ? "sucesso" : log.error || "erro"}
+                </p>
+              </article>
+            ))}
           </div>
         </section>
       ) : null}

@@ -26,6 +26,7 @@ const reservationStatusOptions: Array<{ value: ReservationStatus; label: string 
   { value: "paid", label: "Paga" },
   { value: "payment_failed", label: "Pagamento falhou" },
   { value: "cancelled", label: "Cancelada" },
+  { value: "expired", label: "Expirada" },
 ];
 
 const paymentStatusOptions: Array<{ value: PaymentStatus; label: string }> = [

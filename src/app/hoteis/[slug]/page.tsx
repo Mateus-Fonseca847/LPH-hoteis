@@ -11,7 +11,7 @@ import { HotelPageActions } from "@/components/HotelPageActions";
 import { HotelRegionDetailsSection } from "@/components/HotelRegionDetailsSection";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
 import { getHotelPageData } from "@/lib/hotel-data";
-import { prisma } from "@/lib/prisma";
+import { getMercadoPagoCheckoutReturnNotice } from "@/lib/payments/checkout-return";
 import { parseBedsValue, ROOM_BED_OPTIONS } from "@/lib/room-options";
 import {
   DEFAULT_SOCIAL_IMAGE_ALT,
@@ -27,8 +27,13 @@ type HotelPageProps = {
   }>;
   searchParams?: Promise<{
     checkout?: string;
-    session_id?: string;
     reservation?: string;
+    external_reference?: string;
+    payment?: string;
+    payment_id?: string;
+    collection_id?: string;
+    preference?: string;
+    preference_id?: string;
   }>;
 };
 
@@ -355,36 +360,7 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
   const accessibility = buildAccessibility(hotel);
   const faq = buildFaq(hotel);
   const policySections = buildPolicySections(hotel);
-  const paidReservation = checkoutParams.session_id
-    ? await prisma.reservation.findUnique({
-        where: {
-          stripeCheckoutSessionId: checkoutParams.session_id,
-        },
-        select: {
-          id: true,
-          status: true,
-        },
-      })
-    : null;
-  const checkoutNotice =
-    checkoutParams.checkout === "success"
-      ? {
-          title:
-            paidReservation?.status === "paid"
-              ? "Pagamento aprovado"
-              : "Pagamento em processamento",
-          description:
-            paidReservation?.status === "paid"
-              ? `Reserva ${paidReservation.id} confirmada com pagamento aprovado. O hotel e o hóspede receberão os e-mails de confirmação.`
-              : "Sua reserva ainda não está confirmada. A confirmação acontece automaticamente quando o provedor aprovar o pagamento.",
-        }
-      : checkoutParams.checkout === "cancelled"
-        ? {
-            title: "Pagamento não concluído",
-            description:
-              "Nenhuma cobrança foi confirmada. Abra a consulta de disponibilidade para tentar novamente.",
-          }
-        : null;
+  const checkoutNotice = await getMercadoPagoCheckoutReturnNotice(checkoutParams);
   return (
     <div className="page-shell">
       <Header />

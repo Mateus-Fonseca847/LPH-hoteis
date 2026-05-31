@@ -1,9 +1,5 @@
 import { LocalStorageProvider } from "./local";
-import {
-  CloudflareR2StorageProvider,
-  S3StorageProvider,
-  SupabaseStorageProvider,
-} from "./remote-placeholders";
+import { S3StorageProvider } from "./s3";
 import type { StorageProvider, StorageProviderName } from "./types";
 
 export type {
@@ -15,20 +11,12 @@ export type {
   StoredObject,
 } from "./types";
 export { LocalStorageProvider } from "./local";
-export {
-  CloudflareR2StorageProvider,
-  S3StorageProvider,
-  SupabaseStorageProvider,
-} from "./remote-placeholders";
+export { S3StorageProvider } from "./s3";
 
 const DEFAULT_STORAGE_PROVIDER: StorageProviderName = "local";
 
 function getStorageProviderName(): StorageProviderName {
-  const rawProvider = (
-    process.env.STORAGE_PROVIDER ||
-    process.env.UPLOAD_STORAGE_PROVIDER ||
-    DEFAULT_STORAGE_PROVIDER
-  )
+  const rawProvider = (process.env.STORAGE_PROVIDER || DEFAULT_STORAGE_PROVIDER)
     .trim()
     .toLowerCase();
 
@@ -45,18 +33,18 @@ function getStorageProviderName(): StorageProviderName {
 
 export function createStorageProvider(name: StorageProviderName = getStorageProviderName()) {
   if (name === "local") {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Storage local e permitido apenas em desenvolvimento.");
+    }
+
     return new LocalStorageProvider();
   }
 
-  if (name === "s3") {
+  if (name === "s3" || name === "r2") {
     return new S3StorageProvider();
   }
 
-  if (name === "r2") {
-    return new CloudflareR2StorageProvider();
-  }
-
-  return new SupabaseStorageProvider();
+  throw new Error("Supabase Storage nao esta implementado. Use STORAGE_PROVIDER=s3.");
 }
 
 let storageProvider: StorageProvider | null = null;

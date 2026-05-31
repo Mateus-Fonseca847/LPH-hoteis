@@ -10,6 +10,10 @@ import { calculatePaymentTransactionAmounts } from "@/lib/finance";
 import { createPayment, resolveHotelPaymentConfiguration } from "@/lib/payments";
 import { getPaymentWebhookUrl } from "@/lib/payments/config";
 import { prisma } from "@/lib/prisma";
+import {
+  expirePendingReservations,
+  getBookingPaymentExpiresAt,
+} from "@/lib/reservation-expiration";
 import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
 import {
   calculateStayNights,
@@ -80,6 +84,12 @@ export async function POST(request: Request) {
         error instanceof Error ? error.message : "Datas da reserva inválidas."
       );
     }
+
+    await expirePendingReservations({
+      roomId,
+      checkIn,
+      checkOut,
+    });
 
     const room = await prisma.hotelRoom.findFirst({
       where: {
@@ -229,6 +239,7 @@ export async function POST(request: Request) {
           paymentProvider: paymentConfiguration.provider,
           paymentMethod,
           paymentStatus: "pending",
+          expiresAt: getBookingPaymentExpiresAt(),
           availabilityHeld: true,
         },
         select: {

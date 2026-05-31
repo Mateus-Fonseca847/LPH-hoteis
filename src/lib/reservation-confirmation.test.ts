@@ -335,4 +335,26 @@ describe("reservation payment status transitions", () => {
     expect(tx.roomAvailability.updateMany).not.toHaveBeenCalled();
     expect(tx.paymentTransaction.upsert).not.toHaveBeenCalled();
   });
+
+  it("nao confirma automaticamente pagamento recebido apos expiracao", async () => {
+    const tx = createTransactionMock({
+      reservation: {
+        expiresAt: new Date(Date.UTC(2000, 0, 1)),
+      },
+    });
+
+    await expect(
+      confirmPaidReservation({
+        reservationId: "reservation-1",
+        providerPaymentId: "payment-1",
+      })
+    ).resolves.toEqual({
+      reservationId: "reservation-1",
+      confirmed: false,
+    });
+
+    expect(tx.roomAvailability.updateMany).not.toHaveBeenCalled();
+    expect(tx.reservation.updateMany).not.toHaveBeenCalled();
+    expect(tx.paymentTransaction.upsert).not.toHaveBeenCalled();
+  });
 });

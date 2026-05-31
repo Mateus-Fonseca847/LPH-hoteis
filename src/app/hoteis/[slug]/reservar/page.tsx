@@ -6,6 +6,7 @@ import { BookingFlow } from "@/components/BookingFlow";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { getHotelPageData } from "@/lib/hotel-data";
+import { expirePendingReservations } from "@/lib/reservation-expiration";
 import {
   DEFAULT_SOCIAL_IMAGE_ALT,
   DEFAULT_SOCIAL_IMAGE_PATH,
@@ -76,6 +77,7 @@ export async function generateMetadata({ params }: HotelBookingPageProps): Promi
 export default async function HotelBookingPage({ params, searchParams }: HotelBookingPageProps) {
   const { slug } = await params;
   const query = searchParams ? await searchParams : {};
+  await expirePendingReservations();
   const hotel = await getHotelPageData(slug);
 
   if (!hotel) {

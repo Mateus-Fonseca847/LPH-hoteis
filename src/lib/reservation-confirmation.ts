@@ -1,6 +1,7 @@
 import { ConflictError, ValidationError } from "@/lib/errors/app-error";
 import { calculatePaymentTransactionAmounts } from "@/lib/finance/payment-transactions";
 import { prisma } from "@/lib/prisma";
+import { isAwaitingPaymentExpired } from "@/lib/reservation-expiration";
 import { getStayDates } from "@/lib/stay-query";
 
 type ConfirmPaidReservationInput = {
@@ -279,6 +280,8 @@ export async function confirmPaidReservation({
         checkOut: true,
         status: true,
         paymentStatus: true,
+        expiresAt: true,
+        expiredAt: true,
         availabilityHeld: true,
         paymentProvider: true,
         paymentMethod: true,
@@ -303,6 +306,13 @@ export async function confirmPaidReservation({
     }
 
     if (reservation.paymentStatus === "paid") {
+      return {
+        reservationId: reservation.id,
+        confirmed: false,
+      };
+    }
+
+    if (isAwaitingPaymentExpired(reservation)) {
       return {
         reservationId: reservation.id,
         confirmed: false,
