@@ -68,16 +68,16 @@ Esta auditoria é documental. Nenhuma regra de negócio, schema Prisma ou migrat
 
 ## Transições atuais
 
-| Origem | Evento | Destino |
-| --- | --- | --- |
-| sem reserva | `POST /api/reservas` válido | `Reservation.awaiting_payment` + `paymentStatus.pending` + `availabilityHeld=true` |
-| `awaiting_payment/pending` | preferência Mercado Pago criada | `status.awaiting_payment` + `paymentStatus.awaiting_payment` |
-| `awaiting_payment` | webhook Mercado Pago aprovado | `status.confirmed` + `paymentStatus.paid` + `PaymentTransaction.paid` |
-| `awaiting_payment` | webhook recusado | `status.payment_failed` + `paymentStatus.payment_failed` + libera disponibilidade |
-| `awaiting_payment` | webhook cancelado/refund/chargeback | `status.cancelled` + `paymentStatus.cancelled` + libera disponibilidade |
-| `awaiting_payment` | Stripe `checkout.session.completed` legado pago | `status.confirmed` + `paymentStatus.paid` |
-| `awaiting_payment` | Stripe `checkout.session.expired` legado | `status.cancelled` + libera disponibilidade |
-| `awaiting_payment` | Stripe `payment_intent.payment_failed` legado | `status.payment_failed` + libera disponibilidade |
+| Origem                     | Evento                                          | Destino                                                                            |
+| -------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------- |
+| sem reserva                | `POST /api/reservas` válido                     | `Reservation.awaiting_payment` + `paymentStatus.pending` + `availabilityHeld=true` |
+| `awaiting_payment/pending` | preferência Mercado Pago criada                 | `status.awaiting_payment` + `paymentStatus.awaiting_payment`                       |
+| `awaiting_payment`         | webhook Mercado Pago aprovado                   | `status.confirmed` + `paymentStatus.paid` + `PaymentTransaction.paid`              |
+| `awaiting_payment`         | webhook recusado                                | `status.payment_failed` + `paymentStatus.payment_failed` + libera disponibilidade  |
+| `awaiting_payment`         | webhook cancelado/refund/chargeback             | `status.cancelled` + `paymentStatus.cancelled` + libera disponibilidade            |
+| `awaiting_payment`         | Stripe `checkout.session.completed` legado pago | `status.confirmed` + `paymentStatus.paid`                                          |
+| `awaiting_payment`         | Stripe `checkout.session.expired` legado        | `status.cancelled` + libera disponibilidade                                        |
+| `awaiting_payment`         | Stripe `payment_intent.payment_failed` legado   | `status.payment_failed` + libera disponibilidade                                   |
 
 ## Pontos de falha
 

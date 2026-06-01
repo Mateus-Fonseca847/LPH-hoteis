@@ -54,8 +54,9 @@ function normalizeObjectKey(key: string) {
 }
 
 function encodePathSegment(value: string) {
-  return encodeURIComponent(value).replace(/[!'()*]/g, (char) =>
-    `%${char.charCodeAt(0).toString(16).toUpperCase()}`
+  return encodeURIComponent(value).replace(
+    /[!'()*]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`
   );
 }
 
@@ -108,15 +109,11 @@ export class S3StorageProvider implements StorageProvider {
       "S3_PUBLIC_BASE_URL",
       config.publicBaseUrl ?? process.env.S3_PUBLIC_BASE_URL
     );
-    this.region = (config.region ?? process.env.S3_REGION ?? DEFAULT_REGION).trim() || DEFAULT_REGION;
+    this.region =
+      (config.region ?? process.env.S3_REGION ?? DEFAULT_REGION).trim() || DEFAULT_REGION;
   }
 
-  async putObject({
-    key,
-    body,
-    contentType,
-    size,
-  }: StoragePutObjectInput): Promise<StoredObject> {
+  async putObject({ key, body, contentType, size }: StoragePutObjectInput): Promise<StoredObject> {
     const safeKey = normalizeObjectKey(key);
     const payloadHash = sha256Hex(body);
     const response = await fetch(this.buildObjectUrl(safeKey), {
@@ -196,7 +193,9 @@ export class S3StorageProvider implements StorageProvider {
       return null;
     }
 
-    const keyPath = basePath ? target.pathname.slice(basePath.length + 1) : target.pathname.slice(1);
+    const keyPath = basePath
+      ? target.pathname.slice(basePath.length + 1)
+      : target.pathname.slice(1);
 
     return keyPath ? normalizeObjectKey(decodeURIComponent(keyPath)) : null;
   }

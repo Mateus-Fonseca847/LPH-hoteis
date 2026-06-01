@@ -101,7 +101,9 @@ async function createOperationLog({
   });
 }
 
-function getReservationEmailInput(reservation: Awaited<ReturnType<typeof getReservationForOperation>>) {
+function getReservationEmailInput(
+  reservation: Awaited<ReturnType<typeof getReservationForOperation>>
+) {
   return {
     hotelEmail: reservation.hotel.email,
     hotelName: reservation.hotel.name,

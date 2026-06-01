@@ -176,7 +176,9 @@ export async function searchMercadoPagoPaymentByReservationId(
     },
   });
 
-  const search = (await response.json().catch(() => null)) as MercadoPagoPaymentSearchResponse | null;
+  const search = (await response
+    .json()
+    .catch(() => null)) as MercadoPagoPaymentSearchResponse | null;
 
   if (!response.ok) {
     throw new ValidationError("Nao foi possivel consultar pagamentos no Mercado Pago.");

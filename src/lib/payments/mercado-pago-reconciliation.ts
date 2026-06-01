@@ -231,7 +231,10 @@ async function resolvePayment(input: SyncMercadoPagoPaymentInput) {
   return payment;
 }
 
-async function findContextForPayment(payment: MercadoPagoPayment, input: SyncMercadoPagoPaymentInput) {
+async function findContextForPayment(
+  payment: MercadoPagoPayment,
+  input: SyncMercadoPagoPaymentInput
+) {
   const context = await findReservationPaymentContext({
     paymentId: payment.id,
     preferenceId: input.preferenceId,

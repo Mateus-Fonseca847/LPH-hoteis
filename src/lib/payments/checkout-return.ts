@@ -12,6 +12,7 @@ type CheckoutReturnParams = {
   collection_id?: string;
   preference?: string;
   preference_id?: string;
+  status?: string;
 };
 
 type CheckoutReservation = {
@@ -50,7 +51,10 @@ function buildNotice(reservation: CheckoutReservation | null): CheckoutReturnNot
     };
   }
 
-  if (reservation.status === "awaiting_payment" || reservation.paymentStatus === "awaiting_payment") {
+  if (
+    reservation.status === "awaiting_payment" ||
+    reservation.paymentStatus === "awaiting_payment"
+  ) {
     return {
       tone: "processing",
       title: "Pagamento em processamento",
@@ -63,7 +67,8 @@ function buildNotice(reservation: CheckoutReservation | null): CheckoutReturnNot
     return {
       tone: "error",
       title: "Reserva expirada",
-      description: "O prazo para pagamento terminou. Consulte disponibilidade para reservar novamente.",
+      description:
+        "O prazo para pagamento terminou. Consulte disponibilidade para reservar novamente.",
     };
   }
 
@@ -71,7 +76,8 @@ function buildNotice(reservation: CheckoutReservation | null): CheckoutReturnNot
     return {
       tone: "error",
       title: "Pagamento cancelado",
-      description: "Nenhuma cobranca foi confirmada. Consulte disponibilidade para tentar novamente.",
+      description:
+        "Nenhuma cobranca foi confirmada. Consulte disponibilidade para tentar novamente.",
     };
   }
 
@@ -79,7 +85,8 @@ function buildNotice(reservation: CheckoutReservation | null): CheckoutReturnNot
     return {
       tone: "error",
       title: "Pagamento nao aprovado",
-      description: "O pagamento nao foi aprovado pelo provedor. Consulte disponibilidade para tentar novamente.",
+      description:
+        "O pagamento nao foi aprovado pelo provedor. Consulte disponibilidade para tentar novamente.",
     };
   }
 
@@ -136,9 +143,31 @@ async function findReservation(params: {
   });
 }
 
-function shouldTryReconciliation(reservation: CheckoutReservation | null, checkout?: string) {
+function isSuccessfulReturn(checkout?: string, status?: string) {
+  return checkout === "success" || status === "approved" || status === "paid";
+}
+
+function hasMercadoPagoReturnParams(params: CheckoutReturnParams) {
+  return Boolean(
+    params.checkout ||
+    params.reservation ||
+    params.external_reference ||
+    params.payment ||
+    params.payment_id ||
+    params.collection_id ||
+    params.preference ||
+    params.preference_id ||
+    params.status
+  );
+}
+
+function shouldTryReconciliation(
+  reservation: CheckoutReservation | null,
+  checkout?: string,
+  status?: string
+) {
   return (
-    checkout === "success" &&
+    isSuccessfulReturn(checkout, status) &&
     (!reservation ||
       (reservation.paymentProvider === "mercado_pago" &&
         (reservation.status === "awaiting_payment" ||
@@ -149,7 +178,7 @@ function shouldTryReconciliation(reservation: CheckoutReservation | null, checko
 export async function getMercadoPagoCheckoutReturnNotice(
   params: CheckoutReturnParams
 ): Promise<CheckoutReturnNotice | null> {
-  if (!params.checkout) {
+  if (!hasMercadoPagoReturnParams(params)) {
     return null;
   }
 
@@ -158,7 +187,10 @@ export async function getMercadoPagoCheckoutReturnNotice(
   const preferenceId = firstParam(params.preference, params.preference_id);
   let reservation = await findReservation({ reservationId, preferenceId });
 
-  if (shouldTryReconciliation(reservation, params.checkout) && (reservation || paymentId)) {
+  if (
+    shouldTryReconciliation(reservation, params.checkout, params.status) &&
+    (reservation || paymentId)
+  ) {
     try {
       const result = await syncMercadoPagoPayment({
         reservationId: reservation?.id ?? reservationId,

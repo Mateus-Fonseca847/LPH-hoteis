@@ -21,7 +21,11 @@ function getReason(formData: FormData) {
   return String(formData.get("reason") || "");
 }
 
-function redirectWithOperationStatus(reservationId: string, status: string, message?: string): never {
+function redirectWithOperationStatus(
+  reservationId: string,
+  status: string,
+  message?: string
+): never {
   const params = new URLSearchParams({
     operation: status,
   });

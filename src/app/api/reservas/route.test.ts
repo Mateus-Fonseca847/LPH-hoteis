@@ -21,9 +21,7 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/lib/reservation-expiration", () => ({
   expirePendingReservations: vi.fn(),
-  getBookingPaymentExpiresAt: vi.fn(
-    () => new Date(Date.UTC(2099, 6, 1, 0, 30))
-  ),
+  getBookingPaymentExpiresAt: vi.fn(() => new Date(Date.UTC(2099, 6, 1, 0, 30))),
 }));
 
 const validPayload = {

@@ -89,8 +89,8 @@ export function isPaymentWebhookAlreadyProcessed({
 
   return Boolean(
     providerPaymentId &&
-      reservation.providerPaymentId === providerPaymentId &&
-      paymentTransaction?.providerPaymentId === providerPaymentId &&
-      ["cancelled", "payment_failed"].includes(reservation.paymentStatus ?? "")
+    reservation.providerPaymentId === providerPaymentId &&
+    paymentTransaction?.providerPaymentId === providerPaymentId &&
+    ["cancelled", "payment_failed"].includes(reservation.paymentStatus ?? "")
   );
 }

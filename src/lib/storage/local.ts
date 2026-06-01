@@ -40,12 +40,7 @@ export class LocalStorageProvider implements StorageProvider {
     this.publicPrefix = publicPrefix.endsWith("/") ? publicPrefix : `${publicPrefix}/`;
   }
 
-  async putObject({
-    key,
-    body,
-    contentType,
-    size,
-  }: StoragePutObjectInput): Promise<StoredObject> {
+  async putObject({ key, body, contentType, size }: StoragePutObjectInput): Promise<StoredObject> {
     const safeKey = normalizeObjectKey(key);
     const absolutePath = this.resolveKey(safeKey);
 

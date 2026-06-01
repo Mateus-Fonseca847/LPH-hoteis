@@ -114,6 +114,44 @@ describe("Mercado Pago checkout return", () => {
     expect(syncMercadoPagoPayment).not.toHaveBeenCalled();
   });
 
+  it("retorna expirada para reserva expired", async () => {
+    vi.mocked(prisma.reservation.findUnique).mockResolvedValue({
+      ...baseReservation,
+      status: "expired",
+      paymentStatus: "cancelled",
+    } as never);
+
+    const notice = await getMercadoPagoCheckoutReturnNotice({
+      reservation: "reservation-1",
+      status: "cancelled",
+    });
+
+    expect(notice).toMatchObject({
+      tone: "error",
+      title: "Reserva expirada",
+    });
+    expect(syncMercadoPagoPayment).not.toHaveBeenCalled();
+  });
+
+  it("retorna falha para reserva com pagamento recusado", async () => {
+    vi.mocked(prisma.reservation.findUnique).mockResolvedValue({
+      ...baseReservation,
+      status: "payment_failed",
+      paymentStatus: "payment_failed",
+    } as never);
+
+    const notice = await getMercadoPagoCheckoutReturnNotice({
+      reservation: "reservation-1",
+      status: "rejected",
+    });
+
+    expect(notice).toMatchObject({
+      tone: "error",
+      title: "Pagamento nao aprovado",
+    });
+    expect(syncMercadoPagoPayment).not.toHaveBeenCalled();
+  });
+
   it("retorna erro amigavel quando reserva nao existe", async () => {
     vi.mocked(prisma.reservation.findUnique).mockResolvedValue(null);
 
@@ -151,6 +189,60 @@ describe("Mercado Pago checkout return", () => {
       reservationId: null,
       paymentId: "payment-1",
       preferenceId: null,
+      source: "return",
+    });
+    expect(notice).toMatchObject({
+      tone: "success",
+      title: "Reserva confirmada",
+    });
+  });
+
+  it("localiza reserva por preference_id quando reservation nao veio no retorno", async () => {
+    vi.mocked(prisma.reservation.findFirst).mockResolvedValue({
+      ...baseReservation,
+      status: "confirmed",
+      paymentStatus: "paid",
+    } as never);
+
+    const notice = await getMercadoPagoCheckoutReturnNotice({
+      preference_id: "preference-1",
+      status: "approved",
+    });
+
+    expect(prisma.reservation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          paymentProvider: "mercado_pago",
+        }),
+      })
+    );
+    expect(syncMercadoPagoPayment).not.toHaveBeenCalled();
+    expect(notice).toMatchObject({
+      tone: "success",
+      title: "Reserva confirmada",
+    });
+  });
+
+  it("aceita retorno Mercado Pago sem checkout quando status veio aprovado", async () => {
+    vi.mocked(prisma.reservation.findUnique)
+      .mockResolvedValueOnce(baseReservation as never)
+      .mockResolvedValueOnce({
+        ...baseReservation,
+        status: "confirmed",
+        paymentStatus: "paid",
+        providerPaymentId: "payment-1",
+      } as never);
+
+    const notice = await getMercadoPagoCheckoutReturnNotice({
+      reservation: "reservation-1",
+      payment_id: "payment-1",
+      status: "approved",
+    });
+
+    expect(syncMercadoPagoPayment).toHaveBeenCalledWith({
+      reservationId: "reservation-1",
+      paymentId: "payment-1",
+      preferenceId: "preference-1",
       source: "return",
     });
     expect(notice).toMatchObject({

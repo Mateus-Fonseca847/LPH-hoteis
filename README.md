@@ -30,7 +30,7 @@ Plataforma web da rede LPH para catálogo público de hotéis e operação admin
 
 ### Parcialmente implementado
 
-- Motor de reserva: existe fluxo transacional público com pagamento e controle de disponibilidade; o admin possui acompanhamento de reservas/pagamentos, mas não executa remarcação, cancelamento manual ou confirmação manual de pagamento.
+- Motor de reserva: existe fluxo transacional público com pagamento e controle de disponibilidade; o admin possui acompanhamento, cancelamento manual, confirmação manual, falha de pagamento, reenvio de e-mail, observações internas e histórico de operações.
 - Financeiro: exibe reservas pagas, métodos, receita e comissão, mas não executa repasses bancários.
 - E-mails transacionais: envio existe para 2FA e confirmação de reserva paga, condicionado à configuração do provedor de e-mail.
 - Pagamentos por hotel: configuração administrativa existe; o checkout público exige provedor habilitado e credenciais válidas.
@@ -38,7 +38,7 @@ Plataforma web da rede LPH para catálogo público de hotéis e operação admin
 ### Pendente
 
 - Convite por e-mail para novos administradores.
-- Cancelamento/remarcação manual de reservas no admin.
+- Remarcação manual de reservas no admin.
 - Calendário visual avançado de disponibilidade.
 - Revisão de `npm audit` antes de produção.
 
@@ -80,7 +80,9 @@ EMAIL_FROM="LPH Testes <onboarding@resend.dev>"
 RESEND_API_KEY=""
 NEXT_PUBLIC_APP_URL="https://staging.seu-dominio.com"
 BOOKING_PAYMENT_TTL_MINUTES="30"
+APP_INTERNAL_BASE_URL="https://staging.seu-dominio.com"
 INTERNAL_API_TOKEN=""
+CRON_SECRET=""
 PAYMENT_SECRETS_ENCRYPTION_KEY=""
 PAYMENT_PROVIDER="mercado_pago"
 PAYMENT_ACCESS_TOKEN=""
@@ -123,7 +125,9 @@ Variáveis recomendadas conforme recursos ativos:
 - `EMAIL_PROVIDER`, `EMAIL_FROM`, `RESEND_API_KEY`: envio real de e-mails transacionais.
 - `NEXT_PUBLIC_APP_URL`: obrigatória para checkout quando a origem da requisição não estiver disponível; use a URL pública de homologação.
 - `BOOKING_PAYMENT_TTL_MINUTES`: tempo para reserva `awaiting_payment` expirar e liberar disponibilidade. Padrão seguro: `30`.
-- `INTERNAL_API_TOKEN`: token Bearer para `POST /api/internal/reservas/expirar`, rotina idempotente de expiração.
+- `APP_INTERNAL_BASE_URL`: URL pública HTTPS usada por cron externo/GitHub Actions para chamar rotas internas; não é exposta ao client.
+- `INTERNAL_API_TOKEN`: token Bearer para `POST /api/internal/reservas/expirar`, rotina idempotente de expiração e reconciliação.
+- `CRON_SECRET`: alias opcional aceito pelas rotas internas quando a plataforma de cron usa esse nome.
 - `PAYMENT_PROVIDER`: provedor online ativo. Hoje use `mercado_pago`.
 - `PAYMENT_ACCESS_TOKEN`, `PAYMENT_WEBHOOK_URL`, `PAYMENT_WEBHOOK_SECRET`: aliases genéricos aceitos pelo código de pagamento.
 - `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_SANDBOX`, `MERCADO_PAGO_WEBHOOK_URL`, `MERCADO_PAGO_WEBHOOK_SECRET`: obrigatórias para checkout/webhook Mercado Pago em sandbox quando os aliases genéricos não forem usados.
@@ -172,6 +176,7 @@ Requisitos mínimos:
 - `AUTH_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` e `PAYMENT_SECRETS_ENCRYPTION_KEY` fortes e exclusivos do ambiente.
 - `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"`.
 - Migrations aplicadas com `npm run prisma:migrate:deploy`.
+- Cron de manutenção configurado para chamar `POST /api/internal/reservas/expirar` a cada 10 minutos, com `Authorization: Bearer $INTERNAL_API_TOKEN`.
 - Pelo menos um `super_admin` ativo, com senha forte e 2FA por e-mail habilitado.
 - Mercado Pago em modo produção apenas quando o hotel for operar reservas pagas online.
 - `STORAGE_PROVIDER="s3"` com `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` e `S3_PUBLIC_BASE_URL` configurados.
@@ -214,6 +219,49 @@ Scripts de produção:
 - `npm run prisma:migrate:deploy`: aplica migrations em ambientes de deploy.
 
 Não use banco local em homologação.
+
+## Cron de manutenção
+
+A rotina `POST /api/internal/reservas/expirar` reconcilia pagamentos Mercado Pago recentes em `awaiting_payment` e depois expira reservas vencidas, liberando disponibilidade de forma idempotente.
+
+Frequência recomendada: a cada 5 ou 10 minutos. O endpoint exige token interno e aceita uma destas formas:
+
+- Header `Authorization: Bearer $INTERNAL_API_TOKEN`.
+- Header `x-internal-token: $INTERNAL_API_TOKEN`.
+- `CRON_SECRET` pode substituir `INTERNAL_API_TOKEN` no ambiente da aplicação quando a plataforma de cron usar esse nome.
+
+### Railway Cron
+
+O deploy documentado do projeto usa Railway. Para rodar a manutenção dentro da Railway, crie um Cron Job separado no mesmo projeto, configure o schedule `*/10 * * * *` e use as mesmas variáveis do serviço web:
+
+- `APP_INTERNAL_BASE_URL`: URL pública HTTPS da aplicação, sem barra final.
+- `INTERNAL_API_TOKEN`: valor forte e exclusivo do ambiente, igual ao configurado no serviço web.
+
+Comando do Cron Job:
+
+```bash
+curl --fail --show-error --silent \
+  --request POST \
+  --header "Authorization: Bearer $INTERNAL_API_TOKEN" \
+  "$APP_INTERNAL_BASE_URL/api/internal/reservas/expirar"
+```
+
+O Cron Job deve falhar se `APP_INTERNAL_BASE_URL` ou `INTERNAL_API_TOKEN` não estiverem configurados. Não coloque o token no comando versionado; use variáveis/secrets da Railway.
+
+### GitHub Actions schedule
+
+O repositório inclui o workflow `.github/workflows/reservation-maintenance.yml`, executado a cada 10 minutos e manualmente por `workflow_dispatch`. Configure estes secrets no GitHub Actions do ambiente:
+
+- `APP_INTERNAL_BASE_URL`: URL pública HTTPS da aplicação, sem barra final.
+- `INTERNAL_API_TOKEN`: mesmo valor configurado no ambiente da aplicação.
+
+Esse workflow é a alternativa reproduzível quando a plataforma de deploy não tiver scheduler configurado. Exemplo da chamada:
+
+```bash
+curl --fail --request POST \
+  --header "Authorization: Bearer $INTERNAL_API_TOKEN" \
+  "$APP_INTERNAL_BASE_URL/api/internal/reservas/expirar"
+```
 
 ## Prisma e migrations
 
@@ -540,8 +588,8 @@ As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
 ## Pendências reais
 
 - Convite por e-mail ainda não existe.
-- Há tela administrativa de acompanhamento de reservas/pagamentos em `/admin/reservas`, sem confirmação manual de pagamento.
-- Não há remarcação/cancelamento manual de reserva no admin.
+- Há tela administrativa de acompanhamento e operação básica de reservas/pagamentos em `/admin/reservas`.
+- Não há remarcação manual de reserva no admin.
 - Não há calendário visual avançado de disponibilidade.
 - `npm audit` deve ser revisado antes de produção.
 - Dados locais de apoio continuam existindo para desenvolvimento e não devem contaminar produção.
@@ -558,6 +606,7 @@ As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
 - Mercado Pago em modo produção, se reservas online forem usadas.
 - `STORAGE_PROVIDER="s3"` com `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` e `S3_PUBLIC_BASE_URL` configurados.
 - Webhook Mercado Pago configurado no provedor.
+- Cron de manutenção configurado e testado com `INTERNAL_API_TOKEN`.
 - E-mail transacional configurado e testado.
 - Uploads/storage decidido antes de liberar uso real.
 - Testes manuais de homologação concluídos.
@@ -565,7 +614,3 @@ As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
 - Backup do banco planejado.
 - Nenhum segredo real commitado no repositório.
 - `npm audit` revisado antes da publicação final.
-
-
-
-

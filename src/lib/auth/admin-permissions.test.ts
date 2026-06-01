@@ -41,8 +41,8 @@ describe("admin user management permissions", () => {
   });
 
   it("bloqueia usuario comum de gerenciar alvos administrativos", () => {
-    expect(canManageAdministrativeTarget({ globalRole: "user" }, { globalRole: "hotel_admin" })).toBe(
-      false
-    );
+    expect(
+      canManageAdministrativeTarget({ globalRole: "user" }, { globalRole: "hotel_admin" })
+    ).toBe(false);
   });
 });

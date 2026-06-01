@@ -141,10 +141,7 @@ describe("availability results", () => {
 
   it("ordena quarto com valor calculado antes de quarto sem tarifa", () => {
     const results = getCompatibleRoomAvailabilityResults({
-      rooms: [
-        { ...baseRoom, id: "sem-tarifa", name: "Sem tarifa", rates: [] },
-        baseRoom,
-      ],
+      rooms: [{ ...baseRoom, id: "sem-tarifa", name: "Sem tarifa", rates: [] }, baseRoom],
       checkIn: "2026-07-10",
       checkOut: "2026-07-12",
       adults: 2,

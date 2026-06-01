@@ -34,6 +34,7 @@ type HotelPageProps = {
     collection_id?: string;
     preference?: string;
     preference_id?: string;
+    status?: string;
   }>;
 };
 

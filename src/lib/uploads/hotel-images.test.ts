@@ -86,9 +86,9 @@ describe("hotel image upload validation", () => {
   it("respeita limite configurado por UPLOAD_MAX_FILE_NAME_LENGTH", async () => {
     process.env.UPLOAD_MAX_FILE_NAME_LENGTH = "12";
 
-    await expect(validateHotelImageFile(makeFile({ name: "nome-muito-longo.png" }))).rejects.toThrow(
-      "ate 12 caracteres"
-    );
+    await expect(
+      validateHotelImageFile(makeFile({ name: "nome-muito-longo.png" }))
+    ).rejects.toThrow("ate 12 caracteres");
   });
 
   it("grava imagem usando a camada de storage configurada", async () => {

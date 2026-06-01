@@ -154,8 +154,6 @@ describe("stay-query", () => {
   });
 
   it("marca disponivel quando capacidade e todas as noites estao abertas", () => {
-    expect(getRoomStayAvailabilityStatus(room, "2026-07-10", "2026-07-12", 2, 1)).toBe(
-      "available"
-    );
+    expect(getRoomStayAvailabilityStatus(room, "2026-07-10", "2026-07-12", 2, 1)).toBe("available");
   });
 });
