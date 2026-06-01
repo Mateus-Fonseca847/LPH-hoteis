@@ -17,7 +17,7 @@ import {
   SITE_TITLE,
 } from "@/lib/site-metadata";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: {

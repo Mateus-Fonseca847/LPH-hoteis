@@ -38,9 +38,7 @@ Plataforma web da rede LPH para catálogo público de hotéis e operação admin
 ### Pendente
 
 - Convite por e-mail para novos administradores.
-- Remarcação manual de reservas no admin.
 - Calendário visual avançado de disponibilidade.
-- Revisão de `npm audit` antes de produção.
 
 ### Legado/compatibilidade
 
@@ -232,7 +230,7 @@ Frequência recomendada: a cada 5 ou 10 minutos. O endpoint exige token interno 
 
 ### Railway Cron
 
-O deploy documentado do projeto usa Railway. Para rodar a manutenção dentro da Railway, crie um Cron Job separado no mesmo projeto, configure o schedule `*/10 * * * *` e use as mesmas variáveis do serviço web:
+Recomendação principal: use Railway Cron no ambiente de deploy. Crie um Cron Job separado no mesmo projeto, configure o schedule `*/10 * * * *` e use as mesmas variáveis do serviço web:
 
 - `APP_INTERNAL_BASE_URL`: URL pública HTTPS da aplicação, sem barra final.
 - `INTERNAL_API_TOKEN`: valor forte e exclusivo do ambiente, igual ao configurado no serviço web.
@@ -248,6 +246,8 @@ curl --fail --show-error --silent \
 
 O Cron Job deve falhar se `APP_INTERNAL_BASE_URL` ou `INTERNAL_API_TOKEN` não estiverem configurados. Não coloque o token no comando versionado; use variáveis/secrets da Railway.
 
+Para validar, execute o job manualmente e confira se a resposta JSON retorna `status: "ok"` com os contadores `expired`, `scanned` e `reconciliation`. Os logs da aplicação devem conter `[reservation-maintenance] Rotina executada.` sem imprimir tokens.
+
 ### GitHub Actions schedule
 
 O repositório inclui o workflow `.github/workflows/reservation-maintenance.yml`, executado a cada 10 minutos e manualmente por `workflow_dispatch`. Configure estes secrets no GitHub Actions do ambiente:
@@ -258,10 +258,18 @@ O repositório inclui o workflow `.github/workflows/reservation-maintenance.yml`
 Esse workflow é a alternativa reproduzível quando a plataforma de deploy não tiver scheduler configurado. Exemplo da chamada:
 
 ```bash
-curl --fail --request POST \
+curl --fail --show-error --silent --request POST \
   --header "Authorization: Bearer $INTERNAL_API_TOKEN" \
   "$APP_INTERNAL_BASE_URL/api/internal/reservas/expirar"
 ```
+
+O workflow valida secrets obrigatórios antes da chamada, tem timeout de 5 minutos e tenta a requisição até 3 vezes antes de falhar.
+
+Checklist de secrets do cron:
+
+- `APP_INTERNAL_BASE_URL`: URL HTTPS pública da aplicação, sem barra final.
+- `INTERNAL_API_TOKEN`: token forte e igual ao configurado na aplicação.
+- Não versionar valores reais em `.env.example`, README, workflows ou comandos salvos.
 
 ## Prisma e migrations
 
@@ -407,7 +415,7 @@ Ele sobe PostgreSQL real, executa `npm ci` com cache de npm, gera o Prisma Clien
 - O pagamento aprovado por webhook confirma a reserva, marca `paymentStatus` como `paid`, registra transação financeira e dispara e-mails.
 - Pagamento recusado, cancelado, expirado, estornado ou com chargeback marca a reserva como falha/cancelada e libera a disponibilidade retida.
 - Webhooks duplicados são tratados de forma idempotente para não duplicar reserva, disponibilidade ou e-mails.
-- O motor atual é um fluxo transacional público de reserva e pagamento. Ainda não é um motor operacional completo com gestão administrativa de reservas, remarcação, cancelamento manual e calendário avançado.
+- O motor atual é um fluxo transacional público de reserva e pagamento com gestão administrativa básica de reservas, incluindo cancelamento, remarcação, confirmação manual, falha de pagamento, notas internas e histórico operacional. Ainda não possui calendário operacional avançado.
 
 ## Pagamentos
 
@@ -584,14 +592,13 @@ As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
 - Remoção de imagem exige permissão e registra auditoria.
 - Erros usam padrão comum e não devem expor stack trace em produção.
 - Auditoria não deve registrar senhas, tokens, segredos de 2FA ou dados sensíveis.
+- `npm audit` revisado em 2026-06-01: sem vulnerabilidades reportadas em dependências de produção ou desenvolvimento.
 
 ## Pendências reais
 
 - Convite por e-mail ainda não existe.
 - Há tela administrativa de acompanhamento e operação básica de reservas/pagamentos em `/admin/reservas`.
-- Não há remarcação manual de reserva no admin.
 - Não há calendário visual avançado de disponibilidade.
-- `npm audit` deve ser revisado antes de produção.
 - Dados locais de apoio continuam existindo para desenvolvimento e não devem contaminar produção.
 
 ## Checklist para ir ao ar
@@ -613,4 +620,4 @@ As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
 - `npm run quality` passando.
 - Backup do banco planejado.
 - Nenhum segredo real commitado no repositório.
-- `npm audit` revisado antes da publicação final.
+- `npm audit` sem vulnerabilidades no gate final.

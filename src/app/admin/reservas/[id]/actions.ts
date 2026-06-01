@@ -9,13 +9,14 @@ import {
   cancelReservationManually,
   confirmReservationManually,
   markReservationPaymentFailed,
+  rescheduleReservationManually,
   resendReservationConfirmationEmail,
 } from "@/lib/admin/reservation-operations";
 import { requireHotelAdminAccess } from "@/lib/auth/authorization";
 import { syncMercadoPagoPayment } from "@/lib/payments/mercado-pago-reconciliation";
 import { prisma } from "@/lib/prisma";
 
-type Operation = "cancel" | "confirm" | "fail-payment" | "resend-email" | "note";
+type Operation = "cancel" | "confirm" | "fail-payment" | "resend-email" | "note" | "reschedule";
 
 function getReason(formData: FormData) {
   return String(formData.get("reason") || "");
@@ -110,6 +111,14 @@ export async function reservationOperationAction(formData: FormData) {
         reservationId,
         userId: user.id,
         reason: getReason(formData),
+      });
+    } else if (operation === "reschedule") {
+      await rescheduleReservationManually({
+        reservationId,
+        userId: user.id,
+        reason: getReason(formData),
+        checkIn: String(formData.get("checkIn") || ""),
+        checkOut: String(formData.get("checkOut") || ""),
       });
     } else {
       throw new Error("Operacao invalida.");

@@ -47,12 +47,17 @@ const operationLabels: Record<string, string> = {
   "reservation.payment_failed": "Pagamento marcado como falho",
   "reservation.confirmation_email_resent": "E-mail de confirmacao reenviado",
   "reservation.internal_note_added": "Observacao interna",
+  "reservation.rescheduled": "Reserva remarcada",
 };
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
   }).format(value);
+}
+
+function toInputDate(value: Date) {
+  return value.toISOString().slice(0, 10);
 }
 
 function formatDateTime(value: Date | null) {
@@ -122,6 +127,47 @@ function ReservationOperationForm({
       </label>
       <button type="submit" className="card-cta-button admin-edit-button">
         {buttonLabel}
+      </button>
+    </form>
+  );
+}
+
+function ReservationRescheduleForm({
+  reservationId,
+  checkIn,
+  checkOut,
+}: {
+  reservationId: string;
+  checkIn: Date;
+  checkOut: Date;
+}) {
+  return (
+    <form action={reservationOperationAction} className="admin-form-section">
+      <input type="hidden" name="reservationId" value={reservationId} />
+      <input type="hidden" name="operation" value="reschedule" />
+      <div className="admin-form-grid">
+        <label className="admin-form-field">
+          <span>Novo check-in</span>
+          <input type="date" name="checkIn" defaultValue={toInputDate(checkIn)} required />
+        </label>
+        <label className="admin-form-field">
+          <span>Novo check-out</span>
+          <input type="date" name="checkOut" defaultValue={toInputDate(checkOut)} required />
+        </label>
+      </div>
+      <label className="admin-form-field">
+        <span>Motivo da remarcacao</span>
+        <textarea
+          name="reason"
+          rows={3}
+          minLength={5}
+          maxLength={1000}
+          required
+          placeholder="Motivo da alteracao de datas"
+        />
+      </label>
+      <button type="submit" className="card-cta-button admin-edit-button">
+        Remarcar reserva
       </button>
     </form>
   );
@@ -402,6 +448,11 @@ export default async function AdminReservationDetailPage({
             operation="note"
             title="Adicionar observacao interna"
             buttonLabel="Adicionar"
+          />
+          <ReservationRescheduleForm
+            reservationId={reservation.id}
+            checkIn={reservation.checkIn}
+            checkOut={reservation.checkOut}
           />
         </div>
       </section>

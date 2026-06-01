@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createApiErrorResponse, ValidationError } from "@/lib/errors/app-error";
+import { createApiErrorResponse } from "@/lib/errors/app-error";
 import { reconcileRecentAwaitingMercadoPagoReservations } from "@/lib/payments/mercado-pago-reconciliation";
 import { expirePendingReservations } from "@/lib/reservation-expiration";
 
@@ -23,21 +23,41 @@ export async function POST(request: Request) {
     const expectedToken = getInternalToken();
 
     if (!expectedToken) {
-      throw new ValidationError("Token interno nÃ£o configurado.");
+      console.error("[reservation-maintenance] Token interno nao configurado.");
+      return NextResponse.json(
+        {
+          status: "configuration_error",
+          error: "Token interno nao configurado.",
+        },
+        { status: 500 }
+      );
     }
 
     if (getRequestToken(request) !== expectedToken) {
-      return NextResponse.json({ error: "NÃ£o autorizado." }, { status: 401 });
+      console.warn("[reservation-maintenance] Chamada recusada por token invalido.");
+      return NextResponse.json(
+        {
+          status: "unauthorized",
+          error: "Nao autorizado.",
+        },
+        { status: 401 }
+      );
     }
 
     const reconciliation = await reconcileRecentAwaitingMercadoPagoReservations();
-    const result = await expirePendingReservations();
+    const expiration = await expirePendingReservations();
+
+    console.info("[reservation-maintenance] Rotina executada.", {
+      reconciliation,
+      expiration,
+    });
 
     return NextResponse.json({
-      ...result,
+      status: "ok",
+      ...expiration,
       reconciliation,
     });
   } catch (error) {
-    return createApiErrorResponse(error, "NÃ£o foi possÃ­vel expirar reservas pendentes.");
+    return createApiErrorResponse(error, "Nao foi possivel expirar reservas pendentes.");
   }
 }

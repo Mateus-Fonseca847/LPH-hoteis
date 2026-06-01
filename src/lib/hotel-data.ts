@@ -177,6 +177,7 @@ function getNearbyPlaces(slug: string): HotelNearbyPlace[] {
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const canUseDevelopmentFallback =
   process.env.NODE_ENV === "development" && process.env.ALLOW_LOCAL_HOTEL_DATA_FALLBACK === "true";
+const isNextProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 let warnedUnavailableDb = false;
 let schemaSupportPromise: Promise<boolean> | null = null;
@@ -213,6 +214,10 @@ function hasDatabaseConfig() {
   return Boolean(databaseUrl);
 }
 
+function shouldSkipDatabaseDuringBuild() {
+  return isNextProductionBuild && process.env.ALLOW_DATABASE_DURING_BUILD !== "true";
+}
+
 function getFallbackPublishedHotels() {
   return canUseDevelopmentFallback ? fallbackHotels.map(mapFallbackCard) : [];
 }
@@ -231,6 +236,10 @@ function getFallbackHotelPageData(slug: string) {
 }
 
 async function hasCompatibleHotelSchema() {
+  if (shouldSkipDatabaseDuringBuild()) {
+    return false;
+  }
+
   if (!hasDatabaseConfig()) {
     if (!canUseDevelopmentFallback) {
       throw new Error("DATABASE_URL não configurada.");
