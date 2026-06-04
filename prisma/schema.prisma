@@ -34,6 +34,7 @@ model Hotel {
   permissions               HotelPermission[]
   auditLogs                 HotelAuditLog[]
   reservations              Reservation[]
+  experiences               HotelExperience[]
   paymentTransactions       PaymentTransaction[]
   paymentReconciliationLogs PaymentReconciliationLog[]
   reservationOperationLogs  ReservationOperationLog[]
@@ -44,6 +45,29 @@ model Hotel {
   @@index([state])
   @@index([city, state])
   @@index([isPublished])
+}
+
+model HotelExperience {
+  id               String   @id @default(cuid())
+  hotelId          String
+  title            String
+  city             String
+  state            String
+  shortDescription String   @db.Text
+  imageUrl         String
+  imageAlt         String
+  categories       String[] @default([])
+  preferences      String[] @default([])
+  distanceText     String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  hotel            Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId])
+  @@index([isActive])
+  @@index([city, state])
+  @@index([hotelId, isActive])
 }
 
 model HotelRoom {
@@ -240,6 +264,10 @@ model Reservation {
   guestEmail                String
   guestPhone                String
   guestDocument             String?
+  paymentObservation1       String?                    @db.Text
+  paymentObservation2       String?                    @db.Text
+  paymentObservation3       String?                    @db.Text
+  paymentCardBrand          String?
   checkIn                   DateTime
   checkOut                  DateTime
   adults                    Int
@@ -273,6 +301,7 @@ model Reservation {
   @@index([status])
   @@index([paymentProvider])
   @@index([paymentMethod])
+  @@index([paymentCardBrand])
   @@index([paymentStatus])
   @@index([expiresAt])
   @@index([expiredAt])

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { normalizeRedirectTarget } from "@/lib/auth/redirect";
+import { isAdminUserRole, type GlobalRole } from "@/lib/auth/roles";
 import { getAuthSession, type AuthSessionPayload } from "@/lib/auth/session";
 import { authenticatedUserSelect } from "@/lib/auth/user";
 import { AuthenticationError, AuthorizationError } from "@/lib/errors/app-error";
@@ -15,8 +16,8 @@ export class AdminAccessError extends Error {
 
 export type AuthenticatedUser = Awaited<ReturnType<typeof getAuthenticatedUser>>;
 
-export function isAdminUser(role: "super_admin" | "hotel_admin" | "user") {
-  return role === "super_admin" || role === "hotel_admin";
+export function isAdminUser(role: GlobalRole) {
+  return isAdminUserRole(role);
 }
 
 export function isFullyAuthenticatedSession(session: AuthSessionPayload | null) {

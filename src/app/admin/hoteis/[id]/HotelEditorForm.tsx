@@ -1,13 +1,28 @@
 "use client";
 
-import { type FormEvent, useActionState, useEffect, useMemo, useState } from "react";
-
 import { ImageWithFallback } from "@/components/ImageWithFallback";
 import {
-  findAmenityOptionByLabel,
-  HOTEL_AMENITY_OPTIONS,
-  HotelAmenityIcon,
-} from "@/lib/hotel-amenities";
+  type FormEvent,
+  type InvalidEvent,
+  useActionState,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  HOTEL_EXPERIENCE_CATEGORIES,
+  HOTEL_EXPERIENCE_PREFERENCES,
+} from "@/lib/hotel-experience-options";
+
+import { HotelFileUploadField } from "../HotelFileUploadField";
+import {
+  HotelAmenitiesSelector,
+  getLegacyAmenities,
+  getSelectedAmenityIds,
+} from "../HotelAmenitiesSelector";
+import { HotelGalleryEditor } from "../HotelGalleryEditor";
+import { HotelPoliciesEditor, type PolicyErrors, type PolicyItem } from "../HotelPoliciesEditor";
 
 import type { HotelEditorState } from "./actions";
 
@@ -23,26 +38,34 @@ type ImageItem = {
   preview?: boolean;
 };
 
-type PolicyItem = {
+type ExperienceItem = {
   id: string;
   title: string;
-  description: string;
+  city: string;
+  state: string;
+  shortDescription: string;
+  imageUrl: string;
+  imageAlt: string;
+  categories: string[];
+  preferences: string[];
+  distanceText: string;
+  isActive: boolean;
 };
 
-type PolicyErrors = Record<string, Partial<Record<"title" | "description", string>>>;
-
-type FileUploadFieldProps = {
-  accept: string;
-  auxiliaryText: string;
-  fileNames: string[];
-  id: string;
-  multiple?: boolean;
-  onChange: (files: FileList | null) => void;
-  title: string;
-};
+type ExperienceErrors = Record<
+  string,
+  Partial<
+    Record<
+      "title" | "city" | "state" | "shortDescription" | "imageUrl" | "imageAlt" | "categories",
+      string
+    >
+  >
+>;
 
 type HotelEditorFormProps = {
   action: (state: HotelEditorState, formData: FormData) => Promise<HotelEditorState>;
+  canEditMapLocation: boolean;
+  hasResolvedMapLocation: boolean;
   hotel: {
     id: string;
     name: string;
@@ -52,6 +75,8 @@ type HotelEditorFormProps = {
     city: string;
     state: string;
     address: string;
+    latitude: string | null;
+    longitude: string | null;
     phone: string;
     email: string;
     whatsapp: string;
@@ -73,59 +98,44 @@ type HotelEditorFormProps = {
       title: string;
       description: string;
     }>;
+    experiences: Array<{
+      id: string;
+      title: string;
+      city: string;
+      state: string;
+      shortDescription: string;
+      imageUrl: string;
+      imageAlt: string;
+      categories: string[];
+      preferences: string[];
+      distanceText: string | null;
+      isActive: boolean;
+    }>;
   };
 };
 
-function FileUploadField({
-  accept,
-  auxiliaryText,
-  fileNames,
-  id,
-  multiple = false,
-  onChange,
-  title,
-}: FileUploadFieldProps) {
-  const hasFiles = fileNames.length > 0;
-
-  return (
-    <label className="admin-file-upload">
-      <input
-        id={id}
-        className="admin-file-upload-input"
-        type="file"
-        accept={accept}
-        multiple={multiple}
-        aria-label={title}
-        onChange={(event) => onChange(event.target.files)}
-      />
-      <span className="admin-file-upload-trigger">
-        <span className="admin-file-upload-trigger__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 16V5m0 0-4 4m4-4 4 4M5 19h14" />
-          </svg>
-        </span>
-        <span className="admin-file-upload-trigger__content">
-          <strong>{title}</strong>
-          <small>{auxiliaryText}</small>
-          <span className="admin-file-upload-trigger__meta" aria-live="polite">
-            {hasFiles
-              ? fileNames.length === 1
-                ? fileNames[0]
-                : `${fileNames.length} arquivos selecionados`
-              : "Nenhum arquivo selecionado."}
-          </span>
-        </span>
-      </span>
-      {hasFiles && fileNames.length > 1 ? (
-        <span className="admin-file-upload-list" aria-live="polite">
-          {fileNames.join(", ")}
-        </span>
-      ) : null}
-    </label>
-  );
+function createEmptyExperience(): ExperienceItem {
+  return {
+    id: `new-experience-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: "",
+    city: "",
+    state: "",
+    shortDescription: "",
+    imageUrl: "",
+    imageAlt: "",
+    categories: [],
+    preferences: [],
+    distanceText: "",
+    isActive: true,
+  };
 }
 
-export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
+export function HotelEditorForm({
+  action,
+  canEditMapLocation,
+  hasResolvedMapLocation,
+  hotel,
+}: HotelEditorFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [coverImageUrl, setCoverImageUrl] = useState(hotel.coverImageUrl);
   const [galleryImages, setGalleryImages] = useState<ImageItem[]>(hotel.images);
@@ -147,25 +157,52 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
   );
   const [policyErrors, setPolicyErrors] = useState<PolicyErrors>({});
   const [policyFormError, setPolicyFormError] = useState("");
+  const [experiences, setExperiences] = useState<ExperienceItem[]>(
+    hotel.experiences.map((experience) => ({
+      id: experience.id,
+      title: experience.title,
+      city: experience.city,
+      state: experience.state,
+      shortDescription: experience.shortDescription,
+      imageUrl: experience.imageUrl,
+      imageAlt: experience.imageAlt,
+      categories: experience.categories,
+      preferences: experience.preferences,
+      distanceText: experience.distanceText ?? "",
+      isActive: experience.isActive,
+    }))
+  );
+  const [experienceErrors, setExperienceErrors] = useState<ExperienceErrors>({});
+  const [experienceFormError, setExperienceFormError] = useState("");
+  const [experienceUploadFiles, setExperienceUploadFiles] = useState<Record<string, File | null>>(
+    {}
+  );
+  const [uploadingExperienceId, setUploadingExperienceId] = useState<string | null>(null);
 
-  const galleryValue = useMemo(
-    () => galleryImages.map((image) => `${image.url} | ${image.alt}`).join("\n"),
-    [galleryImages]
+  const experiencesValue = useMemo(
+    () =>
+      JSON.stringify(
+        experiences.map((experience) => ({
+          title: experience.title,
+          city: experience.city,
+          state: experience.state,
+          shortDescription: experience.shortDescription,
+          imageUrl: experience.imageUrl,
+          imageAlt: experience.imageAlt,
+          categories: experience.categories,
+          preferences: experience.preferences,
+          distanceText: experience.distanceText.trim() || null,
+          isActive: experience.isActive,
+        }))
+      ),
+    [experiences]
   );
 
   const selectedAmenityIds = useMemo(
-    () =>
-      new Set(
-        hotel.amenities
-          .map((amenity) => findAmenityOptionByLabel(amenity.label)?.id)
-          .filter((value): value is string => Boolean(value))
-      ),
+    () => getSelectedAmenityIds(hotel.amenities),
     [hotel.amenities]
   );
-  const legacyAmenities = useMemo(
-    () => hotel.amenities.filter((amenity) => !findAmenityOptionByLabel(amenity.label)),
-    [hotel.amenities]
-  );
+  const legacyAmenities = useMemo(() => getLegacyAmenities(hotel.amenities), [hotel.amenities]);
 
   const coverPreviewUrl = useMemo(
     () => (coverUploadFile ? URL.createObjectURL(coverUploadFile) : null),
@@ -333,6 +370,84 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
     }
   }
 
+  async function handleExperienceUpload(experienceId: string) {
+    const file = experienceUploadFiles[experienceId];
+    const experience = experiences.find((item) => item.id === experienceId);
+
+    if (!file || !experience) {
+      setUploadFeedbackType("error");
+      setUploadFeedback("Selecione a imagem da experiência.");
+      return;
+    }
+
+    if (!experience.imageAlt.trim()) {
+      setExperienceErrors((current) => ({
+        ...current,
+        [experienceId]: {
+          ...current[experienceId],
+          imageAlt: "Informe o texto alternativo antes de enviar a imagem.",
+        },
+      }));
+      setExperienceFormError("Revise os campos destacados antes de salvar.");
+      return;
+    }
+
+    setUploadingExperienceId(experienceId);
+    setUploadFeedback("");
+
+    try {
+      const payload = new FormData();
+      payload.set("file", file);
+      payload.set("alt", experience.imageAlt.trim());
+
+      const response = await fetch(`/api/admin/hoteis/${hotel.id}/upload`, {
+        method: "POST",
+        body: payload,
+      });
+
+      const result = (await response.json()) as {
+        error?: string;
+        images?: Array<{ id: string; url: string; alt: string }>;
+      };
+
+      if (!response.ok || !result.images?.length) {
+        throw new Error(result.error || "Não foi possível concluir o upload da experiência.");
+      }
+
+      const uploadedImage = result.images[0];
+      setExperiences((current) =>
+        current.map((item) =>
+          item.id === experienceId
+            ? { ...item, imageUrl: uploadedImage.url, imageAlt: uploadedImage.alt }
+            : item
+        )
+      );
+      setExperienceUploadFiles((current) => ({
+        ...current,
+        [experienceId]: null,
+      }));
+      setExperienceErrors((current) => ({
+        ...current,
+        [experienceId]: {
+          ...current[experienceId],
+          imageUrl: undefined,
+          imageAlt: undefined,
+        },
+      }));
+      setUploadFeedbackType("success");
+      setUploadFeedback("Imagem da experiência enviada com sucesso.");
+    } catch (error) {
+      setUploadFeedbackType("error");
+      setUploadFeedback(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível concluir o upload da experiência."
+      );
+    } finally {
+      setUploadingExperienceId(null);
+    }
+  }
+
   function updatePolicy(id: string, field: "title" | "description", value: string) {
     setPolicies((current) =>
       current.map((policy) => (policy.id === id ? { ...policy, [field]: value } : policy))
@@ -384,6 +499,87 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
     });
   }
 
+  function updateExperience(
+    id: string,
+    field: Exclude<keyof ExperienceItem, "id" | "categories" | "preferences" | "isActive">,
+    value: string
+  ) {
+    setExperiences((current) =>
+      current.map((experience) =>
+        experience.id === id ? { ...experience, [field]: value } : experience
+      )
+    );
+    setExperienceErrors((current) => ({
+      ...current,
+      [id]: {
+        ...current[id],
+        [field === "imageUrl" ? "imageUrl" : field]: undefined,
+      },
+    }));
+    setExperienceFormError("");
+  }
+
+  function toggleExperienceSelection(
+    id: string,
+    field: "categories" | "preferences",
+    value: string
+  ) {
+    setExperiences((current) =>
+      current.map((experience) => {
+        if (experience.id !== id) {
+          return experience;
+        }
+
+        const values = new Set(experience[field]);
+
+        if (values.has(value)) {
+          values.delete(value);
+        } else {
+          values.add(value);
+        }
+
+        return {
+          ...experience,
+          [field]: [...values],
+        };
+      })
+    );
+    setExperienceErrors((current) => ({
+      ...current,
+      [id]: {
+        ...current[id],
+        [field === "categories" ? "categories" : "categories"]: undefined,
+      },
+    }));
+    setExperienceFormError("");
+  }
+
+  function updateExperienceStatus(id: string, isActive: boolean) {
+    setExperiences((current) =>
+      current.map((experience) => (experience.id === id ? { ...experience, isActive } : experience))
+    );
+    setExperienceFormError("");
+  }
+
+  function addExperience() {
+    setExperiences((current) => [...current, createEmptyExperience()]);
+    setExperienceFormError("");
+  }
+
+  function removeExperience(id: string) {
+    setExperiences((current) => current.filter((experience) => experience.id !== id));
+    setExperienceErrors((current) => {
+      const nextErrors = { ...current };
+      delete nextErrors[id];
+      return nextErrors;
+    });
+    setExperienceUploadFiles((current) => {
+      const nextFiles = { ...current };
+      delete nextFiles[id];
+      return nextFiles;
+    });
+  }
+
   function validatePolicies() {
     const nextErrors: PolicyErrors = {};
 
@@ -425,6 +621,62 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
     return true;
   }
 
+  function validateExperiences() {
+    const nextErrors: ExperienceErrors = {};
+
+    experiences.forEach((experience) => {
+      const itemErrors: ExperienceErrors[string] = {};
+      const title = experience.title.trim();
+      const city = experience.city.trim();
+      const state = experience.state.trim();
+      const shortDescription = experience.shortDescription.trim();
+      const imageUrl = experience.imageUrl.trim();
+      const imageAlt = experience.imageAlt.trim();
+
+      if (title.length < 2) {
+        itemErrors.title = "Informe o título da experiência.";
+      }
+
+      if (city.length < 2) {
+        itemErrors.city = "Informe a cidade.";
+      }
+
+      if (!/^[A-Za-z]{2}$/.test(state)) {
+        itemErrors.state = "Informe o estado com 2 letras.";
+      }
+
+      if (shortDescription.length < 10) {
+        itemErrors.shortDescription = "Use pelo menos 10 caracteres.";
+      }
+
+      if (!imageUrl) {
+        itemErrors.imageUrl = "Envie a imagem da experiência.";
+      }
+
+      if (imageAlt.length < 2) {
+        itemErrors.imageAlt = "Informe o texto alternativo da imagem.";
+      }
+
+      if (experience.categories.length === 0) {
+        itemErrors.categories = "Selecione pelo menos uma categoria.";
+      }
+
+      if (Object.keys(itemErrors).length > 0) {
+        nextErrors[experience.id] = itemErrors;
+      }
+    });
+
+    setExperienceErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setExperienceFormError("Revise os campos destacados antes de salvar.");
+      return false;
+    }
+
+    setExperienceFormError("");
+    return true;
+  }
+
   function serializePolicyValue(policy: PolicyItem) {
     const normalizedTitle = policy.title.replaceAll("|", " - ").trim();
     const normalizedDescription = policy.description
@@ -435,24 +687,34 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
     return `${normalizedTitle} | ${normalizedDescription}`;
   }
 
+  function handleContactEmailInvalid(event: InvalidEvent<HTMLInputElement>) {
+    event.currentTarget.setCustomValidity(
+      event.currentTarget.validity.valueMissing
+        ? "Informe o e-mail de contato do hotel."
+        : "Informe um e-mail de contato valido."
+    );
+  }
+
+  function clearContactEmailValidity(event: FormEvent<HTMLInputElement>) {
+    event.currentTarget.setCustomValidity("");
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
     const hasAmenities = formData.getAll("amenities").length > 0;
     const hasValidPolicies = validatePolicies();
+    const hasValidExperiences = validateExperiences();
 
     setAmenityFormError(hasAmenities ? "" : "Selecione pelo menos uma comodidade.");
 
-    if (!hasAmenities || !hasValidPolicies) {
+    if (!hasAmenities || !hasValidPolicies || !hasValidExperiences) {
       event.preventDefault();
     }
   }
 
   return (
     <form action={formAction} className="admin-editor-form" onSubmit={handleSubmit}>
-      <div className="admin-editor-banner">
-        <strong>Publicação imediata</strong>
-        <p>Toda alteração salva aqui impacta imediatamente o perfil público do hotel.</p>
-      </div>
+      <input type="hidden" name="isPublished" value={hotel.isPublished ? "on" : "off"} />
 
       {state.message ? (
         <p
@@ -490,6 +752,12 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
         <div className="section-heading admin-subsection-heading">
           <h2>Localização</h2>
         </div>
+        {!hasResolvedMapLocation ? (
+          <div className="admin-editor-banner">
+            <strong>Este hotel ainda não possui localizacao no mapa.</strong>
+            <p>Revise cidade e estado ou defina coordenadas internas antes da aprovacao.</p>
+          </div>
+        ) : null}
         <div className="admin-form-grid admin-form-grid--three">
           <label className="admin-form-field">
             <span>Cidade</span>
@@ -503,6 +771,32 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
             <span>Endereço</span>
             <input name="address" defaultValue={hotel.address} required />
           </label>
+          {canEditMapLocation ? (
+            <>
+              <label className="admin-form-field">
+                <span>Latitude interna</span>
+                <input
+                  name="latitude"
+                  defaultValue={hotel.latitude ?? ""}
+                  inputMode="decimal"
+                  placeholder="-23.550520"
+                />
+              </label>
+              <label className="admin-form-field">
+                <span>Longitude interna</span>
+                <input
+                  name="longitude"
+                  defaultValue={hotel.longitude ?? ""}
+                  inputMode="decimal"
+                  placeholder="-46.633308"
+                />
+              </label>
+              <p className="admin-rooms-copy admin-form-field--full">
+                Campos internos. Se ficarem vazios, o sistema tenta posicionar o hotel pelo par
+                cidade/estado quando houver mapeamento seguro.
+              </p>
+            </>
+          ) : null}
         </div>
       </section>
 
@@ -516,8 +810,17 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
             <input name="phone" defaultValue={hotel.phone} required />
           </label>
           <label className="admin-form-field">
-            <span>E-mail</span>
-            <input type="email" name="email" defaultValue={hotel.email} required />
+            <span>E-mail de contato do hotel</span>
+            <input
+              type="email"
+              name="email"
+              defaultValue={hotel.email}
+              required
+              placeholder="reservas@hotel.com"
+              onInvalid={handleContactEmailInvalid}
+              onInput={clearContactEmailValidity}
+            />
+            <small>As solicitações de reserva do site serão enviadas para este e-mail.</small>
           </label>
           <label className="admin-form-field">
             <span>WhatsApp</span>
@@ -556,257 +859,103 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
         <div className="section-heading admin-subsection-heading">
           <h2>Galeria</h2>
         </div>
-
-        <div className="admin-form-grid">
-          <label className="admin-form-field">
-            <span>Imagem de capa</span>
-            <input
-              name="coverImageUrl"
-              value={coverImageUrl}
-              onChange={(event) => setCoverImageUrl(event.target.value)}
-              required
-            />
-          </label>
-
-          <div className="admin-image-preview-card">
-            <span className="admin-image-preview-label">Preview da capa</span>
-            <ImageWithFallback
-              src={coverPreviewUrl || coverImageUrl}
-              alt={`Capa de ${hotel.name}`}
-              fallbackLabel={`Imagem indisponível de ${hotel.name}`}
-              className="admin-cover-preview-image"
-              width={960}
-              height={520}
-              sizes="(max-width: 900px) 100vw, 70vw"
-              unoptimized
-            />
-          </div>
-
-          <div className="admin-upload-panel">
-            <div className="admin-form-grid admin-form-grid--two">
-              <FileUploadField
-                id="cover-upload-input"
-                title="Selecionar imagem de capa"
-                auxiliaryText="PNG, JPG ou WebP até o limite permitido."
-                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                fileNames={coverUploadFile ? [coverUploadFile.name] : []}
-                onChange={(files) => setCoverUploadFile(files?.[0] ?? null)}
-              />
-
-              <label className="admin-form-field">
-                <span>Texto alternativo</span>
-                <input value={uploadAlt} onChange={(event) => setUploadAlt(event.target.value)} />
-              </label>
-            </div>
-
-            <div className="admin-upload-actions">
-              <button
-                type="button"
-                className="card-cta-button admin-edit-button"
-                onClick={handleCoverUpload}
-                disabled={isUploadingCover || !coverUploadFile}
-              >
-                {isUploadingCover ? "Enviando capa..." : "Enviar capa"}
-              </button>
-            </div>
-          </div>
-
-          <div className="admin-upload-panel">
-            <div className="admin-form-grid admin-form-grid--two">
-              <FileUploadField
-                id="gallery-upload-input"
-                title="Selecionar imagens da galeria"
-                auxiliaryText="Você pode selecionar múltiplas imagens."
-                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                multiple
-                fileNames={galleryUploadFiles.map((file) => file.name)}
-                onChange={(files) => setGalleryUploadFiles(Array.from(files ?? []))}
-              />
-
-              <label className="admin-form-field">
-                <span>Texto alternativo base</span>
-                <input value={uploadAlt} onChange={(event) => setUploadAlt(event.target.value)} />
-              </label>
-            </div>
-
-            {galleryPreviewUrls.length > 0 ? (
-              <div className="admin-preview-grid">
-                {galleryPreviewUrls.map((image) => (
-                  <figure key={image.id} className="admin-preview-item">
-                    <ImageWithFallback
-                      src={image.url}
-                      alt={image.alt}
-                      fallbackLabel="Preview indisponível"
-                      width={360}
-                      height={180}
-                      sizes="(max-width: 900px) 50vw, 240px"
-                      unoptimized
-                    />
-                  </figure>
-                ))}
-              </div>
-            ) : null}
-
-            <div className="admin-upload-actions">
-              <button
-                type="button"
-                className="card-cta-button admin-edit-button"
-                onClick={handleGalleryUpload}
-                disabled={isUploadingGallery || galleryUploadFiles.length === 0}
-              >
-                {isUploadingGallery ? "Enviando galeria..." : "Enviar galeria"}
-              </button>
-            </div>
-          </div>
-
-          <div className="admin-managed-gallery">
-            <span className="admin-image-preview-label">Imagens atuais</span>
-            {galleryImages.length === 0 ? (
-              <div className="hotel-empty-state admin-history-empty">
-                <strong>Nenhuma imagem cadastrada.</strong>
-                <p>Envie imagens para exibir na galeria pública do hotel.</p>
-              </div>
-            ) : (
-              <div className="admin-preview-grid">
-                {galleryImages.map((image) => (
-                  <article key={image.id} className="admin-preview-card">
-                    <ImageWithFallback
-                      src={image.url}
-                      alt={image.alt}
-                      fallbackLabel={`Imagem indisponível de ${hotel.name}`}
-                      width={360}
-                      height={180}
-                      sizes="(max-width: 900px) 50vw, 240px"
-                      unoptimized
-                    />
-                    <div className="admin-preview-card-body">
-                      <strong>{image.url === coverImageUrl ? "Capa atual" : "Galeria"}</strong>
-                      <p>{image.alt}</p>
-                      <button
-                        type="button"
-                        className="admin-remove-image-button"
-                        onClick={() => handleRemoveImage(image)}
-                        disabled={removingImageId === image.id}
-                      >
-                        {removingImageId === image.id ? "Removendo..." : "Remover"}
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <label className="admin-form-field">
-            <span>Galeria</span>
-            <textarea
-              name="gallery"
-              value={galleryValue}
-              onChange={() => undefined}
-              rows={6}
-              readOnly
-            />
-            <small>Atualizada automaticamente pelos uploads e remoções.</small>
-          </label>
-        </div>
+        <HotelGalleryEditor
+          mode="edit"
+          hotelName={hotel.name}
+          coverImageUrl={coverImageUrl}
+          coverPreviewUrl={coverPreviewUrl}
+          galleryImages={galleryImages}
+          galleryPreviewUrls={galleryPreviewUrls}
+          coverUploadFileName={coverUploadFile?.name}
+          galleryUploadFileNames={galleryUploadFiles.map((file) => file.name)}
+          uploadAlt={uploadAlt}
+          uploadFeedback={uploadFeedback}
+          removingImageId={removingImageId}
+          isUploadingCover={isUploadingCover}
+          isUploadingGallery={isUploadingGallery}
+          onCoverImageUrlChange={setCoverImageUrl}
+          onCoverFileChange={(files) => setCoverUploadFile(files?.[0] ?? null)}
+          onGalleryFilesChange={(files) => setGalleryUploadFiles(Array.from(files ?? []))}
+          onUploadAltChange={setUploadAlt}
+          onCoverUpload={handleCoverUpload}
+          onGalleryUpload={handleGalleryUpload}
+          onRemoveImage={handleRemoveImage}
+        />
       </section>
 
       <section className="hotel-content-card admin-form-section">
         <div className="section-heading admin-subsection-heading">
           <h2>Comodidades</h2>
         </div>
-        <div className="admin-form-field">
-          <span>Selecione as comodidades</span>
-          <div className="admin-amenities-grid" role="group" aria-label="Comodidades do hotel">
-            {HOTEL_AMENITY_OPTIONS.map((amenity) => (
-              <label key={amenity.id} className="admin-amenity-card">
-                <input
-                  type="checkbox"
-                  name="amenities"
-                  value={amenity.label}
-                  defaultChecked={selectedAmenityIds.has(amenity.id)}
-                  onChange={() => setAmenityFormError("")}
-                />
-                <span className="admin-amenity-card__icon">
-                  <HotelAmenityIcon amenityId={amenity.id} />
-                </span>
-                <span className="admin-amenity-card__content">
-                  <strong>{amenity.label}</strong>
-                  <small>Comodidade do hotel</small>
-                </span>
-                <span className="admin-amenity-card__check" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="m6 12 4 4 8-8" />
-                  </svg>
-                </span>
-              </label>
-            ))}
-          </div>
-          {amenityFormError ? <small className="admin-form-error">{amenityFormError}</small> : null}
-          {legacyAmenities.length ? (
-            <div className="admin-legacy-amenities">
-              <small>
-                Comodidades já cadastradas preservadas automaticamente:{" "}
-                {legacyAmenities.map((amenity) => amenity.label).join(", ")}.
-              </small>
-              {legacyAmenities.map((amenity) => (
-                <input key={amenity.id} type="hidden" name="amenities" value={amenity.label} />
-              ))}
-            </div>
-          ) : (
-            <small>Escolha as comodidades exibidas no perfil público.</small>
-          )}
-        </div>
+        <HotelAmenitiesSelector
+          selectedAmenityIds={selectedAmenityIds}
+          legacyAmenities={legacyAmenities}
+          errorMessage={amenityFormError}
+          onChange={() => setAmenityFormError("")}
+        />
       </section>
 
       <section className="hotel-content-card admin-form-section">
         <div className="section-heading admin-subsection-heading">
           <h2>Políticas</h2>
         </div>
+        <HotelPoliciesEditor
+          policies={policies}
+          policyErrors={policyErrors}
+          policyFormError={policyFormError}
+          onAddPolicy={addPolicy}
+          onMovePolicy={movePolicy}
+          onRemovePolicy={removePolicy}
+          onUpdatePolicy={updatePolicy}
+          serializePolicyValue={serializePolicyValue}
+        />
+      </section>
+
+      <section className="hotel-content-card admin-form-section">
+        <div className="section-heading admin-subsection-heading">
+          <h2>Experiências próximas</h2>
+        </div>
         <div className="admin-policy-editor">
           <div className="admin-policy-editor__intro">
-            <p>Cadastre regras claras para orientar o hóspede antes da reserva.</p>
-            <button type="button" className="admin-secondary-button" onClick={addPolicy}>
-              Adicionar política
+            <p>Cadastre atrações, roteiros e vivências ligadas a este hotel.</p>
+            <button type="button" className="admin-secondary-button" onClick={addExperience}>
+              Adicionar experiência
             </button>
           </div>
 
-          {policyFormError ? (
-            <p className="admin-form-error admin-form-error--block">{policyFormError}</p>
+          {experienceFormError ? (
+            <p className="admin-form-error admin-form-error--block">{experienceFormError}</p>
           ) : null}
 
-          {policies.length === 0 ? (
+          {experiences.length === 0 ? (
             <div className="hotel-empty-state admin-history-empty">
-              <strong>Nenhuma política cadastrada ainda.</strong>
-              <p>Adicione a primeira política do hotel.</p>
+              <strong>Nenhuma experiência cadastrada ainda.</strong>
+              <p>Adicione experiências próximas para enriquecer a recomendação do hotel.</p>
             </div>
           ) : (
             <div className="admin-policy-list-editor">
-              {policies.map((policy, index) => (
-                <article key={policy.id} className="admin-policy-editor-item">
+              {experiences.map((experience, index) => (
+                <article
+                  key={experience.id}
+                  className="admin-policy-editor-item admin-experience-editor-item"
+                >
                   <div className="admin-policy-editor-item__top">
-                    <strong>Política {index + 1}</strong>
+                    <strong>Experiência {index + 1}</strong>
                     <div className="admin-policy-editor-item__actions">
-                      <button
-                        type="button"
-                        className="admin-secondary-button"
-                        onClick={() => movePolicy(policy.id, -1)}
-                        disabled={index === 0}
-                      >
-                        Subir
-                      </button>
-                      <button
-                        type="button"
-                        className="admin-secondary-button"
-                        onClick={() => movePolicy(policy.id, 1)}
-                        disabled={index === policies.length - 1}
-                      >
-                        Descer
-                      </button>
+                      <label className="admin-experience-toggle">
+                        <input
+                          type="checkbox"
+                          checked={experience.isActive}
+                          onChange={(event) =>
+                            updateExperienceStatus(experience.id, event.target.checked)
+                          }
+                        />
+                        <span>{experience.isActive ? "Ativa" : "Inativa"}</span>
+                      </label>
                       <button
                         type="button"
                         className="admin-remove-image-button"
-                        onClick={() => removePolicy(policy.id)}
+                        onClick={() => removeExperience(experience.id)}
                       >
                         Remover
                       </button>
@@ -815,46 +964,244 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
 
                   <div className="admin-form-grid admin-form-grid--two">
                     <label className="admin-form-field">
-                      <span>Política</span>
+                      <span>Título</span>
                       <input
-                        value={policy.title}
-                        maxLength={80}
-                        onChange={(event) => updatePolicy(policy.id, "title", event.target.value)}
-                        aria-invalid={Boolean(policyErrors[policy.id]?.title)}
+                        value={experience.title}
+                        maxLength={120}
+                        onChange={(event) =>
+                          updateExperience(experience.id, "title", event.target.value)
+                        }
+                        aria-invalid={Boolean(experienceErrors[experience.id]?.title)}
                       />
-                      {policyErrors[policy.id]?.title ? (
-                        <small className="admin-form-error">{policyErrors[policy.id]?.title}</small>
-                      ) : (
-                        <small>Ex.: Cancelamento, check-in, pets.</small>
-                      )}
+                      {experienceErrors[experience.id]?.title ? (
+                        <small className="admin-form-error">
+                          {experienceErrors[experience.id]?.title}
+                        </small>
+                      ) : null}
                     </label>
 
                     <label className="admin-form-field">
-                      <span>Descrição</span>
-                      <textarea
-                        value={policy.description}
-                        maxLength={600}
-                        rows={3}
+                      <span>Distância/proximidade</span>
+                      <input
+                        value={experience.distanceText}
+                        maxLength={80}
+                        placeholder="Ex.: 8 min de carro"
                         onChange={(event) =>
-                          updatePolicy(policy.id, "description", event.target.value)
+                          updateExperience(experience.id, "distanceText", event.target.value)
                         }
-                        aria-invalid={Boolean(policyErrors[policy.id]?.description)}
                       />
-                      {policyErrors[policy.id]?.description ? (
+                    </label>
+
+                    <label className="admin-form-field">
+                      <span>Cidade</span>
+                      <input
+                        value={experience.city}
+                        maxLength={80}
+                        onChange={(event) =>
+                          updateExperience(experience.id, "city", event.target.value)
+                        }
+                        aria-invalid={Boolean(experienceErrors[experience.id]?.city)}
+                      />
+                      {experienceErrors[experience.id]?.city ? (
                         <small className="admin-form-error">
-                          {policyErrors[policy.id]?.description}
+                          {experienceErrors[experience.id]?.city}
+                        </small>
+                      ) : null}
+                    </label>
+
+                    <label className="admin-form-field">
+                      <span>Estado</span>
+                      <input
+                        value={experience.state}
+                        maxLength={2}
+                        placeholder="SP"
+                        onChange={(event) =>
+                          updateExperience(experience.id, "state", event.target.value.toUpperCase())
+                        }
+                        aria-invalid={Boolean(experienceErrors[experience.id]?.state)}
+                      />
+                      {experienceErrors[experience.id]?.state ? (
+                        <small className="admin-form-error">
+                          {experienceErrors[experience.id]?.state}
+                        </small>
+                      ) : null}
+                    </label>
+
+                    <label className="admin-form-field admin-form-field--full">
+                      <span>Descrição curta</span>
+                      <textarea
+                        value={experience.shortDescription}
+                        rows={3}
+                        maxLength={320}
+                        onChange={(event) =>
+                          updateExperience(experience.id, "shortDescription", event.target.value)
+                        }
+                        aria-invalid={Boolean(experienceErrors[experience.id]?.shortDescription)}
+                      />
+                      {experienceErrors[experience.id]?.shortDescription ? (
+                        <small className="admin-form-error">
+                          {experienceErrors[experience.id]?.shortDescription}
+                        </small>
+                      ) : null}
+                    </label>
+
+                    <label className="admin-form-field">
+                      <span>Texto alternativo da imagem</span>
+                      <input
+                        value={experience.imageAlt}
+                        maxLength={140}
+                        placeholder="Vista da experiência próxima ao hotel"
+                        onChange={(event) =>
+                          updateExperience(experience.id, "imageAlt", event.target.value)
+                        }
+                        aria-invalid={Boolean(experienceErrors[experience.id]?.imageAlt)}
+                      />
+                      {experienceErrors[experience.id]?.imageAlt ? (
+                        <small className="admin-form-error">
+                          {experienceErrors[experience.id]?.imageAlt}
+                        </small>
+                      ) : null}
+                    </label>
+
+                    <label className="admin-form-field">
+                      <span>Imagem</span>
+                      <input
+                        value={experience.imageUrl}
+                        readOnly
+                        placeholder="Envie a imagem da experiência"
+                        aria-invalid={Boolean(experienceErrors[experience.id]?.imageUrl)}
+                      />
+                      {experienceErrors[experience.id]?.imageUrl ? (
+                        <small className="admin-form-error">
+                          {experienceErrors[experience.id]?.imageUrl}
                         </small>
                       ) : (
-                        <small>Explique a regra de forma curta e objetiva.</small>
+                        <small>A URL é preenchida automaticamente após o upload.</small>
                       )}
                     </label>
-                  </div>
 
-                  <input type="hidden" name="policies" value={serializePolicyValue(policy)} />
+                    <div className="admin-upload-panel admin-form-field--full">
+                      <div className="admin-form-grid admin-form-grid--two">
+                        <HotelFileUploadField
+                          id={`experience-upload-${experience.id}`}
+                          title="Selecionar imagem da experiência"
+                          auxiliaryText="PNG, JPG ou WebP até o limite permitido."
+                          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                          fileNames={
+                            experienceUploadFiles[experience.id]
+                              ? [experienceUploadFiles[experience.id]?.name ?? ""]
+                              : []
+                          }
+                          onChange={(files) =>
+                            setExperienceUploadFiles((current) => ({
+                              ...current,
+                              [experience.id]: files?.[0] ?? null,
+                            }))
+                          }
+                        />
+
+                        {experience.imageUrl ? (
+                          <div className="admin-image-preview-card admin-experience-preview-card">
+                            <span className="admin-image-preview-label">
+                              Preview da experiência
+                            </span>
+                            <ImageWithFallback
+                              src={experience.imageUrl}
+                              alt={experience.imageAlt || experience.title}
+                              fallbackLabel="Imagem da experiência indisponível"
+                              width={640}
+                              height={360}
+                              sizes="(max-width: 900px) 100vw, 40vw"
+                              unoptimized
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="admin-upload-actions">
+                        <button
+                          type="button"
+                          className="card-cta-button admin-edit-button"
+                          onClick={() => handleExperienceUpload(experience.id)}
+                          disabled={
+                            uploadingExperienceId === experience.id ||
+                            !experienceUploadFiles[experience.id]
+                          }
+                        >
+                          {uploadingExperienceId === experience.id
+                            ? "Enviando imagem..."
+                            : "Enviar imagem"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="admin-form-field admin-form-field--full">
+                      <span>Categorias do quiz</span>
+                      <div
+                        className="admin-amenities-grid"
+                        role="group"
+                        aria-label={`Categorias da experiência ${index + 1}`}
+                      >
+                        {HOTEL_EXPERIENCE_CATEGORIES.map((category) => (
+                          <label
+                            key={`${experience.id}-${category}`}
+                            className="admin-amenity-card"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={experience.categories.includes(category)}
+                              onChange={() =>
+                                toggleExperienceSelection(experience.id, "categories", category)
+                              }
+                            />
+                            <span className="admin-amenity-card__content">
+                              <strong>{category}</strong>
+                              <small>Categoria do quiz</small>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                      {experienceErrors[experience.id]?.categories ? (
+                        <small className="admin-form-error">
+                          {experienceErrors[experience.id]?.categories}
+                        </small>
+                      ) : null}
+                    </div>
+
+                    <div className="admin-form-field admin-form-field--full">
+                      <span>Preferências relacionadas</span>
+                      <div
+                        className="admin-amenities-grid"
+                        role="group"
+                        aria-label={`Preferências da experiência ${index + 1}`}
+                      >
+                        {HOTEL_EXPERIENCE_PREFERENCES.map((preference) => (
+                          <label
+                            key={`${experience.id}-${preference}`}
+                            className="admin-amenity-card"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={experience.preferences.includes(preference)}
+                              onChange={() =>
+                                toggleExperienceSelection(experience.id, "preferences", preference)
+                              }
+                            />
+                            <span className="admin-amenity-card__content">
+                              <strong>{preference}</strong>
+                              <small>Preferência relacionada</small>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </article>
               ))}
             </div>
           )}
+
+          <input type="hidden" name="experiences" value={experiencesValue} />
         </div>
       </section>
 
@@ -872,16 +1219,6 @@ export function HotelEditorForm({ action, hotel }: HotelEditorFormProps) {
             <input name="checkOutTime" defaultValue={hotel.checkOutTime} required />
           </label>
         </div>
-      </section>
-
-      <section className="hotel-content-card admin-form-section">
-        <div className="section-heading admin-subsection-heading">
-          <h2>Visibilidade e publicação</h2>
-        </div>
-        <label className="admin-toggle-field">
-          <input type="checkbox" name="isPublished" defaultChecked={hotel.isPublished} />
-          <span>Hotel publicado e visível no site</span>
-        </label>
       </section>
 
       <div className="admin-editor-actions">

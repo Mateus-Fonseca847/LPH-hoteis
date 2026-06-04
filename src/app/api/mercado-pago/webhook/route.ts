@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+﻿import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { z } from "zod";
 
@@ -9,7 +9,7 @@ import {
 } from "@/lib/errors/app-error";
 import { syncMercadoPagoPayment } from "@/lib/payments/mercado-pago-reconciliation";
 
-const WEBHOOK_FAILURE_MESSAGE = "Nao foi possivel processar o webhook de pagamento.";
+const WEBHOOK_FAILURE_MESSAGE = "Não foi possível processar o webhook de pagamento.";
 
 const mercadoPagoWebhookPayloadSchema = z
   .object({
@@ -29,7 +29,7 @@ function getRequiredEnv(name: string) {
   const value = process.env[name]?.trim();
 
   if (!value) {
-    throw new ValidationError(`${name} nao configurado.`);
+    throw new ValidationError(`${name} não configurado.`);
   }
 
   return value;
@@ -67,14 +67,14 @@ function validateMercadoPagoSignature(request: Request, paymentId: string) {
   const expectedSignature = parsedSignature.v1;
 
   if (!timestamp || !expectedSignature) {
-    throw new ValidationError("Assinatura do webhook invalida.");
+    throw new ValidationError("Assinatura do webhook inválida.");
   }
 
   const manifest = `id:${paymentId};request-id:${requestId};ts:${timestamp};`;
   const calculatedSignature = createHmac("sha256", secret).update(manifest).digest("hex");
 
   if (!safeCompare(calculatedSignature, expectedSignature)) {
-    throw new ValidationError("Assinatura do webhook invalida.");
+    throw new ValidationError("Assinatura do webhook inválida.");
   }
 }
 
@@ -85,7 +85,7 @@ function getPaymentId(payload: MercadoPagoWebhookPayload, request: Request) {
   const paymentId = queryPaymentId || (payloadPaymentId ? String(payloadPaymentId) : "");
 
   if (!paymentId) {
-    throw new ValidationError("Pagamento nao informado no webhook.");
+    throw new ValidationError("Pagamento não informado no webhook.");
   }
 
   return paymentId;
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     );
 
     if (!payloadResult.success) {
-      throw new ValidationError("Payload do webhook invalido.");
+      throw new ValidationError("Payload do webhook inválido.");
     }
 
     const payload = payloadResult.data;

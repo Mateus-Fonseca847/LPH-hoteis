@@ -55,7 +55,7 @@ describe("reservation expiration", () => {
     expect(getBookingPaymentTtlMinutes()).toBe(45);
     expect(getBookingPaymentExpiresAt(now)).toEqual(new Date(Date.UTC(2026, 6, 10, 12, 45)));
 
-    vi.stubEnv("BOOKING_PAYMENT_TTL_MINUTES", "valor-invalido");
+    vi.stubEnv("BOOKING_PAYMENT_TTL_MINUTES", "valor-inválido");
 
     expect(getBookingPaymentTtlMinutes()).toBe(30);
   });

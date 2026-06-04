@@ -18,7 +18,6 @@ export default function CadastroPage() {
       <main className="auth-page">
         <section className="section auth-section">
           <div className="auth-card">
-            <span className="hotel-page-eyebrow">Cadastro</span>
             <h1>Criar conta</h1>
             <p className="auth-copy">Informe seus dados para iniciar o acesso à plataforma LPH.</p>
 

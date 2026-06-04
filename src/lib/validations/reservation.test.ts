@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import { parseCreateReservationPayload } from "@/lib/validations/reservation";
 
@@ -13,7 +13,11 @@ const validPayload = {
   checkOut: "2026-07-12",
   adults: 2,
   children: 1,
-  paymentMethod: "pix",
+  paymentMethod: "credit_card",
+  paymentCardBrand: "visa",
+  paymentObservation1: "Prefiro contato por WhatsApp.",
+  paymentObservation2: "Melhor horário após as 14h.",
+  paymentObservation3: "Pagamento com cartão na chegada.",
 };
 
 describe("createReservationPayloadSchema", () => {
@@ -23,6 +27,7 @@ describe("createReservationPayloadSchema", () => {
       guestEmail: " MARIA@EXAMPLE.COM ",
       guestName: "  Maria   Silva  ",
       guestDocument: " ab123456 ",
+      paymentObservation1: "  Prefiro contato por WhatsApp.  ",
     });
 
     expect(result.success).toBe(true);
@@ -30,18 +35,39 @@ describe("createReservationPayloadSchema", () => {
       expect(result.data.guestEmail).toBe("maria@example.com");
       expect(result.data.guestName).toBe("Maria Silva");
       expect(result.data.guestDocument).toBe("AB123456");
+      expect(result.data.paymentMethod).toBe("credit_card");
+      expect(result.data.paymentCardBrand).toBe("visa");
+      expect(result.data.paymentObservation1).toBe("Prefiro contato por WhatsApp.");
     }
   });
 
-  it("rejeita hospede, documento e forma de pagamento invalidos", () => {
+  it("rejeita hóspede, documento e forma de pagamento inválidos", () => {
     const result = parseCreateReservationPayload({
       ...validPayload,
       guestEmail: "sem-email",
       guestDocument: "11111111111",
       paymentMethod: "dinheiro",
+      paymentCardBrand: "desconhecida",
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("aceita débito e rejeita bandeira ausente", () => {
+    expect(
+      parseCreateReservationPayload({
+        ...validPayload,
+        paymentMethod: "debit_card",
+        paymentCardBrand: "mastercard",
+      }).success
+    ).toBe(true);
+
+    expect(
+      parseCreateReservationPayload({
+        ...validPayload,
+        paymentCardBrand: "",
+      }).success
+    ).toBe(false);
   });
 
   it("rejeita datas fora do formato esperado", () => {
@@ -56,7 +82,7 @@ describe("createReservationPayloadSchema", () => {
     });
   });
 
-  it("rejeita ocupacao fora dos limites", () => {
+  it("rejeita ocupação fora dos limites", () => {
     const result = parseCreateReservationPayload({
       ...validPayload,
       adults: 0,

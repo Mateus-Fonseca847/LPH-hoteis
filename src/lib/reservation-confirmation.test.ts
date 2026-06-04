@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
 import { prisma } from "@/lib/prisma";
@@ -336,7 +336,7 @@ describe("reservation payment status transitions", () => {
     expect(tx.paymentTransaction.upsert).not.toHaveBeenCalled();
   });
 
-  it("nao confirma automaticamente pagamento recebido apos expiracao", async () => {
+  it("não confirma automaticamente pagamento recebido após expiração", async () => {
     const tx = createTransactionMock({
       reservation: {
         expiresAt: new Date(Date.UTC(2000, 0, 1)),

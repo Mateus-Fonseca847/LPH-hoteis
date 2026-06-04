@@ -1,4 +1,4 @@
-import type { PaymentStatus, ReservationStatus } from "@prisma/client";
+﻿import type { PaymentStatus, ReservationStatus } from "@prisma/client";
 
 import { syncMercadoPagoPayment } from "@/lib/payments/mercado-pago-reconciliation";
 import { prisma } from "@/lib/prisma";
@@ -37,9 +37,9 @@ function buildNotice(reservation: CheckoutReservation | null): CheckoutReturnNot
   if (!reservation) {
     return {
       tone: "error",
-      title: "Reserva nao encontrada",
+      title: "Reserva não encontrada",
       description:
-        "Nao encontramos a reserva informada no retorno do pagamento. Entre em contato com o hotel para conferir a tentativa.",
+        "Não encontramos a reserva informada no retorno do pagamento. Entre em contato com o hotel para conferir a tentativa.",
     };
   }
 
@@ -47,7 +47,7 @@ function buildNotice(reservation: CheckoutReservation | null): CheckoutReturnNot
     return {
       tone: "success",
       title: "Reserva confirmada",
-      description: `Reserva ${reservation.id} confirmada com pagamento aprovado. O hotel e o hospede receberao os e-mails de confirmacao.`,
+      description: `Reserva ${reservation.id} confirmada com pagamento aprovado. O hotel e o hóspede receberão os e-mails de confirmação.`,
     };
   }
 
@@ -59,7 +59,7 @@ function buildNotice(reservation: CheckoutReservation | null): CheckoutReturnNot
       tone: "processing",
       title: "Pagamento em processamento",
       description:
-        "Sua reserva ainda aguarda confirmacao do provedor. Atualizaremos automaticamente quando o pagamento for aprovado.",
+        "Sua reserva ainda aguarda confirmação do provedor. Atualizaremos automaticamente quando o pagamento for aprovado.",
     };
   }
 
@@ -84,9 +84,9 @@ function buildNotice(reservation: CheckoutReservation | null): CheckoutReturnNot
   if (reservation.status === "payment_failed" || reservation.paymentStatus === "payment_failed") {
     return {
       tone: "error",
-      title: "Pagamento nao aprovado",
+      title: "Pagamento não aprovado",
       description:
-        "O pagamento nao foi aprovado pelo provedor. Consulte disponibilidade para tentar novamente.",
+        "O pagamento não foi aprovado pelo provedor. Consulte disponibilidade para tentar novamente.",
     };
   }
 

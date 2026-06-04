@@ -65,7 +65,7 @@ describe("availability results", () => {
     expect(results.map((result) => result.room.id)).toEqual(["room-1"]);
   });
 
-  it("ordena disponiveis antes de desconhecidos e indisponiveis, depois por menor valor", () => {
+  it("ordena disponíveis antes de desconhecidos e indisponíveis, depois por menor valor", () => {
     const results = getCompatibleRoomAvailabilityResults({
       rooms: [
         {
@@ -114,11 +114,11 @@ describe("availability results", () => {
     expect(getRoomAvailabilityLabel("unknown")).toBe("Consultar disponibilidade");
   });
 
-  it("retorna unknown/null quando datas invalidas quebram disponibilidade ou preco", () => {
+  it("retorna unknown/null quando datas inválidas quebram disponibilidade ou preco", () => {
     const results = getCompatibleRoomAvailabilityResults({
       rooms: [baseRoom],
       checkIn: "2026-07-10",
-      checkOut: "data-invalida",
+      checkOut: "data-inválida",
       adults: 2,
       children: 1,
     });
@@ -127,7 +127,7 @@ describe("availability results", () => {
     expect(results[0].priceEstimate).toBeNull();
   });
 
-  it("descarta quarto com capacidade configurada de forma invalida", () => {
+  it("descarta quarto com capacidade configurada de forma inválida", () => {
     const results = getCompatibleRoomAvailabilityResults({
       rooms: [{ ...baseRoom, capacity: 0 }],
       checkIn: "2026-07-10",

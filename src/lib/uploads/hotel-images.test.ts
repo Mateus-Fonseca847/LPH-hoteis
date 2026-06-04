@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+﻿import { afterEach, describe, expect, it } from "vitest";
 
 import { LocalStorageProvider, setStorageProviderForTesting } from "@/lib/storage";
 import {
@@ -41,39 +41,39 @@ describe("hotel image upload validation", () => {
     });
   });
 
-  it("rejeita extensao suspeita intermediaria", async () => {
+  it("rejeita extensão suspeita intermediaria", async () => {
     await expect(validateHotelImageFile(makeFile({ name: "hotel.php.png" }))).rejects.toThrow(
       "extensoes suspeitas"
     );
   });
 
-  it("rejeita MIME type diferente da extensao", async () => {
+  it("rejeita MIME type diferente da extensão", async () => {
     await expect(
       validateHotelImageFile(makeFile({ name: "hotel.jpg", type: "image/png" }))
     ).rejects.toThrow("tipo do arquivo");
   });
 
-  it("rejeita conteudo que nao corresponde a imagem", async () => {
+  it("rejeita conteúdo que não corresponde a imagem", async () => {
     await expect(
       validateHotelImageFile(makeFile({ bytes: new Uint8Array([1, 2, 3, 4, 5]) }))
     ).rejects.toThrow("imagem valida");
   });
 
-  it("bloqueia executaveis mesmo com conteudo enviado", async () => {
+  it("bloqueia executaveis mesmo com conteúdo enviado", async () => {
     await expect(
       validateHotelImageFile(makeFile({ name: "instalador.exe", type: "application/x-msdownload" }))
-    ).rejects.toThrow("Formato nao permitido");
+    ).rejects.toThrow("Formato não permitido");
   });
 
-  it("bloqueia scripts disfarcados com extensao intermediaria", async () => {
+  it("bloqueia scripts disfarcados com extensão intermediaria", async () => {
     await expect(validateHotelImageFile(makeFile({ name: "hotel.js.png" }))).rejects.toThrow(
       "extensoes suspeitas"
     );
   });
 
-  it("bloqueia arquivo desconhecido sem extensao", async () => {
+  it("bloqueia arquivo desconhecido sem extensão", async () => {
     await expect(validateHotelImageFile(makeFile({ name: "arquivo" }))).rejects.toThrow(
-      "extensao valida"
+      "extensão valida"
     );
   });
 
@@ -110,11 +110,11 @@ describe("hotel image upload validation", () => {
     });
   });
 
-  it("bloqueia provider remoto ainda nao configurado", async () => {
+  it("bloqueia provider remoto ainda não configurado", async () => {
     process.env.STORAGE_PROVIDER = "s3";
 
     await expect(storeHotelImageFile("hotel_12345", makeFile())).rejects.toThrow(
-      "S3_ENDPOINT nao configurado"
+      "S3_ENDPOINT não configurado"
     );
   });
 
@@ -122,7 +122,7 @@ describe("hotel image upload validation", () => {
     setStorageProviderForTesting(new LocalStorageProvider());
 
     await expect(deleteStoredHotelImageFile("/uploads/hotels/../../package.json")).rejects.toThrow(
-      "Chave de storage invalida"
+      "Chave de storage inválida"
     );
   });
 });

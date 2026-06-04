@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BookingFlow } from "@/components/BookingFlow";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { IconBackLink } from "@/components/IconBackLink";
 import { getHotelPageData } from "@/lib/hotel-data";
 import { expirePendingReservations } from "@/lib/reservation-expiration";
 import {
@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: HotelBookingPageProps): Promi
   }
 
   const title = `Consultar disponibilidade em ${hotel.name}`;
-  const description = `Consulte datas, quartos e pagamento para sua estadia em ${hotel.name}, ${hotel.city}, ${hotel.state}. A reserva só é confirmada após pagamento aprovado.`;
+  const description = `Consulte datas, quartos e envie sua solicitação de reserva para ${hotel.name}, ${hotel.city}, ${hotel.state}. O pagamento será finalizado diretamente com o hotel.`;
   const image = hotel.coverImageUrl?.trim() || DEFAULT_SOCIAL_IMAGE_PATH;
   const imageAlt = hotel.coverImageUrl?.trim()
     ? `Vista de ${hotel.name} em ${hotel.city}, ${hotel.state}`
@@ -109,19 +109,14 @@ export default async function HotelBookingPage({ params, searchParams }: HotelBo
       <main className="booking-page">
         <section className="section booking-page-hero reveal is-visible">
           <div className="hotel-topbar">
-            <Link href={`/hoteis/${hotel.slug}`} className="hotel-page-back">
-              Voltar ao hotel
-            </Link>
+            <IconBackLink href={`/hoteis/${hotel.slug}`} ariaLabel="Voltar ao hotel" />
           </div>
 
           <div className="booking-page-heading">
-            <span className="hotel-page-eyebrow">
-              {hotel.city}, {hotel.state}
-            </span>
             <h1>Consultar disponibilidade</h1>
             <p>
-              Escolha datas, viajantes e quarto para iniciar a reserva no {hotel.name}. A reserva só
-              é confirmada após a aprovação do pagamento.
+              Escolha datas, viajantes e quarto para enviar sua solicitação de reserva no{" "}
+              {hotel.name}. O pagamento será finalizado diretamente com a equipe do hotel.
             </p>
           </div>
         </section>

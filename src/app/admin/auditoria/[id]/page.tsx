@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AdminAccessDenied } from "@/app/admin/AdminAccessDenied";
+import { IconBackLink } from "@/components/IconBackLink";
 import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -172,7 +172,6 @@ export default async function AdminAuditDetailPage({ params }: AdminAuditDetailP
   return (
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
-        <span className="hotel-page-eyebrow">Auditoria</span>
         <h1>{formatAuditAction(log.action)}</h1>
         <p className="admin-rooms-copy">Detalhe seguro do registro administrativo selecionado.</p>
       </div>
@@ -237,9 +236,7 @@ export default async function AdminAuditDetailPage({ params }: AdminAuditDetailP
         </div>
       </section>
 
-      <Link href="/admin/auditoria" className="hotel-page-back">
-        Voltar para auditoria
-      </Link>
+      <IconBackLink href="/admin/auditoria" ariaLabel="Voltar para auditoria" />
     </section>
   );
 }

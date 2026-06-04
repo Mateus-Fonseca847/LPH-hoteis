@@ -1,10 +1,11 @@
-import { AuthorizationError, ConflictError } from "@/lib/errors/app-error";
+import { AuthorizationError, ConflictError, ValidationError } from "@/lib/errors/app-error";
 import {
   cancelReservationManually,
   confirmReservationManually,
   markReservationPaymentFailed,
   rescheduleReservationManually,
   resendReservationConfirmationEmail,
+  updatePendingReservationPaymentStatusManually,
 } from "@/lib/admin/reservation-operations";
 import { requireHotelAdminAccess } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/prisma";
@@ -148,7 +149,7 @@ describe("reservation admin operations", () => {
     vi.mocked(sendHotelReservationEmail).mockReset();
   });
 
-  it("bloqueia usuario sem permissao administrativa no hotel", async () => {
+  it("bloqueia usuário sem permissao administrativa no hotel", async () => {
     mockReservation();
     vi.mocked(requireHotelAdminAccess).mockRejectedValue(new AuthorizationError());
 
@@ -170,7 +171,7 @@ describe("reservation admin operations", () => {
       cancelReservationManually({
         reservationId: "reservation-1",
         userId: "user-1",
-        reason: "Hospede solicitou cancelamento",
+        reason: "Hóspede solicitou cancelamento",
       })
     ).resolves.toEqual({ status: "cancelled" });
 
@@ -184,7 +185,7 @@ describe("reservation admin operations", () => {
         data: expect.objectContaining({
           action: "reservation.cancelled",
           createdById: "user-1",
-          reason: "Hospede solicitou cancelamento",
+          reason: "Hóspede solicitou cancelamento",
           previousStatus: "awaiting_payment",
           nextStatus: "cancelled",
         }),
@@ -223,6 +224,127 @@ describe("reservation admin operations", () => {
     );
   });
 
+  it("hotel_admin pode atualizar manualmente pagamento pendente para aguardando pagamento", async () => {
+    mockReservation({ status: "pending", paymentStatus: "pending" });
+    const tx = {
+      reservation: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      paymentTransaction: {
+        upsert: vi.fn().mockResolvedValue({ id: "payment-1" }),
+      },
+      reservationOperationLog: {
+        create: vi.fn().mockResolvedValue({ id: "log-1" }),
+      },
+    };
+
+    vi.mocked(requireHotelAdminAccess).mockResolvedValue({
+      globalRole: "hotel_admin",
+      hotelRole: "admin",
+    });
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    await expect(
+      updatePendingReservationPaymentStatusManually({
+        reservationId: "reservation-1",
+        userId: "hotel-admin-1",
+        reason: "A cobrança ficará em acompanhamento manual.",
+        nextPaymentStatus: "awaiting_payment",
+      })
+    ).resolves.toEqual({ status: "awaiting_payment" });
+
+    expect(tx.reservation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "awaiting_payment",
+          paymentStatus: "awaiting_payment",
+        }),
+      })
+    );
+    expect(tx.reservationOperationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "reservation.payment_status_updated",
+          createdById: "hotel-admin-1",
+          previousStatus: "pending",
+          nextStatus: "awaiting_payment",
+          previousPaymentStatus: "pending",
+          nextPaymentStatus: "awaiting_payment",
+        }),
+      })
+    );
+  });
+
+  it("super_admin pode marcar qualquer pagamento pendente como pago", async () => {
+    mockReservation({ status: "pending", paymentStatus: "pending" });
+    vi.mocked(requireHotelAdminAccess).mockResolvedValue({
+      globalRole: "super_admin",
+      hotelRole: null,
+    });
+    vi.mocked(confirmPaidReservation).mockResolvedValue({
+      reservationId: "reservation-1",
+      confirmed: true,
+    });
+
+    await expect(
+      updatePendingReservationPaymentStatusManually({
+        reservationId: "reservation-1",
+        userId: "super-admin-1",
+        reason: "Pagamento confirmado após contato com o hóspede.",
+        nextPaymentStatus: "paid",
+      })
+    ).resolves.toEqual({ status: "confirmed" });
+
+    expect(confirmPaidReservation).toHaveBeenCalled();
+    expect(prisma.reservationOperationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "reservation.manually_confirmed",
+        }),
+      })
+    );
+  });
+
+  it("bloqueia alteração manual de pagamento para hotel_admin sem acesso ao hotel", async () => {
+    mockReservation();
+    vi.mocked(requireHotelAdminAccess).mockRejectedValue(new AuthorizationError());
+
+    await expect(
+      updatePendingReservationPaymentStatusManually({
+        reservationId: "reservation-1",
+        userId: "hotel-admin-2",
+        reason: "Tentativa sem acesso.",
+        nextPaymentStatus: "cancelled",
+      })
+    ).rejects.toBeInstanceOf(AuthorizationError);
+  });
+
+  it("exige motivo ao alterar manualmente pagamento", async () => {
+    mockReservation();
+
+    await expect(
+      updatePendingReservationPaymentStatusManually({
+        reservationId: "reservation-1",
+        userId: "super-admin-1",
+        reason: "ok",
+        nextPaymentStatus: "payment_failed",
+      })
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("bloqueia marcar reserva expirada como paga", async () => {
+    mockReservation({ status: "expired", paymentStatus: "pending" });
+
+    await expect(
+      updatePendingReservationPaymentStatusManually({
+        reservationId: "reservation-1",
+        userId: "super-admin-1",
+        reason: "Tentativa inválida de quitação.",
+        nextPaymentStatus: "paid",
+      })
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
   it("impede marcar pagamento pago como falho", async () => {
     mockReservation({
       status: "confirmed",
@@ -237,7 +359,7 @@ describe("reservation admin operations", () => {
       markReservationPaymentFailed({
         reservationId: "reservation-1",
         userId: "user-1",
-        reason: "Tentativa invalida",
+        reason: "Tentativa inválida",
       })
     ).rejects.toBeInstanceOf(ConflictError);
     expect(closeUnpaidReservation).not.toHaveBeenCalled();
@@ -250,7 +372,7 @@ describe("reservation admin operations", () => {
       resendReservationConfirmationEmail({
         reservationId: "reservation-1",
         userId: "user-1",
-        reason: "Hospede solicitou reenvio",
+        reason: "Hóspede solicitou reenvio",
       })
     ).resolves.toEqual({ status: "sent" });
 
@@ -275,7 +397,7 @@ describe("reservation admin operations", () => {
         userId: "user-1",
         checkIn: "2099-02-05",
         checkOut: "2099-02-07",
-        reason: "Hospede solicitou novas datas",
+        reason: "Hóspede solicitou novas datas",
       })
     ).resolves.toEqual({ status: "rescheduled" });
 
@@ -310,7 +432,7 @@ describe("reservation admin operations", () => {
         data: expect.objectContaining({
           action: "reservation.rescheduled",
           createdById: "user-1",
-          reason: "Hospede solicitou novas datas",
+          reason: "Hóspede solicitou novas datas",
           metadata: expect.objectContaining({
             previousCheckIn: "2099-02-01",
             previousCheckOut: "2099-02-03",
@@ -322,7 +444,7 @@ describe("reservation admin operations", () => {
     );
   });
 
-  it("impede remarcacao quando novo periodo nao tem disponibilidade", async () => {
+  it("impede remarcacao quando novo período não tem disponibilidade", async () => {
     mockReservation();
     mockRescheduleTransaction({ holdCount: 1 });
 
@@ -332,7 +454,7 @@ describe("reservation admin operations", () => {
         userId: "user-1",
         checkIn: "2099-02-05",
         checkOut: "2099-02-07",
-        reason: "Hospede solicitou novas datas",
+        reason: "Hóspede solicitou novas datas",
       })
     ).rejects.toBeInstanceOf(ConflictError);
   });
@@ -347,7 +469,7 @@ describe("reservation admin operations", () => {
         userId: "user-1",
         checkIn: "2099-02-05",
         checkOut: "2099-02-07",
-        reason: "Hospede solicitou novas datas",
+        reason: "Hóspede solicitou novas datas",
       })
     ).rejects.toBeInstanceOf(AuthorizationError);
     expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -362,7 +484,7 @@ describe("reservation admin operations", () => {
         userId: "user-1",
         checkIn: "2099-02-05",
         checkOut: "2099-02-07",
-        reason: "Hospede solicitou novas datas",
+        reason: "Hóspede solicitou novas datas",
       })
     ).rejects.toBeInstanceOf(ConflictError);
 
@@ -374,7 +496,7 @@ describe("reservation admin operations", () => {
         userId: "user-1",
         checkIn: "2099-02-05",
         checkOut: "2099-02-07",
-        reason: "Hospede solicitou novas datas",
+        reason: "Hóspede solicitou novas datas",
       })
     ).rejects.toBeInstanceOf(ConflictError);
 
@@ -386,7 +508,7 @@ describe("reservation admin operations", () => {
         userId: "user-1",
         checkIn: "2099-02-05",
         checkOut: "2099-02-07",
-        reason: "Hospede solicitou novas datas",
+        reason: "Hóspede solicitou novas datas",
       })
     ).rejects.toBeInstanceOf(ConflictError);
   });

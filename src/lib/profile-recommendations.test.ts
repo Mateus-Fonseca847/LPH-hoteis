@@ -114,13 +114,13 @@ describe("profile experience recommendations", () => {
     expect(matches[0].hotel).toBeNull();
   });
 
-  it("ignora hotel com slug invalido ao associar experiencia a hotel", () => {
+  it("ignora hotel com slug inválido ao associar experiencia a hotel", () => {
     const matches = getProfileExperienceMatches({
       recommendations: [experience],
       hotels: [
         {
           slug: "../recife",
-          name: "Slug invalido",
+          name: "Slug inválido",
           city: "Recife",
           state: "PE",
           coverImageUrl: "/invalid.jpg",

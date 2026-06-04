@@ -100,7 +100,7 @@ export async function expirePendingReservations(input: ExpirePendingReservations
   let expired = 0;
 
   for (const candidate of candidates) {
-    // Expira reserva, libera disponibilidade e cancela a transacao financeira juntas.
+    // Expira reserva, libera disponibilidade e cancela a transação financeira juntas.
     // O update condicional torna a rotina idempotente e evita corrida com webhook pago.
     const didExpire = await prisma.$transaction(async (transaction) => {
       const reservationUpdate = await transaction.reservation.updateMany({

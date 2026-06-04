@@ -8,6 +8,8 @@ type HotelAuditSnapshot = {
   city: string;
   state: string;
   address: string;
+  latitude: number | null;
+  longitude: number | null;
   phone: string;
   email: string;
   whatsapp: string;
@@ -18,6 +20,18 @@ type HotelAuditSnapshot = {
   images: { url: string; alt: string; position: number }[];
   amenities: { label: string; position: number }[];
   policies: { title: string; description: string; position: number }[];
+  experiences: {
+    title: string;
+    city: string;
+    state: string;
+    shortDescription: string;
+    imageUrl: string;
+    imageAlt: string;
+    categories: string[];
+    preferences: string[];
+    distanceText: string | null;
+    isActive: boolean;
+  }[];
 };
 
 type CreateHotelAuditLogInput = {
@@ -36,6 +50,7 @@ function normalizeSnapshot(snapshot: HotelAuditSnapshot) {
     images: [...snapshot.images].sort((a, b) => a.position - b.position),
     amenities: [...snapshot.amenities].sort((a, b) => a.position - b.position),
     policies: [...snapshot.policies].sort((a, b) => a.position - b.position),
+    experiences: [...snapshot.experiences].sort((a, b) => a.title.localeCompare(b.title)),
   };
 }
 

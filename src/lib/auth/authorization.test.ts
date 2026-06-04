@@ -1,4 +1,4 @@
-import { HotelRole } from "@prisma/client";
+﻿import { HotelRole } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -71,7 +71,7 @@ describe("admin authorization scope", () => {
     });
   });
 
-  it("bloqueia hotel_admin sem permissao no hotel", async () => {
+  it("bloqueia hotel_admin sem permissão no hotel", async () => {
     mockUser({ globalRole: "hotel_admin" });
 
     await expect(canViewHotelAdmin("user-1", "hotel-a")).resolves.toBe(false);
@@ -80,7 +80,7 @@ describe("admin authorization scope", () => {
     );
   });
 
-  it("lança erro quando usuario nao existe ao exigir permissao", async () => {
+  it("lança erro quando usuário não existe ao exigir permissão", async () => {
     findUser.mockResolvedValue(null);
 
     await expect(requireHotelAdminAccess("user-404", "hotel-a")).rejects.toBeInstanceOf(
@@ -98,7 +98,7 @@ describe("admin authorization scope", () => {
     );
   });
 
-  it("consulta permissao sempre limitada ao hotel solicitado", async () => {
+  it("consulta permissão sempre limitada ao hotel solicitado", async () => {
     mockUser({ globalRole: "hotel_admin", hotelRole: HotelRole.admin });
 
     await canEditHotel("user-1", "hotel-b");
@@ -116,7 +116,7 @@ describe("admin authorization scope", () => {
     );
   });
 
-  it("bloqueia usuario comum e usuario inativo", async () => {
+  it("bloqueia usuário comum e usuário inativo", async () => {
     mockUser({ globalRole: "user" });
     await expect(canViewHotelAdmin("user-1", "hotel-a")).resolves.toBe(false);
 

@@ -47,7 +47,6 @@ export default async function AdminSecurityPage() {
   return (
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
-        <span className="hotel-page-eyebrow">Segurança</span>
         <h1>Segurança da conta</h1>
         <p className="admin-rooms-copy">
           Configure a verificação em duas etapas por e-mail para proteger acessos administrativos.

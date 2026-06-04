@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { IconBackLink } from "@/components/IconBackLink";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
 import { RevealObserver } from "@/components/RevealObserver";
 import { normalizeHotelSearchQuery, searchPublishedHotels } from "@/lib/hotel-search";
@@ -43,12 +44,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
       <main className="section hotel-search-results-page">
         <div className="hotels-intro hotel-search-results-heading">
-          <span className="hotel-page-eyebrow">Busca</span>
           <h1>{hasQuery ? `Hotéis para ${query}` : "Busque um destino"}</h1>
           <p>Resultados encontrados por cidade, estado, nome do hotel, endereço ou região.</p>
-          <Link href="/" className="outline-round hotel-search-home-link">
-            Voltar à página inicial
-          </Link>
+          <IconBackLink href="/" ariaLabel="Voltar à página inicial" />
         </div>
 
         {!hasQuery ? (

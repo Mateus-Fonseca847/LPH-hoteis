@@ -988,12 +988,26 @@ a.booking-page-link {
   align-items: start;
 }
 
+.availability-search-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.75fr);
+  gap: 16px;
+  align-items: start;
+}
+
 .availability-flow-side {
   display: grid;
   gap: 16px;
 }
 
+.availability-search-summary {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
 .availability-flow-panel,
+.availability-search-panel,
 .availability-search-results-placeholder,
 .availability-room-choice-step {
   display: grid;
@@ -1020,6 +1034,12 @@ a.booking-page-link {
   gap: 14px;
   padding: 14px;
   border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.availability-search-panel {
+  padding: 14px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.62);
 }
@@ -1068,7 +1088,8 @@ a.booking-page-link {
   gap: 6px;
 }
 
-.availability-calendar-weekdays span {
+.availability-calendar-weekdays span,
+.availability-calendar-grid__weekday {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 900;
@@ -1076,12 +1097,14 @@ a.booking-page-link {
 }
 
 .availability-calendar-day,
-.availability-calendar-day-spacer {
+.availability-calendar-day-spacer,
+.availability-calendar-grid__day {
   min-width: 0;
   aspect-ratio: 1;
 }
 
-.availability-calendar-day {
+.availability-calendar-day,
+.availability-calendar-grid__day {
   border: 1px solid transparent;
   border-radius: 14px;
   background: transparent;
@@ -1096,29 +1119,35 @@ a.booking-page-link {
 }
 
 .availability-calendar-day:hover:not(:disabled),
-.availability-calendar-day:focus-visible:not(:disabled) {
+.availability-calendar-day:focus-visible:not(:disabled),
+.availability-calendar-grid__day:hover:not(:disabled),
+.availability-calendar-grid__day:focus-visible:not(:disabled) {
   border-color: rgba(6, 41, 79, 0.18);
   background: rgba(6, 41, 79, 0.06);
   outline: none;
   transform: translateY(-1px);
 }
 
-.availability-calendar-day.is-today {
+.availability-calendar-day.is-today,
+.availability-calendar-grid__day.is-today {
   border-color: rgba(6, 41, 79, 0.22);
 }
 
-.availability-calendar-day.is-in-range {
+.availability-calendar-day.is-in-range,
+.availability-calendar-grid__day.is-in-range {
   background: rgba(6, 41, 79, 0.1);
   color: var(--brand);
 }
 
-.availability-calendar-day.is-selected {
+.availability-calendar-day.is-selected,
+.availability-calendar-grid__day.is-selected {
   background: var(--brand);
   color: var(--surface);
   box-shadow: 0 8px 18px rgba(6, 41, 79, 0.18);
 }
 
-.availability-calendar-day:disabled {
+.availability-calendar-day:disabled,
+.availability-calendar-grid__day:disabled {
   cursor: not-allowed;
   opacity: 0.28;
   text-decoration: line-through;
@@ -1592,13 +1621,24 @@ a.booking-page-link {
   gap: 12px;
 }
 
+.availability-payment-fieldset {
+  display: grid;
+  gap: 10px;
+}
+
+.availability-payment-fieldset > span {
+  color: var(--brand);
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
 .availability-payment-method {
-  min-height: 132px;
+  min-height: 72px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  padding: 16px;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
   border: 1px solid rgba(30, 30, 30, 0.1);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.72);
@@ -1627,19 +1667,19 @@ a.booking-page-link {
 }
 
 .availability-payment-method__icon {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgba(6, 41, 79, 0.08);
   color: var(--brand);
 }
 
 .availability-payment-method__icon svg {
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -1665,13 +1705,38 @@ a.booking-page-link {
 .availability-payment-method strong {
   color: var(--brand);
   font-family: var(--font-sora), sans-serif;
+  font-size: 0.96rem;
   line-height: 1.2;
 }
 
 .availability-payment-method small {
-  margin-top: 6px;
+  margin-top: 4px;
   color: var(--muted);
   font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.availability-card-data-fields {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(120px, 160px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.availability-card-data-field--number {
+  grid-column: 1 / -1;
+}
+
+.availability-card-data-field--expiry input,
+.availability-card-data-field--cvv input {
+  width: 100%;
+}
+
+.availability-card-data-note {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
   font-weight: 700;
   line-height: 1.45;
 }
@@ -1725,7 +1790,9 @@ a.booking-page-link {
   font-weight: 850;
 }
 
-.availability-reservation-form input {
+.availability-reservation-form input,
+.availability-reservation-form select,
+.availability-reservation-form textarea {
   min-height: 46px;
   width: 100%;
   border: 1px solid rgba(30, 30, 30, 0.12);
@@ -1736,7 +1803,15 @@ a.booking-page-link {
   padding: 0 14px;
 }
 
-.availability-reservation-form input:focus {
+.availability-reservation-form textarea {
+  min-height: 96px;
+  padding-block: 12px;
+  resize: vertical;
+}
+
+.availability-reservation-form input:focus,
+.availability-reservation-form select:focus,
+.availability-reservation-form textarea:focus {
   border-color: rgba(6, 41, 79, 0.36);
   box-shadow: 0 0 0 3px rgba(6, 41, 79, 0.1);
   outline: none;
@@ -1932,6 +2007,428 @@ a.booking-page-link {
   max-width: 44ch;
   color: var(--muted);
   line-height: 1.55;
+}
+
+.brazil-map-page {
+  display: grid;
+  gap: 28px;
+  padding: clamp(24px, 4vw, 40px);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(230, 194, 0, 0.12), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 243, 237, 0.94) 100%);
+}
+
+.brazil-map-hero {
+  display: grid;
+  gap: 14px;
+}
+
+.brazil-map-heading {
+  display: grid;
+  gap: 14px;
+}
+
+.brazil-map-heading h1,
+.brazil-map-stage-header h2,
+.brazil-map-panel-content h2 {
+  margin: 0;
+  font-family: var(--font-sora), sans-serif;
+  letter-spacing: -0.05em;
+}
+
+.brazil-map-heading h1 {
+  max-width: 11ch;
+  font-size: clamp(2.7rem, 5vw, 4.6rem);
+  line-height: 0.92;
+}
+
+.brazil-map-heading p,
+.brazil-map-stage-header p,
+.brazil-map-legend p,
+.brazil-map-panel-content p,
+.brazil-map-panel-content small {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.brazil-map-heading p {
+  max-width: 56ch;
+}
+
+.brazil-map-shell {
+  display: grid;
+}
+
+.brazil-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.72fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.brazil-map-stage,
+.brazil-map-panel {
+  border: 1px solid rgba(6, 41, 79, 0.08);
+  border-radius: 30px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 245, 239, 0.96) 100%);
+  box-shadow:
+    0 20px 48px rgba(10, 27, 52, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.brazil-map-stage {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+}
+
+.brazil-map-stage-header {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 18px;
+  align-items: end;
+}
+
+.brazil-map-stage-header h2 {
+  font-size: clamp(1.8rem, 2.4vw, 2.4rem);
+  line-height: 0.96;
+}
+
+.brazil-map-stage-header p {
+  justify-self: end;
+  max-width: 34ch;
+  text-align: right;
+}
+
+.brazil-map-viewport {
+  position: relative;
+  min-height: clamp(420px, 58vw, 760px);
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgba(6, 41, 79, 0.08);
+  background: linear-gradient(180deg, #fdf9f1 0%, #f4ecdf 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 18px 36px rgba(10, 27, 52, 0.08);
+}
+
+.brazil-map-viewport::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.28), transparent 22%),
+    linear-gradient(180deg, rgba(255, 250, 242, 0.18), rgba(244, 236, 223, 0.08));
+  z-index: 2;
+}
+
+.brazil-map-leaflet {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  background: linear-gradient(180deg, #fdf9f1 0%, #f4ecdf 100%);
+}
+
+.brazil-map-leaflet.leaflet-container {
+  font: inherit;
+  filter: saturate(0.82) contrast(0.96) brightness(1.02);
+}
+
+.brazil-map-leaflet .leaflet-tile-pane {
+  opacity: 0.94;
+}
+
+.brazil-map-leaflet .leaflet-overlay-pane,
+.brazil-map-leaflet .leaflet-marker-pane {
+  z-index: 3;
+}
+
+.brazil-map-leaflet .leaflet-control-attribution {
+  padding: 4px 8px;
+  border-radius: 10px 0 0 0;
+  background: rgba(255, 252, 247, 0.88);
+  color: rgba(6, 41, 79, 0.78);
+  font-size: 0.68rem;
+}
+
+.brazil-map-leaflet .leaflet-control-attribution a {
+  color: var(--brand);
+}
+
+.brazil-map-leaflet .leaflet-pane,
+.brazil-map-leaflet .leaflet-control {
+  z-index: 1;
+}
+
+.brazil-map-marker {
+  background: transparent;
+  border: 0;
+}
+
+.brazil-map-marker__pin {
+  position: relative;
+  display: block;
+  width: 28px;
+  height: 40px;
+}
+
+.brazil-map-marker__glow {
+  position: absolute;
+  inset: 2px auto auto 50%;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(230, 194, 0, 0.2), rgba(230, 194, 0, 0));
+  transform: translateX(-50%) scale(0.76);
+  opacity: 0;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.brazil-map-marker__core {
+  position: absolute;
+  inset: 0;
+  display: block;
+  clip-path: path("M14 1C20 1 25 6 25 12C25 20.9 14 39 14 39C14 39 3 20.9 3 12C3 6 8 1 14 1Z");
+  background: linear-gradient(180deg, #0e3b6d 0%, #06294f 74%, #04192f 100%);
+  border: 2px solid rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.4),
+    0 0 0 3px rgba(6, 41, 79, 0.12),
+    0 14px 22px rgba(6, 41, 79, 0.18);
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    filter 0.22s ease;
+}
+
+.brazil-map-marker__shine {
+  position: absolute;
+  inset: 6px 9px auto 8px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0));
+}
+
+.brazil-map-marker__center {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 0 0 2px rgba(6, 41, 79, 0.08),
+    0 0 0 4px rgba(255, 255, 255, 0.26);
+  transform: translateX(-50%);
+}
+
+.brazil-map-marker:hover .brazil-map-marker__core,
+.brazil-map-marker:focus-visible .brazil-map-marker__core,
+.brazil-map-marker.is-selected .brazil-map-marker__core {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.54),
+    0 0 0 4px rgba(230, 194, 0, 0.34),
+    0 18px 28px rgba(6, 41, 79, 0.24);
+  filter: saturate(1.05);
+}
+
+.brazil-map-marker:hover .brazil-map-marker__glow,
+.brazil-map-marker:focus-visible .brazil-map-marker__glow,
+.brazil-map-marker.is-selected .brazil-map-marker__glow {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+.brazil-map-marker:focus-visible {
+  outline: none;
+}
+
+.brazil-map-marker:focus-visible .brazil-map-marker__core,
+.brazil-map-marker.is-selected .brazil-map-marker__core {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.54),
+    0 0 0 4px rgba(230, 194, 0, 0.38),
+    0 0 0 8px rgba(6, 41, 79, 0.14),
+    0 18px 28px rgba(6, 41, 79, 0.24);
+}
+
+.brazil-map-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brazil-map-legend-pin {
+  width: 18px;
+  height: 24px;
+  flex: 0 0 18px;
+  clip-path: path("M9 1C13 1 17 5 17 9C17 15.5 9 24 9 24C9 24 1 15.5 1 9C1 5 5 1 9 1Z");
+  background: linear-gradient(180deg, #0e3b6d 0%, var(--brand) 100%);
+  box-shadow:
+    0 0 0 4px rgba(230, 194, 0, 0.18),
+    0 10px 18px rgba(6, 41, 79, 0.12);
+}
+
+.brazil-map-panel {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 18px;
+  padding: 24px;
+  align-content: start;
+  transition:
+    transform 0.28s ease,
+    box-shadow 0.28s ease;
+}
+
+.brazil-map-panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 26px 58px rgba(10, 27, 52, 0.12);
+}
+
+.brazil-map-panel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brazil-map-panel-badge,
+.brazil-map-panel-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border-radius: 999px;
+  padding: 0 14px;
+}
+
+.brazil-map-panel-badge {
+  border: 1px solid rgba(6, 41, 79, 0.1);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--brand);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brazil-map-panel-top strong {
+  color: var(--brand);
+  font-family: var(--font-sora), sans-serif;
+  font-size: 1.1rem;
+}
+
+.brazil-map-panel-count {
+  border: 1px solid rgba(230, 194, 0, 0.34);
+  background: rgba(230, 194, 0, 0.1);
+}
+
+.brazil-map-panel-media {
+  overflow: hidden;
+  border-radius: 22px;
+  min-height: 280px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(246, 239, 228, 0.94));
+}
+
+.brazil-map-panel-media .image-fallback-frame {
+  border-radius: inherit;
+  min-height: inherit;
+}
+
+.brazil-map-panel-media .image-fallback-frame > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.01);
+}
+
+.brazil-map-panel-content {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  animation: brazilMapPanelReveal 0.28s ease;
+}
+
+.brazil-map-panel-location {
+  color: var(--brand);
+  font-size: 0.84rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brazil-map-panel-content h2 {
+  font-size: clamp(1.8rem, 2.2vw, 2.4rem);
+  line-height: 0.98;
+}
+
+.brazil-map-panel-content small {
+  display: block;
+}
+
+.brazil-map-panel-content .card-cta-button {
+  width: fit-content;
+  min-height: 48px;
+}
+
+.brazil-map-panel-cta {
+  background: linear-gradient(180deg, #0d3b6f 0%, #06294f 100%);
+  border-color: rgba(6, 41, 79, 0.18);
+  box-shadow: 0 16px 28px rgba(6, 41, 79, 0.16);
+}
+
+.brazil-map-panel-cta:hover,
+.brazil-map-panel-cta:focus-visible {
+  background: linear-gradient(180deg, #124884 0%, #06294f 100%);
+  box-shadow: 0 18px 30px rgba(6, 41, 79, 0.2);
+}
+
+.brazil-map-panel-empty {
+  min-height: 280px;
+  display: grid;
+  gap: 12px;
+  align-content: center;
+  justify-items: start;
+  padding: 10px 6px;
+}
+
+.brazil-map-panel-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  border: 1px solid rgba(230, 194, 0, 0.32);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0)),
+    linear-gradient(180deg, rgba(230, 194, 0, 0.16), rgba(6, 41, 79, 0.04));
+  color: var(--brand);
+  font-size: 1.5rem;
+  font-weight: 800;
+  box-shadow: 0 14px 24px rgba(10, 27, 52, 0.08);
+}
+
+.brazil-map-empty-state {
+  padding: clamp(32px, 5vw, 44px);
+}
+
+@keyframes brazilMapPanelReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .public-loading-state {
@@ -3787,6 +4284,37 @@ a.booking-page-link {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.admin-dashboard-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-primary-create-button {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border: 1px solid rgba(20, 122, 77, 0.22);
+  border-radius: 14px;
+  background: #147a4d;
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 14px 30px rgba(20, 122, 77, 0.18);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.admin-primary-create-button:hover,
+.admin-primary-create-button:focus-visible {
+  background: #0f6841;
+  box-shadow: 0 18px 34px rgba(20, 122, 77, 0.24);
+  transform: translateY(-1px);
+  outline: none;
+}
+
 .admin-dashboard-metrics {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -4580,6 +5108,67 @@ a.booking-page-link {
   font-weight: 800;
 }
 
+.admin-identity-card {
+  position: relative;
+  overflow: hidden;
+  border-top: 4px solid var(--brand);
+  background:
+    linear-gradient(135deg, rgba(6, 41, 79, 0.04), rgba(255, 255, 255, 0.9)), var(--surface);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.admin-link-card.admin-identity-card:hover,
+.admin-link-card.admin-identity-card:focus-visible {
+  background:
+    linear-gradient(135deg, rgba(6, 41, 79, 0.08), rgba(255, 255, 255, 0.96)), var(--surface);
+  box-shadow: 0 18px 36px rgba(6, 41, 79, 0.12);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.admin-identity-card__head,
+.admin-identity-card__body {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-identity-card__head {
+  display: flex;
+  align-items: center;
+}
+
+.admin-identity-card__head > span {
+  color: var(--brand);
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-identity-card__body {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-identity-card__body strong {
+  font-family: var(--font-sora), sans-serif;
+  font-size: clamp(1.18rem, 1.7vw, 1.45rem);
+  line-height: 1.12;
+  color: var(--text);
+}
+
+.admin-overview-card small {
+  position: relative;
+  z-index: 1;
+  border: 1px solid rgba(6, 41, 79, 0.14);
+  background: rgba(6, 41, 79, 0.08);
+  color: var(--brand);
+}
+
 .admin-dashboard-metric strong {
   font-family: var(--font-sora), sans-serif;
   font-size: clamp(2rem, 3vw, 3rem);
@@ -4870,6 +5459,154 @@ a.booking-page-link {
   color: #b42318;
 }
 
+.admin-approval-card {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid rgba(6, 41, 79, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 247, 251, 0.95) 100%);
+}
+
+.admin-flow-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-flow-step {
+  display: grid;
+  gap: 6px;
+  min-height: 112px;
+  padding: 14px;
+  border: 1px solid rgba(6, 41, 79, 0.1);
+  border-radius: 18px;
+  background: #ffffff;
+  color: var(--text);
+  text-decoration: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.admin-flow-step:hover,
+.admin-flow-step:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(6, 41, 79, 0.25);
+  box-shadow: 0 12px 28px rgba(6, 41, 79, 0.08);
+  outline: none;
+}
+
+.admin-flow-step span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(6, 41, 79, 0.1);
+  color: var(--brand);
+  font-weight: 800;
+}
+
+.admin-flow-step strong {
+  font-size: 0.96rem;
+}
+
+.admin-flow-step small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.admin-flow-step.is-complete {
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.admin-flow-step.is-complete span {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+}
+
+.admin-flow-step.is-current {
+  border-color: rgba(6, 41, 79, 0.28);
+  box-shadow: inset 0 3px 0 var(--brand);
+}
+
+.admin-approval-summary,
+.admin-approval-metrics,
+.admin-approval-actions {
+  display: grid;
+}
+
+.admin-approval-summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: end;
+}
+
+.admin-approval-summary h2,
+.admin-approval-summary p {
+  margin: 0;
+}
+
+.admin-approval-summary h2 {
+  margin-top: 6px;
+  color: var(--brand);
+}
+
+.admin-approval-summary p {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.admin-approval-metrics {
+  grid-template-columns: repeat(3, minmax(90px, 1fr));
+  gap: 10px;
+}
+
+.admin-approval-metrics span {
+  display: grid;
+  gap: 2px;
+  min-height: 74px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(6, 41, 79, 0.06);
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.admin-approval-metrics strong {
+  color: var(--brand);
+  font-size: 1.35rem;
+}
+
+.admin-approval-cover {
+  overflow: hidden;
+  min-height: 180px;
+  border-radius: 20px;
+  background: rgba(6, 41, 79, 0.06);
+}
+
+.admin-approval-cover .image-fallback-frame,
+.admin-approval-cover img {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  object-fit: cover;
+}
+
+.admin-approval-cover > span:not(.image-fallback-frame) {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.admin-approval-actions {
+  justify-items: start;
+}
+
 .admin-form-section {
   padding: 24px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 241, 234, 0.92) 100%);
@@ -4958,15 +5695,34 @@ a.booking-page-link {
   box-shadow: 0 0 0 4px rgba(6, 41, 79, 0.08);
 }
 
+.admin-create-hotel-form {
+  gap: 24px;
+}
+
+.admin-create-hotel-cover-preview {
+  width: min(100%, 420px);
+  aspect-ratio: 16 / 10;
+  border: 1px solid rgba(6, 41, 79, 0.12);
+  border-radius: 18px;
+  background: rgba(6, 41, 79, 0.04);
+  background-position: center;
+  background-size: cover;
+}
+
+.admin-create-hotel-submit {
+  background: #147a4d;
+}
+
+.admin-create-hotel-submit:hover:not(:disabled),
+.admin-create-hotel-submit:focus-visible:not(:disabled) {
+  background: #0f6841;
+  outline: none;
+}
+
 .admin-toggle-field {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-}
-
-.admin-payment-settings-form {
-  display: grid;
-  gap: 18px;
 }
 
 .admin-toggle-field input {
@@ -5145,6 +5901,62 @@ a.booking-page-link {
   min-height: 38px;
   padding: 0 14px;
   font-size: 0.84rem;
+}
+
+.admin-experience-editor-item {
+  gap: 20px;
+}
+
+.admin-experience-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--brand);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.admin-experience-toggle input {
+  accent-color: var(--brand);
+}
+
+.admin-experience-preview-card {
+  min-height: 100%;
+}
+
+.admin-approval-experiences,
+.admin-approval-experience-list,
+.admin-approval-experience-item {
+  display: grid;
+}
+
+.admin-approval-experiences,
+.admin-approval-experience-list {
+  gap: 14px;
+}
+
+.admin-approval-experiences {
+  padding: 18px 20px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-approval-experiences > div > p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.admin-approval-experience-item {
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(6, 41, 79, 0.04);
+}
+
+.admin-approval-experience-item p {
+  margin: 4px 0 0;
+  color: var(--muted);
 }
 
 .admin-file-upload {
@@ -6208,8 +7020,9 @@ a.booking-page-link {
 }
 
 .hotel-utility-actions {
+  display: flex;
+  flex-wrap: wrap;
   justify-self: end;
-  grid-auto-flow: column;
   gap: 10px;
   align-items: center;
 }
@@ -6263,22 +7076,6 @@ a.booking-page-link {
   gap: 18px;
 }
 
-.hotel-page-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  min-height: 38px;
-  padding: 0 16px;
-  border-radius: 999px;
-  background: rgba(6, 41, 79, 0.07);
-  color: var(--brand);
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
 .hotel-hero-copy h1 {
   margin: 0;
   font-family: var(--font-sora), sans-serif;
@@ -6287,32 +7084,12 @@ a.booking-page-link {
   letter-spacing: -0.07em;
 }
 
-.hotel-lead {
-  margin: 0;
-  color: var(--brand);
-  font-size: 1.08rem;
-  font-weight: 700;
-  line-height: 1.45;
-}
-
 .hotel-description {
   margin: 0;
   color: var(--muted);
   font-size: 1rem;
   line-height: 1.65;
   max-width: 62ch;
-}
-
-.hotel-booking-clarity {
-  margin: 0;
-  max-width: 62ch;
-  padding: 14px 16px;
-  border: 1px solid rgba(6, 41, 79, 0.12);
-  border-radius: 18px;
-  background: rgba(6, 41, 79, 0.05);
-  color: var(--brand);
-  font-weight: 800;
-  line-height: 1.5;
 }
 
 .hotel-error-actions {
@@ -6337,8 +7114,8 @@ a.booking-page-link {
 }
 
 .hotel-hero-media-shell .hotel-utility-actions {
-  justify-self: end;
-  width: fit-content;
+  justify-self: stretch;
+  width: 100%;
 }
 
 .hotel-hero-media img {
@@ -6401,25 +7178,17 @@ a.booking-page-link {
 }
 
 .hotel-rating-stars {
-  grid-auto-flow: column;
+  display: inline-flex;
+  flex-wrap: wrap;
   gap: 4px;
   color: var(--accent);
   font-size: 1.2rem;
 }
 
-.hotel-rating-copy {
-  display: grid;
-  gap: 4px;
-}
-
-.hotel-rating-copy strong {
-  font-size: 1rem;
-}
-
-.hotel-rating-copy span {
-  color: var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.45;
+.hotel-utility-rating {
+  display: flex;
+  align-items: center;
+  margin-right: auto;
 }
 
 .hotel-page-cta {
@@ -6427,8 +7196,42 @@ a.booking-page-link {
 }
 
 .hotel-page-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(6, 41, 79, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
   color: var(--brand);
-  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(10, 27, 52, 0.06);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.hotel-page-back svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+}
+
+.hotel-page-back:hover,
+.hotel-page-back:focus-visible {
+  background: rgba(6, 41, 79, 0.08);
+  border-color: rgba(6, 41, 79, 0.22);
+  box-shadow: 0 14px 28px rgba(10, 27, 52, 0.1);
+  transform: translateX(-1px);
+}
+
+.hotel-page-back:focus-visible {
+  outline: 2px solid rgba(6, 41, 79, 0.22);
+  outline-offset: 2px;
 }
 
 .hotel-checkout-notice {
@@ -7604,6 +8407,9 @@ a.booking-page-link {
   }
 
   .showcase,
+  .brazil-map-hero,
+  .brazil-map-layout,
+  .brazil-map-stage-header,
   .trip-planner-section,
   .details-grid,
   .hotel-search-results-grid,
@@ -7624,6 +8430,8 @@ a.booking-page-link {
   .admin-room-meta-grid,
   .admin-rate-meta-grid,
   .admin-image-grid,
+  .admin-flow-steps,
+  .admin-approval-summary,
   .admin-form-grid--two,
   .admin-form-grid--three,
   .admin-amenities-grid,
@@ -7776,7 +8584,6 @@ a.booking-page-link {
 
   .hotel-utility-actions {
     justify-self: start;
-    grid-auto-flow: row;
   }
 
   .hotel-hero-media-shell .hotel-utility-actions {
@@ -7800,6 +8607,12 @@ a.booking-page-link {
 
   .hotel-rooms-section .hotel-room-media {
     min-height: 260px;
+  }
+
+  .brazil-map-stage-header p {
+    justify-self: start;
+    max-width: none;
+    text-align: left;
   }
 }
 
@@ -7959,6 +8772,41 @@ a.booking-page-link {
     padding: 8px 58px 12px;
   }
 
+  .brazil-map-page {
+    padding: 20px;
+    gap: 22px;
+  }
+
+  .brazil-map-layout {
+    gap: 16px;
+  }
+
+  .brazil-map-stage,
+  .brazil-map-panel {
+    border-radius: 26px;
+  }
+
+  .brazil-map-stage {
+    padding: 18px;
+  }
+
+  .brazil-map-viewport {
+    min-height: 380px;
+    border-radius: 24px;
+  }
+
+  .brazil-map-panel {
+    padding: 18px;
+  }
+
+  .brazil-map-panel-media {
+    min-height: 220px;
+  }
+
+  .brazil-map-panel-empty {
+    min-height: 220px;
+  }
+
   .hotel-card {
     flex-basis: min(360px, calc(74vw - 8px));
     min-height: 300px;
@@ -8097,6 +8945,28 @@ a.booking-page-link {
 }
 
 @media (max-width: 560px) {
+  .brazil-map-heading h1 {
+    max-width: none;
+    font-size: clamp(2.3rem, 12vw, 3.2rem);
+  }
+
+  .brazil-map-stage,
+  .brazil-map-panel {
+    padding-inline: 16px;
+  }
+
+  .brazil-map-viewport {
+    min-height: 320px;
+  }
+
+  .brazil-map-panel-content .card-cta-button {
+    width: 100%;
+  }
+
+  .admin-approval-metrics {
+    grid-template-columns: 1fr;
+  }
+
   .experience-step-actions {
     width: 100%;
   }
@@ -8113,6 +8983,10 @@ a.booking-page-link {
 
   .booking-flow-header,
   .availability-flow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .availability-search-layout {
     grid-template-columns: 1fr;
   }
 
@@ -8214,6 +9088,10 @@ a.booking-page-link {
   }
 
   .availability-payment-methods {
+    grid-template-columns: 1fr;
+  }
+
+  .availability-card-data-fields {
     grid-template-columns: 1fr;
   }
 
@@ -8362,6 +9240,11 @@ a.booking-page-link {
 
   .hotel-hero-media-shell .hotel-utility-actions .hotel-utility-button {
     width: 100%;
+  }
+
+  .hotel-utility-rating {
+    width: 100%;
+    margin-right: 0;
   }
 
   .hotel-page-cta {

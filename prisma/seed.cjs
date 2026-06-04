@@ -151,7 +151,7 @@ const hotels = [
     state: "SP",
     address: "Avenida Almirante Saldanha, 410 - Ponta da Praia, Santos - SP",
     phone: "(13) 3201-4400",
-    email: "reservas.marina@lphhoteis.com.br",
+    email: "reservas+marina-santos@lph.test",
     whatsapp: "(13) 99740-4410",
     coverImageUrl:
       "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=80",
@@ -237,7 +237,7 @@ const hotels = [
     state: "RS",
     address: "Estrada Linha Bonita, 1280 - Zona Rural, Gramado - RS",
     phone: "(54) 3295-1180",
-    email: "reservas.araucarias@lphhoteis.com.br",
+    email: "reservas+serra-araucarias@lph.test",
     whatsapp: "(54) 99620-1180",
     coverImageUrl:
       "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1400&q=80",
@@ -322,7 +322,7 @@ const hotels = [
     state: "SP",
     address: "Alameda Lorena, 870 - Jardins, São Paulo - SP",
     phone: "(11) 3123-8700",
-    email: "reservas.jardins@lphhoteis.com.br",
+    email: "reservas+jardins-business@lph.test",
     whatsapp: "(11) 99712-8700",
     coverImageUrl:
       "https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?auto=format&fit=crop&w=1400&q=80",
@@ -407,7 +407,7 @@ const hotels = [
     state: "PE",
     address: "Avenida Boa Viagem, 1890 - Boa Viagem, Recife - PE",
     phone: "(81) 3321-6789",
-    email: "reservas.boaviagem@lphhoteis.com.br",
+    email: "reservas+boa-viagem@lph.test",
     whatsapp: "(81) 99771-6644",
     coverImageUrl:
       "https://images.unsplash.com/photo-1455587734955-081b22074882?auto=format&fit=crop&w=1400&q=80",
@@ -493,7 +493,7 @@ const hotels = [
     state: "DF",
     address: "SHIS QI 12, Conjunto 3 - Lago Sul, Brasília - DF",
     phone: "(61) 3344-2211",
-    email: "reservas.lagosul@lphhoteis.com.br",
+    email: "reservas+lago-sul@lph.test",
     whatsapp: "(61) 99876-5500",
     coverImageUrl:
       "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1400&q=80",

@@ -181,7 +181,7 @@ export async function searchMercadoPagoPaymentByReservationId(
     .catch(() => null)) as MercadoPagoPaymentSearchResponse | null;
 
   if (!response.ok) {
-    throw new ValidationError("Nao foi possivel consultar pagamentos no Mercado Pago.");
+    throw new ValidationError("Não foi possível consultar pagamentos no Mercado Pago.");
   }
 
   const paymentId = search?.results?.find((payment) => payment.id)?.id;

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getMercadoPagoCheckoutReturnNotice } from "@/lib/payments/checkout-return";
 import { syncMercadoPagoPayment } from "@/lib/payments/mercado-pago-reconciliation";
@@ -80,7 +80,7 @@ describe("Mercado Pago checkout return", () => {
     });
   });
 
-  it("mantem processamento quando segue awaiting_payment apos reconciliacao", async () => {
+  it("mantem processamento quando segue awaiting_payment após reconciliação", async () => {
     vi.mocked(prisma.reservation.findUnique).mockResolvedValue(baseReservation as never);
 
     const notice = await getMercadoPagoCheckoutReturnNotice({
@@ -147,12 +147,12 @@ describe("Mercado Pago checkout return", () => {
 
     expect(notice).toMatchObject({
       tone: "error",
-      title: "Pagamento nao aprovado",
+      title: "Pagamento não aprovado",
     });
     expect(syncMercadoPagoPayment).not.toHaveBeenCalled();
   });
 
-  it("retorna erro amigavel quando reserva nao existe", async () => {
+  it("retorna erro amigavel quando reserva não existe", async () => {
     vi.mocked(prisma.reservation.findUnique).mockResolvedValue(null);
 
     const notice = await getMercadoPagoCheckoutReturnNotice({
@@ -162,11 +162,11 @@ describe("Mercado Pago checkout return", () => {
 
     expect(notice).toMatchObject({
       tone: "error",
-      title: "Reserva nao encontrada",
+      title: "Reserva não encontrada",
     });
   });
 
-  it("usa payment_id para reconciliar quando reservation nao veio no retorno", async () => {
+  it("usa payment_id para reconciliar quando reservation não veio no retorno", async () => {
     vi.mocked(prisma.reservation.findFirst).mockResolvedValue(null);
     vi.mocked(syncMercadoPagoPayment).mockResolvedValue({
       changed: true,
@@ -197,7 +197,7 @@ describe("Mercado Pago checkout return", () => {
     });
   });
 
-  it("localiza reserva por preference_id quando reservation nao veio no retorno", async () => {
+  it("localiza reserva por preference_id quando reservation não veio no retorno", async () => {
     vi.mocked(prisma.reservation.findFirst).mockResolvedValue({
       ...baseReservation,
       status: "confirmed",

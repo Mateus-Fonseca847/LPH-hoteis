@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import {
   calculateStayNights,
@@ -83,7 +83,7 @@ describe("stay-query", () => {
     });
   });
 
-  it("nao calcula valor quando tarifa nao cobre noites, moeda ou ocupacao", () => {
+  it("não calcula valor quando tarifa não cobre noites, moeda ou ocupação", () => {
     expect(
       getRoomStayPriceEstimate(
         {
@@ -153,7 +153,7 @@ describe("stay-query", () => {
     ).toBe("unknown");
   });
 
-  it("marca disponivel quando capacidade e todas as noites estao abertas", () => {
+  it("marca disponível quando capacidade e todas as noites estao abertas", () => {
     expect(getRoomStayAvailabilityStatus(room, "2026-07-10", "2026-07-12", 2, 1)).toBe("available");
   });
 });

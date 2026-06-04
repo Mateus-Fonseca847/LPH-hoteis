@@ -295,7 +295,6 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
   return (
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
-        <span className="hotel-page-eyebrow">Admin</span>
         <h1>Auditoria</h1>
         <p className="admin-rooms-copy">
           Consulte alterações administrativas registradas dentro do seu escopo.

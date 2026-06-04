@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { isAdminUserRole, type GlobalRole } from "@/lib/auth/roles";
 import {
   listFavoriteHotels,
   removeFavoriteHotel,
@@ -15,7 +16,7 @@ import {
 type HeaderClientProps = {
   user: {
     name: string;
-    globalRole: "super_admin" | "hotel_admin" | "user";
+    globalRole: GlobalRole;
   } | null;
 };
 
@@ -58,6 +59,7 @@ export function HeaderClient({ user }: HeaderClientProps) {
   const searchRef = useRef<HTMLFormElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const favoritesMenuRef = useRef<HTMLDivElement | null>(null);
+  const isAdminUser = user ? isAdminUserRole(user.globalRole) : false;
 
   useEffect(() => {
     const updateClock = () => {
@@ -410,9 +412,11 @@ export function HeaderClient({ user }: HeaderClientProps) {
 
             {isUserMenuOpen ? (
               <div className="user-menu-panel" role="menu">
-                <Link className="user-menu-item" href="/admin" role="menuitem">
-                  Painel administrativo
-                </Link>
+                {isAdminUser ? (
+                  <Link className="user-menu-item" href="/admin" role="menuitem">
+                    Painel administrativo
+                  </Link>
+                ) : null}
                 <button
                   className="user-menu-item"
                   type="button"

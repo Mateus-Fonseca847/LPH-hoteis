@@ -54,7 +54,7 @@ function formatRoomCapacity(room: AvailabilityResultRoom) {
   const parts = [`${room.capacityAdults} adulto${room.capacityAdults > 1 ? "s" : ""}`];
 
   if (room.capacityChildren > 0) {
-    parts.push(`${room.capacityChildren} crianca${room.capacityChildren > 1 ? "s" : ""}`);
+    parts.push(`${room.capacityChildren} criança${room.capacityChildren > 1 ? "s" : ""}`);
   }
 
   return parts.join(" + ");

@@ -9,6 +9,37 @@ function formatRole(role: string) {
   return role === "super_admin" ? "Super admin" : "Admin de hotel";
 }
 
+const overviewCards = [
+  {
+    href: "/admin/hoteis",
+    label: "Hotéis",
+    title: "Gerenciar unidades",
+    description: "Editar perfis, quartos, tarifas e disponibilidade.",
+    action: "Abrir hotéis",
+  },
+  {
+    href: "/admin/auditoria",
+    label: "Auditoria",
+    title: "Ver registros",
+    description: "Consultar histórico administrativo e alterações feitas em seus hotéis.",
+    action: "Abrir auditoria",
+  },
+  {
+    href: "/admin/financeiro",
+    label: "Financeiro",
+    title: "Movimentações",
+    description: "Acompanhe reservas pagas, receita da plataforma e repasses por hotel.",
+    action: "Ver dashboard financeiro",
+  },
+  {
+    href: "/admin/reservas",
+    label: "Reservas",
+    title: "Acompanhar pagamentos",
+    description: "Consulte reservas, status de pagamento e dados operacionais.",
+    action: "Ver reservas",
+  },
+];
+
 export default async function AdminHomePage() {
   let user;
 
@@ -82,7 +113,6 @@ export default async function AdminHomePage() {
   return (
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
-        <span className="hotel-page-eyebrow">Admin</span>
         <h1>Painel operacional</h1>
         <p className="admin-rooms-copy">
           {isSuperAdmin
@@ -91,51 +121,40 @@ export default async function AdminHomePage() {
         </p>
       </div>
 
+      <div className="admin-dashboard-actions">
+        <Link href="/admin/hoteis/novo" className="admin-primary-create-button">
+          Adicionar hotel
+        </Link>
+      </div>
+
       <div className="admin-dashboard-hero">
-        <article className="hotel-content-card admin-dashboard-profile">
-          <span>Perfil</span>
-          <strong>{user.name}</strong>
-          <p>{user.email}</p>
+        <article className="hotel-content-card admin-dashboard-profile admin-identity-card">
+          <div className="admin-identity-card__head">
+            <span>Perfil</span>
+          </div>
+          <div className="admin-identity-card__body">
+            <strong>{user.name}</strong>
+            <p>{user.email}</p>
+          </div>
           <small>{formatRole(user.globalRole)}</small>
         </article>
 
-        <Link
-          href="/admin/hoteis"
-          className="hotel-content-card admin-overview-card admin-link-card"
-        >
-          <span>Hotéis</span>
-          <strong>Gerenciar unidades</strong>
-          <p>Editar perfis, quartos, tarifas e disponibilidade.</p>
-        </Link>
-
-        <Link
-          href="/admin/auditoria"
-          className="hotel-content-card admin-overview-card admin-link-card"
-        >
-          <span>Auditoria</span>
-          <strong>Ver registros</strong>
-          <p>Consultar histórico administrativo dentro do seu escopo.</p>
-        </Link>
-
-        <Link
-          href="/admin/financeiro"
-          className="hotel-content-card admin-overview-card admin-link-card"
-        >
-          <span>FINANCEIRO</span>
-          <strong>Movimentações</strong>
-          <p>Acompanhe reservas pagas, receita da plataforma e repasses por hotel.</p>
-          <small>Ver dashboard financeiro</small>
-        </Link>
-
-        <Link
-          href="/admin/reservas"
-          className="hotel-content-card admin-overview-card admin-link-card"
-        >
-          <span>RESERVAS</span>
-          <strong>Acompanhar pagamentos</strong>
-          <p>Consulte reservas, status de pagamento e dados operacionais.</p>
-          <small>Ver reservas</small>
-        </Link>
+        {overviewCards.map((card) => (
+          <Link
+            key={card.href}
+            href={card.href}
+            className="hotel-content-card admin-overview-card admin-link-card admin-identity-card"
+          >
+            <div className="admin-identity-card__head">
+              <span>{card.label}</span>
+            </div>
+            <div className="admin-identity-card__body">
+              <strong>{card.title}</strong>
+              <p>{card.description}</p>
+            </div>
+            <small>{card.action}</small>
+          </Link>
+        ))}
       </div>
 
       <div className="admin-dashboard-metrics">

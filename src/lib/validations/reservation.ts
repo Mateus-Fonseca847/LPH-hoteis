@@ -30,7 +30,7 @@ const guestEmailField = z
   .trim()
   .toLowerCase()
   .email("E-mail inválido.")
-  .max(180, "E-mail deve ter no máximo 180 caracteres.");
+  .max(180, "E-mail deve ter no maximo 180 caracteres.");
 
 const guestPhoneField = z
   .string()
@@ -43,7 +43,7 @@ const guestsField = (label: string, min: number, max: number) =>
 const guestDocumentField = z
   .string()
   .transform(sanitizeText)
-  .pipe(z.string().min(1, "Informe um CPF válido ou um passaporte válido.").max(40))
+  .pipe(z.string().min(1, "Informe um CPF valido ou um passaporte valido.").max(40))
   .transform((value, context) => {
     const normalizedDocument = normalizeGuestDocument(value);
 
@@ -59,9 +59,29 @@ const guestDocumentField = z
     return normalizedDocument;
   });
 
-export const paymentMethodSchema = z.enum(["pix", "credit_card", "debit_card", "boleto"], {
-  error: "Forma de pagamento inválida.",
+const paymentCardBrands = [
+  "visa",
+  "mastercard",
+  "elo",
+  "american_express",
+  "hipercard",
+  "diners_club",
+  "outra",
+] as const;
+
+export const paymentMethodSchema = z.enum(["credit_card", "debit_card"], {
+  error: "Tipo do cartão inválido.",
 });
+
+export const paymentCardBrandSchema = z.enum(paymentCardBrands, {
+  error: "Bandeira do cartão inválida.",
+});
+
+const paymentObservationField = (label: string) =>
+  z
+    .string()
+    .transform(sanitizeText)
+    .pipe(z.string().max(500, `${label} deve ter no maximo 500 caracteres.`));
 
 export const createReservationPayloadSchema = z
   .object({
@@ -76,6 +96,10 @@ export const createReservationPayloadSchema = z
     adults: guestsField("Adultos", 1, 10),
     children: guestsField("Crianças", 0, 10),
     paymentMethod: paymentMethodSchema,
+    paymentCardBrand: paymentCardBrandSchema,
+    paymentObservation1: paymentObservationField("Obs 1"),
+    paymentObservation2: paymentObservationField("Obs 2"),
+    paymentObservation3: paymentObservationField("Obs 3"),
   })
   .strict();
 

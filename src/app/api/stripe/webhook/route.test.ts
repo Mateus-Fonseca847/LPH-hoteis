@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/stripe/webhook/route";
 import { prisma } from "@/lib/prisma";
@@ -186,7 +186,7 @@ describe("Stripe legacy webhook", () => {
     });
   });
 
-  it("nao encerra novamente checkout legado expirado repetido", async () => {
+  it("não encerra novamente checkout legado expirado repetido", async () => {
     constructEvent.mockReturnValue({
       type: "checkout.session.expired",
       data: {
@@ -235,7 +235,7 @@ describe("Stripe legacy webhook", () => {
     });
   });
 
-  it("nao encerra novamente payment intent legado falho repetido", async () => {
+  it("não encerra novamente payment intent legado falho repetido", async () => {
     constructEvent.mockReturnValue({
       type: "payment_intent.payment_failed",
       data: {

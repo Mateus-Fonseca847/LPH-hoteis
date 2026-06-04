@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 
 import {
   ConflictError,
@@ -7,14 +7,12 @@ import {
   ValidationError,
 } from "@/lib/errors/app-error";
 import { calculatePaymentTransactionAmounts } from "@/lib/finance";
-import { createPayment, resolveHotelPaymentConfiguration } from "@/lib/payments";
-import { getPaymentWebhookUrl } from "@/lib/payments/config";
 import { prisma } from "@/lib/prisma";
 import {
   expirePendingReservations,
   getBookingPaymentExpiresAt,
 } from "@/lib/reservation-expiration";
-import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
+import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
 import {
   calculateStayNights,
   canRoomAccommodateGuests,
@@ -69,6 +67,10 @@ export async function POST(request: Request) {
       adults,
       children,
       paymentMethod,
+      paymentCardBrand,
+      paymentObservation1,
+      paymentObservation2,
+      paymentObservation3,
     } = parsedPayload.data;
 
     if (checkIn < getTodayDateOnly()) {
@@ -101,11 +103,7 @@ export async function POST(request: Request) {
         },
       },
       include: {
-        hotel: {
-          include: {
-            paymentSettings: true,
-          },
-        },
+        hotel: true,
         availability: true,
         rates: {
           where: {
@@ -118,8 +116,6 @@ export async function POST(request: Request) {
     if (!room) {
       throw new ValidationError("Quarto indisponível para reserva.");
     }
-
-    const paymentConfiguration = resolveHotelPaymentConfiguration(room.hotel.paymentSettings);
 
     if (!room.isAvailable || !canRoomAccommodateGuests(room, adults, children)) {
       throw new ValidationError("O quarto selecionado não comporta essa ocupação.");
@@ -173,18 +169,8 @@ export async function POST(request: Request) {
       throw new ValidationError("Não foi possível calcular o valor da reserva.");
     }
 
-    const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL;
-
-    if (!origin) {
-      throw new ValidationError("URL pública do site não configurada.");
-    }
-
     const reservationId = randomUUID();
-    const successUrl = `${origin}/hoteis/${room.hotel.slug}?checkout=success&reservation=${reservationId}`;
-    const failureUrl = `${origin}/hoteis/${room.hotel.slug}?checkout=cancelled&reservation=${reservationId}`;
 
-    // Cria reserva, segura disponibilidade e registra pagamento pendente em uma unica transacao.
-    // Qualquer falha reverte tudo, impedindo disponibilidade reduzida sem reserva valida.
     const reservation = await prisma.$transaction(async (transaction) => {
       const availabilityDates = getStayDates(checkIn, checkOut).map(toUtcDate);
       const availabilityUpdate = await transaction.roomAvailability.updateMany({
@@ -228,6 +214,10 @@ export async function POST(request: Request) {
           guestEmail,
           guestPhone,
           guestDocument,
+          paymentObservation1: paymentObservation1 || null,
+          paymentObservation2: paymentObservation2 || null,
+          paymentObservation3: paymentObservation3 || null,
+          paymentCardBrand,
           checkIn: toUtcDate(checkIn),
           checkOut: toUtcDate(checkOut),
           adults,
@@ -236,7 +226,7 @@ export async function POST(request: Request) {
           nightlyPriceCents,
           totalPriceCents,
           status: "pending",
-          paymentProvider: paymentConfiguration.provider,
+          paymentProvider: "manual",
           paymentMethod,
           paymentStatus: "pending",
           expiresAt: getBookingPaymentExpiresAt(),
@@ -253,7 +243,7 @@ export async function POST(request: Request) {
         data: {
           reservationId: createdReservation.id,
           hotelId,
-          provider: paymentConfiguration.provider,
+          provider: "manual",
           paymentMethod,
           status: "pending",
           ...calculatePaymentTransactionAmounts(totalPriceCents),
@@ -265,114 +255,59 @@ export async function POST(request: Request) {
       return createdReservation;
     });
 
-    let payment: Awaited<ReturnType<typeof createPayment>>;
+    await sendHotelReservationEmail({
+      hotelEmail: room.hotel.email,
+      hotelName: room.hotel.name,
+      roomName: room.name,
+      guestName,
+      guestEmail,
+      guestPhone,
+      guestDocument,
+      checkIn: toUtcDate(checkIn),
+      checkOut: toUtcDate(checkOut),
+      adults,
+      children,
+      nights,
+      nightlyPriceCents,
+      totalPriceCents,
+      reservationId: reservation.id,
+      paymentMethod,
+      paymentCardBrand,
+      paymentObservation1,
+      paymentObservation2,
+      paymentObservation3,
+    });
 
-    try {
-      payment = await createPayment({
-        provider: paymentConfiguration.provider,
-        method: paymentMethod,
-        reservationId,
-        hotelName: room.hotel.name,
-        roomName: room.name,
-        guestName,
-        guestEmail,
-        totalPriceCents,
-        currency: "BRL",
-        description: `${nights} ${nights === 1 ? "noite" : "noites"} para ${adults} adulto(s) e ${children} criança(s).`,
-        successUrl,
-        failureUrl,
-        notificationUrl: getPaymentWebhookUrl(paymentConfiguration.provider, origin),
-        accessToken: paymentConfiguration.accessToken,
-      });
-    } catch (error) {
-      await closeUnpaidReservation({
-        reservationId,
-        status: "payment_failed",
-      });
-
-      throw error;
-    }
-
-    try {
-      if (payment.status === "paid") {
-        const confirmation = await confirmPaidReservation({
-          reservationId,
-          providerPaymentId: payment.providerPaymentId,
-          paymentMethod,
-        });
-
-        if (!confirmation?.confirmed) {
-          throw new ConflictError("Pagamento aprovado não confirmou a reserva.");
-        }
-      } else {
-        // Vincula o checkout externo a reserva e transacao financeira de forma atomica.
-        // Se a gravacao falhar, nenhuma das duas tabelas fica com status/provider divergente.
-        const linkedPayment = await prisma.$transaction(async (transaction) => {
-          const reservationUpdate = await transaction.reservation.updateMany({
-            where: {
-              id: reservationId,
-              status: "pending",
-              paymentStatus: "pending",
-            },
-            data: {
-              status: payment.status,
-              paymentStatus: payment.status,
-              providerPaymentId: payment.providerPaymentId,
-            },
-          });
-
-          if (reservationUpdate.count !== 1) {
-            throw new ConflictError("Reserva não pode receber o pagamento iniciado.");
-          }
-
-          const paymentTransactionUpdate = await transaction.paymentTransaction.updateMany({
-            where: {
-              reservationId,
-              status: "pending",
-            },
-            data: {
-              providerPaymentId: payment.providerPaymentId,
-              status: payment.status,
-            },
-          });
-
-          if (paymentTransactionUpdate.count !== 1) {
-            throw new ConflictError("Transação financeira não pode receber o pagamento iniciado.");
-          }
-
-          return {
-            status: payment.status,
-          };
-        });
-
-        reservation.status = linkedPayment.status;
-      }
-    } catch (error) {
-      if (payment.status !== "paid") {
-        await closeUnpaidReservation({
-          reservationId,
-          status: "payment_failed",
-          providerPaymentId: payment.providerPaymentId,
-        });
-      }
-
-      throw error;
-    }
+    await sendGuestReservationEmail({
+      hotelEmail: room.hotel.email,
+      hotelName: room.hotel.name,
+      roomName: room.name,
+      guestName,
+      guestEmail,
+      guestPhone,
+      guestDocument,
+      checkIn: toUtcDate(checkIn),
+      checkOut: toUtcDate(checkOut),
+      adults,
+      children,
+      nights,
+      nightlyPriceCents,
+      totalPriceCents,
+      reservationId: reservation.id,
+      paymentMethod,
+      paymentCardBrand,
+      paymentObservation1,
+      paymentObservation2,
+      paymentObservation3,
+    });
 
     return createApiSuccessResponse(
       {
         reservation: {
           id: reservation.id,
-          status: payment.status === "paid" ? "confirmed" : reservation.status,
+          status: reservation.status,
           createdAt: reservation.createdAt.toISOString(),
           totalPriceLabel: formatPriceInBRL(totalPriceCents),
-        },
-        checkoutUrl: payment.checkoutUrl,
-        payment: {
-          method: paymentMethod,
-          checkoutUrl: payment.checkoutUrl,
-          pix: payment.pix,
-          boleto: payment.boleto,
         },
       },
       201

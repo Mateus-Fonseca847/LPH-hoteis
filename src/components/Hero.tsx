@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export function Hero() {
   return (
@@ -27,9 +28,9 @@ export function Hero() {
           <h2>Conheça nossa curadoria de destinos inesquecíveis para viajar pelo Brasil.</h2>
 
           <div className="card-cta-row">
-            <a className="card-cta-button" href="#journey">
+            <Link className="card-cta-button" href="/mapa">
               Começar agora!
-            </a>
+            </Link>
           </div>
         </article>
       </div>

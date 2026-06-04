@@ -1,22 +1,18 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAdminRouteSession } from "@/lib/auth";
 import {
-  addReservationInternalNote,
   cancelReservationManually,
-  confirmReservationManually,
-  markReservationPaymentFailed,
   rescheduleReservationManually,
-  resendReservationConfirmationEmail,
 } from "@/lib/admin/reservation-operations";
 import { requireHotelAdminAccess } from "@/lib/auth/authorization";
 import { syncMercadoPagoPayment } from "@/lib/payments/mercado-pago-reconciliation";
 import { prisma } from "@/lib/prisma";
 
-type Operation = "cancel" | "confirm" | "fail-payment" | "resend-email" | "note" | "reschedule";
+type Operation = "cancel" | "reschedule";
 
 function getReason(formData: FormData) {
   return String(formData.get("reason") || "");
@@ -88,30 +84,6 @@ export async function reservationOperationAction(formData: FormData) {
         userId: user.id,
         reason: getReason(formData),
       });
-    } else if (operation === "confirm") {
-      await confirmReservationManually({
-        reservationId,
-        userId: user.id,
-        reason: getReason(formData),
-      });
-    } else if (operation === "fail-payment") {
-      await markReservationPaymentFailed({
-        reservationId,
-        userId: user.id,
-        reason: getReason(formData),
-      });
-    } else if (operation === "resend-email") {
-      await resendReservationConfirmationEmail({
-        reservationId,
-        userId: user.id,
-        reason: getReason(formData),
-      });
-    } else if (operation === "note") {
-      await addReservationInternalNote({
-        reservationId,
-        userId: user.id,
-        reason: getReason(formData),
-      });
     } else if (operation === "reschedule") {
       await rescheduleReservationManually({
         reservationId,
@@ -121,11 +93,11 @@ export async function reservationOperationAction(formData: FormData) {
         checkOut: String(formData.get("checkOut") || ""),
       });
     } else {
-      throw new Error("Operacao invalida.");
+      throw new Error("Operação inválida.");
     }
   } catch (error) {
     status = "error";
-    message = error instanceof Error ? error.message : "Operacao nao concluida.";
+    message = error instanceof Error ? error.message : "Operação não concluída.";
   }
 
   revalidatePath(`/admin/reservas/${reservationId}`);

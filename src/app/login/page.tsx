@@ -44,7 +44,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <main className="auth-page">
         <section className="section auth-section">
           <div className="auth-card">
-            <span className="hotel-page-eyebrow">Acesso</span>
             <h1>Login centralizado</h1>
             <p className="auth-copy">
               Entre com e-mail e senha para acessar a área autenticada da plataforma.

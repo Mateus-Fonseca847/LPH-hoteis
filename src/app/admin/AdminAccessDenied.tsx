@@ -9,7 +9,6 @@ export function AdminAccessDenied({
 }: AdminAccessDeniedProps) {
   return (
     <section className="section admin-section admin-access-denied">
-      <span className="hotel-page-eyebrow">403</span>
       <div className="section-heading admin-section-heading">
         <h1>{title}</h1>
       </div>

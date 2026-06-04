@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getMercadoPagoPayment } from "@/lib/payments/mercado-pago";
 import { syncMercadoPagoPayment } from "@/lib/payments/mercado-pago-reconciliation";
@@ -138,7 +138,7 @@ describe("Mercado Pago reconciliation", () => {
     });
   });
 
-  it("chamada duplicada nao duplica efeitos", async () => {
+  it("chamada duplicada não duplica efeitos", async () => {
     vi.mocked(prisma.reservation.findUnique).mockResolvedValue({
       ...context,
       providerPaymentId: "12345",
@@ -160,7 +160,7 @@ describe("Mercado Pago reconciliation", () => {
     expect(closeUnpaidReservation).not.toHaveBeenCalled();
   });
 
-  it("erro da API nao corrompe reserva", async () => {
+  it("erro da API não corrompe reserva", async () => {
     vi.mocked(getMercadoPagoPayment).mockRejectedValue(new Error("api down"));
 
     await expect(
@@ -177,6 +177,53 @@ describe("Mercado Pago reconciliation", () => {
         data: expect.objectContaining({
           success: false,
           error: "api down",
+        }),
+      })
+    );
+  });
+  it("falha a reconciliação quando o e-mail do hotel não pode ser enviado", async () => {
+    const { sendHotelReservationEmail, sendGuestReservationEmail } =
+      await import("@/lib/reservations");
+
+    vi.mocked(getMercadoPagoPayment).mockResolvedValue(payment("approved"));
+    vi.mocked(confirmPaidReservation).mockResolvedValue({
+      reservationId: "reservation-1",
+      confirmed: true,
+    });
+    vi.mocked(prisma.reservation.findUnique)
+      .mockResolvedValueOnce(context as never)
+      .mockResolvedValueOnce({
+        id: "reservation-1",
+        guestName: "Maria",
+        guestEmail: "maria@example.test",
+        guestPhone: "11999999999",
+        guestDocument: null,
+        checkIn: new Date(Date.UTC(2099, 6, 10)),
+        checkOut: new Date(Date.UTC(2099, 6, 12)),
+        adults: 2,
+        children: 0,
+        nights: 2,
+        nightlyPriceCents: 37500,
+        totalPriceCents: 75000,
+        paymentMethod: "pix",
+        hotel: { email: "hotel@example.test", name: "Hotel LPH" },
+        room: { name: "Suite" },
+      } as never);
+    vi.mocked(sendHotelReservationEmail).mockRejectedValue(new Error("missing contact email"));
+
+    await expect(
+      syncMercadoPagoPayment({
+        paymentId: "12345",
+        source: "manual",
+      })
+    ).rejects.toThrow("missing contact email");
+
+    expect(sendGuestReservationEmail).not.toHaveBeenCalled();
+    expect(prisma.paymentReconciliationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          success: false,
+          error: "missing contact email",
         }),
       })
     );

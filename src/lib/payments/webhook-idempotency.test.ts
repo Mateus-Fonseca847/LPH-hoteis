@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import {
   isPaymentWebhookAlreadyProcessed,
@@ -82,7 +82,7 @@ describe("payment webhook idempotency", () => {
     ).toBe(true);
   });
 
-  it("mantem pagamento pendente como nao processado", () => {
+  it("mantem pagamento pendente como não processado", () => {
     expect(
       isPaymentWebhookAlreadyProcessed({
         reservation: {

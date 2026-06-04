@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 import { canonicalizeBedsValue, canonicalizeRoomAmenityLabels } from "@/lib/room-options";
 
@@ -45,7 +45,7 @@ const positiveIntField = (label: string, min: number, max: number) =>
     .number({
       error: `${label} inválido.`,
     })
-    .int(`${label} deve ser um numero inteiro.`)
+    .int(`${label} deve ser um número inteiro.`)
     .min(min, `${label} deve ser no mínimo ${min}.`)
     .max(max, `${label} deve ser no máximo ${max}.`);
 

@@ -1,22 +1,19 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AdminAccessDenied } from "@/app/admin/AdminAccessDenied";
 import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
-import {
-  AuthorizationError,
-  requireHotelAdminAccess,
-  requireHotelEditAccess,
-} from "@/lib/auth/authorization";
+import { AuthorizationError, requireHotelEditAccess } from "@/lib/auth/authorization";
+import { resolveHotelMapLocation } from "@/lib/hotel-location";
 import { prisma } from "@/lib/prisma";
+import { isValidHotelContactEmail } from "@/lib/validations/hotel";
 
+import { HotelManagementWorkspace } from "../HotelManagementWorkspace";
 import { HotelEditorForm } from "./HotelEditorForm";
+import { HotelApprovalReview } from "./HotelApprovalReview";
 import { HotelAvailabilitySection } from "./HotelAvailabilitySection";
-import { HotelPaymentSettingsForm } from "./HotelPaymentSettingsForm";
 import { HotelRatesSection } from "./HotelRatesSection";
 import { HotelRoomsSection } from "./HotelRoomsSection";
-import { updateHotelProfileAction } from "./actions";
-import { updateHotelPaymentSettingsAction } from "./payment-actions";
+import { submitHotelForApprovalAction, updateHotelProfileAction } from "./actions";
 
 type AdminHotelDetailPageProps = {
   params: Promise<{
@@ -29,12 +26,12 @@ function formatAuditAction(action: string) {
     return "Perfil atualizado";
   }
 
-  if (action === "hotel.payment_settings.updated") {
-    return "Pagamentos atualizados";
-  }
-
   if (action === "hotel.room_image.uploaded") {
     return "Imagem de quarto enviada";
+  }
+
+  if (action === "hotel.approval.submitted") {
+    return "Enviado para aprovação";
   }
 
   return action;
@@ -98,6 +95,9 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
           position: "asc",
         },
       },
+      experiences: {
+        orderBy: [{ createdAt: "asc" }, { title: "asc" }],
+      },
       rooms: {
         orderBy: [{ createdAt: "asc" }, { name: "asc" }],
         select: {
@@ -131,7 +131,6 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
           },
         },
       },
-      paymentSettings: true,
     },
   });
 
@@ -139,135 +138,269 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
     notFound();
   }
 
-  const canManagePaymentSettings =
-    user.globalRole === "super_admin" ||
-    (await requireHotelAdminAccess(user.id, hotel.id)
-      .then(() => true)
-      .catch((error) => {
-        if (error instanceof AuthorizationError) {
-          return false;
-        }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-        throw error;
-      }));
+  const activeRoomsCount = hotel.rooms.filter((room) => room.isActive).length;
+  const activeExperiencesCount = hotel.experiences.filter(
+    (experience) => experience.isActive
+  ).length;
+  const [activeRatesCount, futureAvailabilityCount, approvalSubmissionsCount] =
+    await prisma.$transaction([
+      prisma.roomRate.count({
+        where: {
+          isActive: true,
+          room: {
+            hotelId: hotel.id,
+            isActive: true,
+          },
+        },
+      }),
+      prisma.roomAvailability.count({
+        where: {
+          date: {
+            gte: today,
+          },
+          closed: false,
+          availableUnits: {
+            gt: 0,
+          },
+          room: {
+            hotelId: hotel.id,
+            isActive: true,
+          },
+        },
+      }),
+      prisma.hotelAuditLog.count({
+        where: {
+          hotelId: hotel.id,
+          action: "hotel.approval.submitted",
+        },
+      }),
+    ]);
+
+  const pendingApprovalItems = [
+    hotel.name.trim() ? null : "nome",
+    hotel.shortDescription.trim() ? null : "descrição curta",
+    hotel.fullDescription.trim() ? null : "descrição completa",
+    hotel.address.trim() ? null : "endereço",
+    hotel.phone.trim() ? null : "telefone",
+    isValidHotelContactEmail(hotel.email) ? null : "e-mail de contato valido",
+    hotel.whatsapp.trim() ? null : "WhatsApp",
+    hotel.coverImageUrl.trim() ? null : "imagem de capa",
+    hotel.images.length > 0 ? null : "galeria",
+    hotel.checkInTime.trim() ? null : "check-in",
+    hotel.checkOutTime.trim() ? null : "check-out",
+    resolveHotelMapLocation({
+      city: hotel.city,
+      state: hotel.state,
+      latitude: hotel.latitude,
+      longitude: hotel.longitude,
+    })
+      ? null
+      : "localização no mapa",
+    activeRoomsCount > 0 ? null : "quarto",
+    activeRatesCount > 0 ? null : "tarifa",
+    futureAvailabilityCount > 0 ? null : "disponibilidade futura",
+  ].filter((item): item is string => Boolean(item));
+
+  const submittedForApproval = approvalSubmissionsCount > 0;
+  const approvalSteps = [
+    {
+      label: "Dados do hotel",
+      description: hotel.coverImageUrl && hotel.images.length > 0 ? "Completo" : "Em edição",
+      href: "#hotel-profile",
+      status: pendingApprovalItems.some((item) =>
+        [
+          "nome",
+          "descrição curta",
+          "descrição completa",
+          "endereço",
+          "telefone",
+          "e-mail de contato valido",
+          "WhatsApp",
+          "imagem de capa",
+          "galeria",
+          "check-in",
+          "check-out",
+        ].includes(item)
+      )
+        ? ("current" as const)
+        : ("complete" as const),
+    },
+    {
+      label: "Quartos",
+      description: `${activeRoomsCount} cadastrado(s)`,
+      href: "#hotel-rooms",
+      status: activeRoomsCount > 0 ? ("complete" as const) : ("pending" as const),
+    },
+    {
+      label: "Tarifas",
+      description: `${activeRatesCount} ativa(s)`,
+      href: "#hotel-rates",
+      status: activeRatesCount > 0 ? ("complete" as const) : ("pending" as const),
+    },
+    {
+      label: "Disponibilidade",
+      description: `${futureAvailabilityCount} período(s)`,
+      href: "#hotel-availability",
+      status: futureAvailabilityCount > 0 ? ("complete" as const) : ("pending" as const),
+    },
+    {
+      label: "Revisão",
+      description: pendingApprovalItems.length === 0 ? "Pronto para envio" : "Pendente",
+      href: "#hotel-review",
+      status: pendingApprovalItems.length === 0 ? ("complete" as const) : ("pending" as const),
+    },
+  ];
 
   const saveAction = updateHotelProfileAction.bind(null, hotel.id);
-  const savePaymentSettingsAction = updateHotelPaymentSettingsAction.bind(null, hotel.id);
-  const paymentSettings = hotel.paymentSettings
-    ? {
-        provider: hotel.paymentSettings.provider,
-        isEnabled: hotel.paymentSettings.isEnabled,
-        receiverLabel: hotel.paymentSettings.receiverLabel,
-        publicKey: hotel.paymentSettings.publicKey,
-        hasAccessToken: Boolean(hotel.paymentSettings.encryptedAccessToken),
-        pixKey: hotel.paymentSettings.pixKey,
-        payoutDocument: hotel.paymentSettings.payoutDocument,
-      }
-    : {
-        provider: "manual" as const,
-        isEnabled: false,
-        receiverLabel: `${hotel.name} - teste`,
-        publicKey: null,
-        hasAccessToken: false,
-        pixKey: null,
-        payoutDocument: null,
-      };
+  const approvalAction = submitHotelForApprovalAction.bind(null, hotel.id);
 
   return (
-    <section className="section admin-section">
-      <div className="section-heading admin-section-heading">
-        <span className="hotel-page-eyebrow">Editor</span>
-        <h1>{hotel.name}</h1>
-      </div>
-
-      <HotelEditorForm action={saveAction} hotel={hotel} />
-      {canManagePaymentSettings ? (
-        <HotelPaymentSettingsForm
-          action={savePaymentSettingsAction}
-          settings={paymentSettings}
-          isConfigured={Boolean(hotel.paymentSettings)}
+    <HotelManagementWorkspace
+      backHref="/admin/hoteis"
+      backLabel="Voltar para hotéis"
+      title={hotel.name}
+      topSlot={
+        <HotelApprovalReview
+          action={approvalAction}
+          summary={{
+            hotelName: hotel.name,
+            coverImageUrl: hotel.coverImageUrl,
+            statusLabel: hotel.isPublished
+              ? "Publicado"
+              : submittedForApproval
+                ? "Enviado para aprovação"
+                : "Rascunho",
+            roomsCount: activeRoomsCount,
+            ratesCount: activeRatesCount,
+            availabilityPeriodsCount: futureAvailabilityCount,
+            experiencesCount: hotel.experiences.length,
+            activeExperiencesCount,
+            experiences: hotel.experiences.map((experience) => ({
+              id: experience.id,
+              title: experience.title,
+              city: experience.city,
+              state: experience.state,
+              categories: experience.categories,
+              isActive: experience.isActive,
+            })),
+            pending: pendingApprovalItems,
+            submittedForApproval,
+            hasMapLocation: Boolean(
+              resolveHotelMapLocation({
+                city: hotel.city,
+                state: hotel.state,
+                latitude: hotel.latitude,
+                longitude: hotel.longitude,
+              })
+            ),
+            steps: approvalSteps,
+          }}
         />
-      ) : (
-        <section className="hotel-content-card admin-form-section">
-          <div className="section-heading admin-subsection-heading">
-            <h2>Pagamentos</h2>
-          </div>
-          <div className="admin-editor-banner">
-            <strong>Acesso restrito</strong>
-            <p>Apenas administradores do hotel podem alterar configurações financeiras.</p>
-          </div>
-        </section>
-      )}
-      <HotelRoomsSection
-        hotelId={hotel.id}
-        initialRooms={hotel.rooms.map((room) => ({
-          ...room,
-          priceFrom: room.priceFrom.toString(),
-        }))}
-      />
-      <HotelRatesSection
-        hotelId={hotel.id}
-        rooms={hotel.rooms.map((room) => ({
-          id: room.id,
-          name: room.name,
-        }))}
-      />
-      <HotelAvailabilitySection
-        hotelId={hotel.id}
-        rooms={hotel.rooms.map((room) => ({
-          id: room.id,
-          name: room.name,
-        }))}
-      />
-
-      <section className="hotel-content-card admin-history-section">
-        <div className="section-heading admin-subsection-heading">
-          <h2>Histórico de alterações</h2>
+      }
+      formSlot={
+        <div id="hotel-profile">
+          <HotelEditorForm
+            action={saveAction}
+            hotel={{
+              ...hotel,
+              latitude: hotel.latitude?.toString() ?? null,
+              longitude: hotel.longitude?.toString() ?? null,
+              experiences: hotel.experiences,
+            }}
+            canEditMapLocation={user.globalRole === "super_admin"}
+            hasResolvedMapLocation={Boolean(
+              resolveHotelMapLocation({
+                city: hotel.city,
+                state: hotel.state,
+                latitude: hotel.latitude,
+                longitude: hotel.longitude,
+              })
+            )}
+          />
         </div>
-
-        {hotel.auditLogs.length === 0 ? (
-          <div className="hotel-empty-state admin-history-empty">
-            <strong>Nenhuma alteração registrada.</strong>
-            <p>
-              Quando este hotel receber atualizações administrativas, o histórico aparecerá aqui.
-            </p>
+      }
+      roomsSlot={
+        <div id="hotel-rooms">
+          <HotelRoomsSection
+            hotelId={hotel.id}
+            initialRooms={hotel.rooms.map((room) => ({
+              ...room,
+              priceFrom: room.priceFrom.toString(),
+            }))}
+          />
+        </div>
+      }
+      ratesSlot={
+        <div id="hotel-rates">
+          <HotelRatesSection
+            hotelId={hotel.id}
+            rooms={hotel.rooms.map((room) => ({
+              id: room.id,
+              name: room.name,
+            }))}
+          />
+        </div>
+      }
+      availabilitySlot={
+        <div id="hotel-availability">
+          <HotelAvailabilitySection
+            hotelId={hotel.id}
+            rooms={hotel.rooms.map((room) => ({
+              id: room.id,
+              name: room.name,
+            }))}
+          />
+        </div>
+      }
+      footerSlot={
+        <section className="hotel-content-card admin-history-section">
+          <div className="section-heading admin-subsection-heading">
+            <h2>Histórico de alterações</h2>
           </div>
-        ) : (
-          <div className="admin-history-list">
-            {hotel.auditLogs.map((log) => {
-              const changedFields = Array.isArray(log.changedFields) ? log.changedFields : [];
 
-              return (
-                <article key={log.id} className="admin-history-item">
-                  <div className="admin-history-item-top">
-                    <div>
-                      <strong>{formatAuditAction(log.action)}</strong>
-                      <p>{log.user.name || log.user.email}</p>
+          {hotel.auditLogs.length === 0 ? (
+            <div className="hotel-empty-state admin-history-empty">
+              <strong>Nenhuma alteração registrada.</strong>
+              <p>
+                Quando este hotel receber atualizações administrativas, o histórico aparecerá aqui.
+              </p>
+            </div>
+          ) : (
+            <div className="admin-history-list">
+              {hotel.auditLogs.map((log) => {
+                const changedFields = Array.isArray(log.changedFields) ? log.changedFields : [];
+
+                return (
+                  <article key={log.id} className="admin-history-item">
+                    <div className="admin-history-item-top">
+                      <div>
+                        <strong>{formatAuditAction(log.action)}</strong>
+                        <p>{log.user.name || log.user.email}</p>
+                      </div>
+                      <span>{formatAuditDate(log.createdAt)}</span>
                     </div>
-                    <span>{formatAuditDate(log.createdAt)}</span>
-                  </div>
 
-                  <div className="admin-history-fields">
-                    {changedFields.length > 0 ? (
-                      changedFields.map((field) => (
-                        <span key={`${log.id}-${String(field)}`} className="admin-history-tag">
-                          {String(field)}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="admin-history-tag">Sem campos detalhados</span>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      <Link href="/admin/hoteis" className="hotel-page-back">
-        Voltar para hotéis
-      </Link>
-    </section>
+                    <div className="admin-history-fields">
+                      {changedFields.length > 0 ? (
+                        changedFields.map((field) => (
+                          <span key={`${log.id}-${String(field)}`} className="admin-history-tag">
+                            {String(field)}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="admin-history-tag">Sem campos detalhados</span>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      }
+    />
   );
 }

@@ -23,22 +23,22 @@ export async function POST(request: Request) {
     const expectedToken = getInternalToken();
 
     if (!expectedToken) {
-      console.error("[reservation-maintenance] Token interno nao configurado.");
+      console.error("[reservation-maintenance] Token interno não configurado.");
       return NextResponse.json(
         {
           status: "configuration_error",
-          error: "Token interno nao configurado.",
+          error: "Token interno não configurado.",
         },
         { status: 500 }
       );
     }
 
     if (getRequestToken(request) !== expectedToken) {
-      console.warn("[reservation-maintenance] Chamada recusada por token invalido.");
+      console.warn("[reservation-maintenance] Chamada recusada por token inválido.");
       return NextResponse.json(
         {
           status: "unauthorized",
-          error: "Nao autorizado.",
+          error: "Não autorizado.",
         },
         { status: 401 }
       );
@@ -58,6 +58,6 @@ export async function POST(request: Request) {
       reconciliation,
     });
   } catch (error) {
-    return createApiErrorResponse(error, "Nao foi possivel expirar reservas pendentes.");
+    return createApiErrorResponse(error, "Não foi possível expirar reservas pendentes.");
   }
 }

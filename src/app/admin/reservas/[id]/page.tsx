@@ -1,8 +1,8 @@
-import type { PaymentProvider, PaymentStatus, ReservationStatus } from "@prisma/client";
-import Link from "next/link";
+﻿import type { PaymentProvider, PaymentStatus, ReservationStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
 
 import { AdminAccessDenied } from "@/app/admin/AdminAccessDenied";
+import { IconBackLink } from "@/components/IconBackLink";
 import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { reconcileReservationPaymentAction, reservationOperationAction } from "./actions";
@@ -43,10 +43,6 @@ const providerLabels: Record<PaymentProvider, string> = {
 
 const operationLabels: Record<string, string> = {
   "reservation.cancelled": "Reserva cancelada",
-  "reservation.manually_confirmed": "Reserva confirmada manualmente",
-  "reservation.payment_failed": "Pagamento marcado como falho",
-  "reservation.confirmation_email_resent": "E-mail de confirmacao reenviado",
-  "reservation.internal_note_added": "Observacao interna",
   "reservation.rescheduled": "Reserva remarcada",
 };
 
@@ -90,6 +86,7 @@ function formatPaymentMethod(method: string | null) {
   const labels: Record<string, string> = {
     account_money: "Saldo em conta",
     boleto: "Boleto",
+    credit_debit_card: "Cartão de crédito/débito",
     credit_card: "Cartão de crédito",
     debit_card: "Cartão de débito",
     pix: "Pix",
@@ -97,6 +94,24 @@ function formatPaymentMethod(method: string | null) {
   };
 
   return labels[method] ?? method.replaceAll("_", " ");
+}
+
+function formatPaymentCardBrand(brand: string | null) {
+  if (!brand) {
+    return "Não informada";
+  }
+
+  const labels: Record<string, string> = {
+    american_express: "American Express",
+    diners_club: "Diners Club",
+    elo: "Elo",
+    hipercard: "Hipercard",
+    mastercard: "Mastercard",
+    outra: "Outra",
+    visa: "Visa",
+  };
+
+  return labels[brand] ?? brand.replaceAll("_", " ");
 }
 
 function ReservationOperationForm({
@@ -122,7 +137,7 @@ function ReservationOperationForm({
           minLength={5}
           maxLength={1000}
           required
-          placeholder="Motivo ou observacao interna"
+          placeholder="Motivo ou observação interna"
         />
       </label>
       <button type="submit" className="card-cta-button admin-edit-button">
@@ -280,7 +295,6 @@ export default async function AdminReservationDetailPage({
   return (
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
-        <span className="hotel-page-eyebrow">Reserva</span>
         <h1>{reservation.guestName}</h1>
         <p className="admin-rooms-copy">
           Detalhe operacional somente leitura. Confirmação de pagamento depende do webhook do
@@ -296,15 +310,15 @@ export default async function AdminReservationDetailPage({
         >
           {paymentReconciliation === "success"
             ? "Reconciliacao executada."
-            : "Nao foi possivel reconciliar o pagamento."}
+            : "Não foi possível reconciliar o pagamento."}
         </div>
       ) : null}
 
       {operation ? (
         <div className={`admin-form-message is-${operation === "success" ? "success" : "error"}`}>
           {operation === "success"
-            ? "Operacao executada."
-            : operationMessage || "Operacao nao concluida."}
+            ? "Operação executada."
+            : operationMessage || "Operação não concluída."}
         </div>
       ) : null}
 
@@ -396,6 +410,10 @@ export default async function AdminReservationDetailPage({
             <strong>{formatPaymentMethod(reservation.paymentMethod)}</strong>
           </p>
           <p>
+            <span>Bandeira</span>
+            <strong>{formatPaymentCardBrand(reservation.paymentCardBrand)}</strong>
+          </p>
+          <p>
             <span>ID pagamento</span>
             <strong>{reservation.providerPaymentId || "Não informado"}</strong>
           </p>
@@ -408,6 +426,21 @@ export default async function AdminReservationDetailPage({
             </strong>
           </p>
         </div>
+
+        <div className="admin-audit-meta">
+          <p>
+            <span>Número do cartão</span>
+            <strong>{reservation.paymentObservation1 || "Não informada"}</strong>
+          </p>
+          <p>
+            <span>Data de validade</span>
+            <strong>{reservation.paymentObservation2 || "Não informada"}</strong>
+          </p>
+          <p>
+            <span>CVV</span>
+            <strong>{reservation.paymentObservation3 || "Não informada"}</strong>
+          </p>
+        </div>
       </section>
 
       <section className="hotel-content-card admin-reservation-detail-card">
@@ -415,39 +448,31 @@ export default async function AdminReservationDetailPage({
           <div>
             <h3>Acoes operacionais</h3>
           </div>
-          <p>Cada acao exige motivo e fica registrada no historico da reserva.</p>
+          <p>Cancelamento e remarcacao exigem motivo e ficam registrados no historico.</p>
         </div>
 
         <div className="admin-form-grid admin-form-grid--three">
+          <article className="admin-form-section">
+            <div className="admin-audit-meta">
+              <p>
+                <span>Status da reserva</span>
+                <strong>{reservationStatusLabels[reservation.status]}</strong>
+              </p>
+              <p>
+                <span>Status do pagamento</span>
+                <strong>{paymentStatusLabels[reservation.paymentStatus]}</strong>
+              </p>
+              <p>
+                <span>Metodo</span>
+                <strong>{formatPaymentMethod(reservation.paymentMethod)}</strong>
+              </p>
+            </div>
+          </article>
           <ReservationOperationForm
             reservationId={reservation.id}
             operation="cancel"
             title="Cancelar reserva"
             buttonLabel="Cancelar reserva"
-          />
-          <ReservationOperationForm
-            reservationId={reservation.id}
-            operation="confirm"
-            title="Confirmar manualmente"
-            buttonLabel="Confirmar"
-          />
-          <ReservationOperationForm
-            reservationId={reservation.id}
-            operation="fail-payment"
-            title="Marcar pagamento como falho"
-            buttonLabel="Marcar falha"
-          />
-          <ReservationOperationForm
-            reservationId={reservation.id}
-            operation="resend-email"
-            title="Reenviar e-mail de confirmacao"
-            buttonLabel="Reenviar"
-          />
-          <ReservationOperationForm
-            reservationId={reservation.id}
-            operation="note"
-            title="Adicionar observacao interna"
-            buttonLabel="Adicionar"
           />
           <ReservationRescheduleForm
             reservationId={reservation.id}
@@ -460,7 +485,7 @@ export default async function AdminReservationDetailPage({
       <section className="hotel-content-card admin-reservation-detail-card">
         <div className="admin-finance-chart__header">
           <div>
-            <h3>Historico basico</h3>
+            <h3>Histórico basico</h3>
           </div>
           <p>Eventos inferidos dos campos gravados na reserva.</p>
         </div>
@@ -481,7 +506,7 @@ export default async function AdminReservationDetailPage({
         <section className="hotel-content-card admin-reservation-detail-card">
           <div className="admin-finance-chart__header">
             <div>
-              <h3>Transacao financeira</h3>
+              <h3>Transação financeira</h3>
             </div>
             <p>Valores registrados para conciliacao interna.</p>
           </div>
@@ -493,7 +518,7 @@ export default async function AdminReservationDetailPage({
             </p>
             <p>
               <span>ID provedor</span>
-              <strong>{reservation.paymentTransaction.providerPaymentId || "Nao informado"}</strong>
+              <strong>{reservation.paymentTransaction.providerPaymentId || "Não informado"}</strong>
             </p>
             <p>
               <span>Pago em</span>
@@ -533,7 +558,7 @@ export default async function AdminReservationDetailPage({
       <section className="hotel-content-card admin-reservation-detail-card">
         <div className="admin-finance-chart__header">
           <div>
-            <h3>Historico operacional</h3>
+            <h3>Histórico operacional</h3>
           </div>
           <p>Auditoria com responsavel, data, motivo e transicao.</p>
         </div>
@@ -587,9 +612,7 @@ export default async function AdminReservationDetailPage({
         </section>
       ) : null}
 
-      <Link href="/admin/reservas" className="hotel-page-back">
-        Voltar para reservas
-      </Link>
+      <IconBackLink href="/admin/reservas" ariaLabel="Voltar para reservas" />
     </section>
   );
 }

@@ -123,7 +123,6 @@ export default async function AdminHotelsPage() {
   return (
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
-        <span className="hotel-page-eyebrow">Admin</span>
         <h1>Hotéis</h1>
       </div>
 

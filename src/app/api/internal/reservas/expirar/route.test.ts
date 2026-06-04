@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/internal/reservas/expirar/route";
 import { reconcileRecentAwaitingMercadoPagoReservations } from "@/lib/payments/mercado-pago-reconciliation";
@@ -33,13 +33,13 @@ describe("internal reservation expiration route", () => {
     vi.mocked(expirePendingReservations).mockReset();
   });
 
-  it("recusa chamadas quando token interno nao esta configurado", async () => {
+  it("recusa chamadas quando token interno não está configurado", async () => {
     const response = await POST(createRequest("token"));
 
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
       status: "configuration_error",
-      error: "Token interno nao configurado.",
+      error: "Token interno não configurado.",
     });
     expect(reconcileRecentAwaitingMercadoPagoReservations).not.toHaveBeenCalled();
     expect(expirePendingReservations).not.toHaveBeenCalled();
@@ -51,23 +51,23 @@ describe("internal reservation expiration route", () => {
     const response = await POST(createRequest());
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ status: "unauthorized", error: "Nao autorizado." });
+    expect(await response.json()).toEqual({ status: "unauthorized", error: "Não autorizado." });
     expect(reconcileRecentAwaitingMercadoPagoReservations).not.toHaveBeenCalled();
     expect(expirePendingReservations).not.toHaveBeenCalled();
   });
 
-  it("recusa chamadas com token invalido", async () => {
+  it("recusa chamadas com token inválido", async () => {
     vi.stubEnv("INTERNAL_API_TOKEN", "token-correto");
 
     const response = await POST(createRequest("token-errado"));
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ status: "unauthorized", error: "Nao autorizado." });
+    expect(await response.json()).toEqual({ status: "unauthorized", error: "Não autorizado." });
     expect(reconcileRecentAwaitingMercadoPagoReservations).not.toHaveBeenCalled();
     expect(expirePendingReservations).not.toHaveBeenCalled();
   });
 
-  it("executa reconciliacao e expiracao com bearer token valido", async () => {
+  it("executa reconciliação e expiração com bearer token válido", async () => {
     vi.stubEnv("INTERNAL_API_TOKEN", "token-correto");
     vi.mocked(reconcileRecentAwaitingMercadoPagoReservations).mockResolvedValue({
       scanned: 2,
@@ -105,7 +105,7 @@ describe("internal reservation expiration route", () => {
     });
   });
 
-  it("retorna contadores zerados quando nao ha reservas vencidas", async () => {
+  it("retorna contadores zerados quando não há reservas vencidas", async () => {
     vi.stubEnv("INTERNAL_API_TOKEN", "token-correto");
     vi.mocked(reconcileRecentAwaitingMercadoPagoReservations).mockResolvedValue({
       scanned: 0,

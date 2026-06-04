@@ -6,6 +6,7 @@ import {
   type Hotel as FallbackHotel,
 } from "@/data/hotels";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_HOTEL_WHERE } from "@/lib/public-hotel";
 
 export type PublishedHotelCard = {
   slug: string;
@@ -343,9 +344,7 @@ async function fetchPublishedHotels(): Promise<PublishedHotelCard[]> {
 
   try {
     return await prisma.hotel.findMany({
-      where: {
-        isPublished: true,
-      },
+      where: PUBLIC_HOTEL_WHERE,
       select: {
         slug: true,
         name: true,
@@ -377,9 +376,7 @@ export async function getHotelSlugs(): Promise<string[]> {
 
   try {
     const hotels = await prisma.hotel.findMany({
-      where: {
-        isPublished: true,
-      },
+      where: PUBLIC_HOTEL_WHERE,
       select: {
         slug: true,
       },
@@ -401,7 +398,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
     const hotel = await prisma.hotel.findFirst({
       where: {
         slug,
-        isPublished: true,
+        ...PUBLIC_HOTEL_WHERE,
       },
       include: {
         images: {
@@ -538,7 +535,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
       const hotel = await prisma.hotel.findFirst({
         where: {
           slug,
-          isPublished: true,
+          ...PUBLIC_HOTEL_WHERE,
         },
         include: {
           images: {

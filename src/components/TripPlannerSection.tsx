@@ -136,7 +136,6 @@ export function TripPlannerSection() {
   return (
     <section id="planeje-sua-viagem" className="section trip-planner-section reveal">
       <div className="trip-planner-copy">
-        <span className="hotel-page-eyebrow">Planeje sua viagem</span>
         <h2>Conte o perfil da sua estadia.</h2>
         <p>
           Informe destino, companhia, orçamento e preferências para iniciar uma busca mais alinhada

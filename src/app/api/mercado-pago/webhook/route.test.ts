@@ -58,8 +58,8 @@ describe("Mercado Pago webhook", () => {
     });
   });
 
-  it("rejeita assinatura invalida antes de conciliar", async () => {
-    const response = await POST(createWebhookRequest({ signature: "assinatura-invalida" }));
+  it("rejeita assinatura inválida antes de conciliar", async () => {
+    const response = await POST(createWebhookRequest({ signature: "assinatura-inválida" }));
 
     expect(response.status).toBe(400);
     expect(syncMercadoPagoPayment).not.toHaveBeenCalled();

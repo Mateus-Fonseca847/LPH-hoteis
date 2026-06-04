@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 import { getStorageProvider } from "@/lib/storage";
@@ -78,7 +78,7 @@ function sanitizeStorageSegment(value: string, label: string) {
   const sanitized = value.trim();
 
   if (!/^[a-zA-Z0-9_-]{1,191}$/.test(sanitized)) {
-    throw new Error(`${label} invalido para armazenamento.`);
+    throw new Error(`${label} inválido para armazenamento.`);
   }
 
   return sanitized;
@@ -117,7 +117,7 @@ function parseFileName(fileName: string) {
     .filter(Boolean);
 
   if (parts.length < 2) {
-    throw new Error("O arquivo precisa ter uma extensao valida.");
+    throw new Error("O arquivo precisa ter uma extensão valida.");
   }
 
   const baseName = parts[0];
@@ -129,11 +129,11 @@ function parseFileName(fileName: string) {
   }
 
   if (!extension) {
-    throw new Error("O arquivo precisa ter uma extensao valida.");
+    throw new Error("O arquivo precisa ter uma extensão valida.");
   }
 
   if (intermediateExtensions.some((part) => suspiciousExtensions.has(part))) {
-    throw new Error("Nome de arquivo invalido. Remova extensoes suspeitas e tente novamente.");
+    throw new Error("Nome de arquivo inválido. Remova extensoes suspeitas e tente novamente.");
   }
 
   return {
@@ -186,11 +186,11 @@ export async function validateHotelImageFile(file: File) {
   const { extension, sanitizedBaseName } = parseFileName(file.name);
 
   if (!allowedMimeTypes.has(mimeType)) {
-    throw new Error("Formato nao permitido. Envie uma imagem JPG, JPEG, PNG ou WEBP.");
+    throw new Error("Formato não permitido. Envie uma imagem JPG, JPEG, PNG ou WEBP.");
   }
 
   if (!allowedExtensions.has(extension)) {
-    throw new Error("Extensao nao permitida. Envie uma imagem JPG, JPEG, PNG ou WEBP.");
+    throw new Error("Extensão não permitida. Envie uma imagem JPG, JPEG, PNG ou WEBP.");
   }
 
   const expectedExtension = allowedMimeTypes.get(mimeType);
@@ -199,13 +199,13 @@ export async function validateHotelImageFile(file: File) {
     !expectedExtension ||
     (extension !== expectedExtension && !(mimeType === "image/jpeg" && extension === "jpeg"))
   ) {
-    throw new Error("O tipo do arquivo nao corresponde a extensao informada.");
+    throw new Error("O tipo do arquivo não corresponde a extensão informada.");
   }
 
   const buffer = new Uint8Array(await file.arrayBuffer());
 
   if (!assertMagicNumber(buffer, mimeType)) {
-    throw new Error("O arquivo enviado nao parece ser uma imagem valida.");
+    throw new Error("O arquivo enviado não parece ser uma imagem valida.");
   }
 
   return {

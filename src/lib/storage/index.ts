@@ -28,7 +28,7 @@ function getStorageProviderName(): StorageProviderName {
     return "supabase";
   }
 
-  throw new Error("STORAGE_PROVIDER invalido. Use local, s3, r2 ou supabase.");
+  throw new Error("STORAGE_PROVIDER inválido. Use local, s3, r2 ou supabase.");
 }
 
 export function createStorageProvider(name: StorageProviderName = getStorageProviderName()) {
@@ -44,7 +44,7 @@ export function createStorageProvider(name: StorageProviderName = getStorageProv
     return new S3StorageProvider();
   }
 
-  throw new Error("Supabase Storage nao esta implementado. Use STORAGE_PROVIDER=s3.");
+  throw new Error("Supabase Storage não está implementado. Use STORAGE_PROVIDER=s3.");
 }
 
 let storageProvider: StorageProvider | null = null;

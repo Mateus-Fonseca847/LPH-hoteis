@@ -98,7 +98,7 @@ describe("requireAuthorizedHotelWrite", () => {
     await expect(requireAuthorizedHotelWrite("hotel-fora")).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it("retorna usuario autenticado quando sessao, 2FA e permissao passam", async () => {
+  it("retorna usuário autenticado quando sessao, 2FA e permissao passam", async () => {
     await expect(requireAuthorizedHotelWrite("hotel-12345")).resolves.toMatchObject({
       id: "admin-1",
       globalRole: "hotel_admin",

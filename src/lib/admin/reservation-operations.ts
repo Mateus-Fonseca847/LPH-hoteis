@@ -1,4 +1,4 @@
-import type { Prisma, ReservationStatus } from "@prisma/client";
+﻿import type { Prisma, ReservationStatus } from "@prisma/client";
 
 import { AuthorizationError, requireHotelAdminAccess } from "@/lib/auth/authorization";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors/app-error";
@@ -15,6 +15,7 @@ import { calculateStayNights, getStayDates } from "@/lib/stay-query";
 type ReservationOperationAction =
   | "reservation.cancelled"
   | "reservation.manually_confirmed"
+  | "reservation.payment_status_updated"
   | "reservation.payment_failed"
   | "reservation.confirmation_email_resent"
   | "reservation.internal_note_added"
@@ -65,13 +66,13 @@ function parseReservationDate(value: string, label: string) {
   const trimmed = value.trim();
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    throw new ValidationError(`${label} invalido.`);
+    throw new ValidationError(`${label} inválido.`);
   }
 
   try {
     calculateStayNights(trimmed, "9999-12-31");
   } catch {
-    throw new ValidationError(`${label} invalido.`);
+    throw new ValidationError(`${label} inválido.`);
   }
 
   return trimmed;
@@ -90,7 +91,7 @@ async function getReservationForOperation(reservationId: string) {
   });
 
   if (!reservation) {
-    throw new NotFoundError("Reserva nao encontrada.");
+    throw new NotFoundError("Reserva não encontrada.");
   }
 
   return reservation;
@@ -101,7 +102,7 @@ async function assertReservationAdminAccess(userId: string, hotelId: string) {
     await requireHotelAdminAccess(userId, hotelId);
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      throw new AuthorizationError("Usuario nao autorizado para operar esta reserva.");
+      throw new AuthorizationError("Usuário não autorizado para operar esta reserva.");
     }
 
     throw error;
@@ -161,6 +162,10 @@ function getReservationEmailInput(
     totalPriceCents: reservation.totalPriceCents,
     reservationId: reservation.id,
     paymentMethod: reservation.paymentMethod,
+    paymentCardBrand: reservation.paymentCardBrand,
+    paymentObservation1: reservation.paymentObservation1,
+    paymentObservation2: reservation.paymentObservation2,
+    paymentObservation3: reservation.paymentObservation3,
   };
 }
 
@@ -202,7 +207,7 @@ export async function cancelReservationManually(input: ReservationOperationInput
   });
 
   if (!changed) {
-    throw new ConflictError("Reserva nao pode ser cancelada neste estado.");
+    throw new ConflictError("Reserva não pode ser cancelada neste estado.");
   }
 
   await createOperationLog({
@@ -227,7 +232,7 @@ export async function confirmReservationManually(input: ReservationOperationInpu
   }
 
   if (!["pending", "awaiting_payment"].includes(reservation.status)) {
-    throw new ConflictError("Reserva nao pode ser confirmada manualmente neste estado.");
+    throw new ConflictError("Reserva não pode ser confirmada manualmente neste estado.");
   }
 
   const confirmation = await confirmPaidReservation({
@@ -237,7 +242,7 @@ export async function confirmReservationManually(input: ReservationOperationInpu
   });
 
   if (!confirmation?.confirmed) {
-    throw new ConflictError("Reserva nao pode ser confirmada manualmente.");
+    throw new ConflictError("Reserva não pode ser confirmada manualmente.");
   }
 
   await createOperationLog({
@@ -252,13 +257,116 @@ export async function confirmReservationManually(input: ReservationOperationInpu
   return { status: "confirmed" as const };
 }
 
+export async function updatePendingReservationPaymentStatusManually(
+  input: ReservationOperationInput & {
+    nextPaymentStatus: "pending" | "awaiting_payment" | "paid" | "payment_failed" | "cancelled";
+  }
+) {
+  const reason = normalizeReason(input.reason);
+  const reservation = await getReservationForOperation(input.reservationId);
+  await assertReservationAdminAccess(input.userId, reservation.hotelId);
+
+  if (!["pending", "awaiting_payment"].includes(reservation.paymentStatus)) {
+    throw new ConflictError(
+      "Somente reservas com pagamento pendente podem ser alteradas manualmente."
+    );
+  }
+
+  if (input.nextPaymentStatus === "paid") {
+    return confirmReservationManually(input);
+  }
+
+  if (input.nextPaymentStatus === "payment_failed") {
+    return markReservationPaymentFailed(input);
+  }
+
+  if (input.nextPaymentStatus === "cancelled") {
+    return cancelReservationManually(input);
+  }
+
+  if (reservation.paymentStatus === input.nextPaymentStatus) {
+    throw new ConflictError("A reserva já está com este status de pagamento.");
+  }
+
+  if (!["pending", "awaiting_payment"].includes(reservation.status)) {
+    throw new ConflictError("Reserva não pode receber este status de pagamento neste estado.");
+  }
+
+  await prisma.$transaction(async (transaction) => {
+    const reservationUpdate = await transaction.reservation.updateMany({
+      where: {
+        id: reservation.id,
+        status: {
+          in: ["pending", "awaiting_payment"],
+        },
+        paymentStatus: {
+          in: ["pending", "awaiting_payment"],
+        },
+      },
+      data: {
+        status: input.nextPaymentStatus,
+        paymentStatus: input.nextPaymentStatus,
+        paidAt: null,
+      },
+    });
+
+    if (reservationUpdate.count !== 1) {
+      throw new ConflictError("Reserva não pode receber este status de pagamento neste estado.");
+    }
+
+    const amounts = calculatePaymentTransactionAmounts(reservation.totalPriceCents);
+    await transaction.paymentTransaction.upsert({
+      where: {
+        reservationId: reservation.id,
+      },
+      create: {
+        reservationId: reservation.id,
+        hotelId: reservation.hotelId,
+        provider: reservation.paymentProvider ?? "manual",
+        providerPaymentId: reservation.providerPaymentId,
+        paymentMethod: reservation.paymentMethod,
+        status: input.nextPaymentStatus,
+        ...amounts,
+        currency: reservation.currency,
+        paidAt: null,
+      },
+      update: {
+        providerPaymentId: reservation.providerPaymentId,
+        paymentMethod: reservation.paymentMethod,
+        status: input.nextPaymentStatus,
+        paidAt: null,
+      },
+    });
+
+    await transaction.reservationOperationLog.create({
+      data: {
+        reservationId: reservation.id,
+        hotelId: reservation.hotelId,
+        createdById: input.userId,
+        action: "reservation.payment_status_updated",
+        reason,
+        previousStatus: reservation.status,
+        nextStatus: input.nextPaymentStatus,
+        previousPaymentStatus: reservation.paymentStatus,
+        nextPaymentStatus: input.nextPaymentStatus,
+        metadata: {
+          manual: true,
+          targetPaymentStatus: input.nextPaymentStatus,
+        },
+      },
+    });
+  });
+
+  return { status: input.nextPaymentStatus as "pending" | "awaiting_payment" };
+}
+
 export async function markReservationPaymentFailed(input: ReservationOperationInput) {
   const reason = normalizeReason(input.reason);
   const reservation = await getReservationForOperation(input.reservationId);
   await assertReservationAdminAccess(input.userId, reservation.hotelId);
 
   if (reservation.paymentStatus === "paid" || reservation.paymentTransaction?.status === "paid") {
-    throw new ConflictError("Pagamento aprovado nao pode ser marcado como falho.");
+    throw new ConflictError("Pagamento aprovado não pode ser marcado como falho.");
   }
 
   const changed = await closeUnpaidReservation({
@@ -268,7 +376,7 @@ export async function markReservationPaymentFailed(input: ReservationOperationIn
   });
 
   if (!changed) {
-    throw new ConflictError("Reserva nao pode receber falha de pagamento neste estado.");
+    throw new ConflictError("Reserva não pode receber falha de pagamento neste estado.");
   }
 
   await createOperationLog({
@@ -289,7 +397,7 @@ export async function resendReservationConfirmationEmail(input: ReservationOpera
   await assertReservationAdminAccess(input.userId, reservation.hotelId);
 
   if (reservation.status !== "confirmed" && reservation.paymentStatus !== "paid") {
-    throw new ConflictError("E-mail de confirmacao so pode ser reenviado para reserva confirmada.");
+    throw new ConflictError("E-mail de confirmação só pode ser reenviado para reserva confirmada.");
   }
 
   const emailInput = getReservationEmailInput(reservation);
@@ -330,21 +438,21 @@ export async function rescheduleReservationManually(input: RescheduleReservation
   const nights = calculateStayNights(checkIn, checkOut);
 
   if (checkIn < getTodayDateOnly()) {
-    throw new ValidationError("Check-in nao pode estar no passado.");
+    throw new ValidationError("Check-in não pode estar no passado.");
   }
 
   const reservation = await getReservationForOperation(input.reservationId);
   await assertReservationAdminAccess(input.userId, reservation.hotelId);
 
   if (NON_RESCHEDULABLE_STATUSES.includes(reservation.status)) {
-    throw new ConflictError("Reserva nao pode ser remarcada neste estado.");
+    throw new ConflictError("Reserva não pode ser remarcada neste estado.");
   }
 
   const previousCheckIn = toDateOnly(reservation.checkIn);
   const previousCheckOut = toDateOnly(reservation.checkOut);
 
   if (previousCheckIn === checkIn && previousCheckOut === checkOut) {
-    throw new ValidationError("Informe um novo periodo para remarcacao.");
+    throw new ValidationError("Informe um novo período para remarcacao.");
   }
 
   const nextTotalPriceCents = reservation.nightlyPriceCents * nights;
@@ -367,11 +475,11 @@ export async function rescheduleReservationManually(input: RescheduleReservation
     });
 
     if (!currentReservation) {
-      throw new NotFoundError("Reserva nao encontrada.");
+      throw new NotFoundError("Reserva não encontrada.");
     }
 
     if (NON_RESCHEDULABLE_STATUSES.includes(currentReservation.status)) {
-      throw new ConflictError("Reserva nao pode ser remarcada neste estado.");
+      throw new ConflictError("Reserva não pode ser remarcada neste estado.");
     }
 
     const oldDates = currentReservation.availabilityHeld
@@ -403,7 +511,7 @@ export async function rescheduleReservationManually(input: RescheduleReservation
       });
 
       if (availabilityUpdate.count !== datesToHold.length) {
-        throw new ConflictError("Novo periodo nao possui disponibilidade suficiente.");
+        throw new ConflictError("Novo período não possui disponibilidade suficiente.");
       }
     }
 
@@ -444,7 +552,7 @@ export async function rescheduleReservationManually(input: RescheduleReservation
     });
 
     if (reservationUpdate.count !== 1) {
-      throw new ConflictError("Reserva nao pode ser remarcada neste estado.");
+      throw new ConflictError("Reserva não pode ser remarcada neste estado.");
     }
 
     await transaction.paymentTransaction.updateMany({

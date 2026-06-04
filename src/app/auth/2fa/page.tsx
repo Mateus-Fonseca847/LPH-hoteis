@@ -74,7 +74,6 @@ export default async function TwoFactorPage({ searchParams }: TwoFactorPageProps
       <main className="auth-page">
         <section className="section auth-section">
           <div className="auth-card">
-            <span className="hotel-page-eyebrow">Acesso seguro</span>
             <h1>Verificação em duas etapas</h1>
             <p className="auth-copy">
               Enviamos um código de segurança para {maskEmail(user.email)}. Informe o código para

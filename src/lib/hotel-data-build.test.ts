@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("hotel data during Next build", () => {
   beforeEach(() => {
@@ -6,7 +6,7 @@ describe("hotel data during Next build", () => {
     vi.unstubAllEnvs();
   });
 
-  it("nao consulta o banco durante phase-production-build", async () => {
+  it("não consulta o banco durante phase-production-build", async () => {
     const queryRaw = vi.fn();
     const findMany = vi.fn();
 

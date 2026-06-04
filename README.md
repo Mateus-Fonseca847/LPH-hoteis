@@ -1,4 +1,4 @@
-# LPH Hotéis
+﻿# LPH Hotéis
 
 [![CI](https://github.com/Mateus-Fonseca847/PH-hot-is/actions/workflows/ci.yml/badge.svg)](https://github.com/Mateus-Fonseca847/PH-hot-is/actions/workflows/ci.yml)
 
@@ -53,8 +53,8 @@ Plataforma web da rede LPH para catálogo público de hotéis e operação admin
 - npm
 - PostgreSQL
 
-Versoes minimas recomendadas para producao: `next >= 15.5.18`, `react >= 19.2.6`,
-`react-dom >= 19.2.6` e `eslint-config-next >= 15.5.18`. Nao publique builds abaixo
+Versoes minimas recomendadas para produção: `next >= 15.5.18`, `react >= 19.2.6`,
+`react-dom >= 19.2.6` e `eslint-config-next >= 15.5.18`. Não publique builds abaixo
 dessas versoes por causa de correcoes recentes em Next.js/React Server Components.
 
 ## Variáveis de ambiente
@@ -113,7 +113,7 @@ Variáveis obrigatórias para staging:
 - `TWO_FACTOR_ENCRYPTION_KEY`: chave base64 de 32 bytes. Gere com `openssl rand -base64 32`.
 - `NODE_ENV`: em deploy de staging, use `production`.
 - `UPLOAD_MAX_IMAGE_SIZE_BYTES`: limite de upload em bytes. Exemplo: `5242880` para 5 MB.
-- `STORAGE_PROVIDER`: use `s3` em staging/producao. Use `local` somente em desenvolvimento.
+- `STORAGE_PROVIDER`: use `s3` em staging/produção. Use `local` somente em desenvolvimento.
 - `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL`: obrigatorias quando `STORAGE_PROVIDER=s3`.
 - `ALLOW_LOCAL_HOTEL_DATA_FALLBACK`: manter `false` em staging. O app não deve usar dados locais quando o banco falhar.
 
@@ -161,7 +161,7 @@ Antes de liberar para o cliente:
 - O checkout falha de forma explícita se `NEXT_PUBLIC_APP_URL` não estiver configurada e a requisição não enviar origem.
 - Pagamentos Mercado Pago falham de forma explícita se `PAYMENT_PROVIDER`, credenciais, webhook ou credenciais criptografadas do hotel estiverem ausentes/incompatíveis.
 - Credenciais de pagamento por hotel falham de forma explícita se `PAYMENT_SECRETS_ENCRYPTION_KEY` estiver ausente ou não for base64 de 32 bytes.
-- Uploads de staging/producao devem usar `STORAGE_PROVIDER="s3"` com storage S3-compatible. O provider `local` e bloqueado quando `NODE_ENV="production"`.
+- Uploads de staging/produção devem usar `STORAGE_PROVIDER="s3"` com storage S3-compatible. O provider `local` e bloqueado quando `NODE_ENV="production"`.
 
 ## Produção
 
@@ -190,7 +190,7 @@ Requisitos mínimos:
 3. No serviço da aplicação, configure `DATABASE_URL` usando a URL interna do PostgreSQL da Railway.
 4. Configure as demais variáveis de ambiente listadas em `.env.example`.
 5. Defina `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"` em homologação.
-6. Para testar upload em staging/producao, configure `STORAGE_PROVIDER="s3"` e as variaveis `S3_*`; nao use `public/uploads` em runtime de producao.
+6. Para testar upload em staging/produção, configure `STORAGE_PROVIDER="s3"` e as variáveis `S3_*`; não use `public/uploads` em runtime de produção.
 7. Configure o Pre-deploy Command como:
 
 ```bash
@@ -392,13 +392,13 @@ Ele sobe PostgreSQL real, executa `npm ci` com cache de npm, gera o Prisma Clien
 - Hoteis, capas, galeria e quartos usam URLs salvas no banco. URLs antigas continuam validas enquanto o arquivo local ou a URL externa existir.
 - A abstracao `StorageProvider` fica em `src/lib/storage`. Uploads administrativos chamam essa camada e nunca expoem credenciais no client.
 - Para desenvolvimento local, use `STORAGE_PROVIDER="local"`; ele grava em `public/uploads/hotels/[hotelId]` e retorna URLs `/uploads/hotels/...`.
-- Para staging/producao, use `STORAGE_PROVIDER="s3"` com storage S3-compatible. O app assina `PUT`/`DELETE` no servidor e retorna URLs baseadas em `S3_PUBLIC_BASE_URL`.
+- Para staging/produção, use `STORAGE_PROVIDER="s3"` com storage S3-compatible. O app assina `PUT`/`DELETE` no servidor e retorna URLs baseadas em `S3_PUBLIC_BASE_URL`.
 - `S3_PUBLIC_BASE_URL` tambem e usado pelo `next.config.ts` para permitir otimizacao de imagens remotas do storage.
 - O seed usa URLs baseadas em `S3_PUBLIC_BASE_URL` quando essa variavel esta configurada; caso contrario, mantem as URLs externas demonstrativas.
 - URLs externas manuais continuam aceitas nos campos de capa, galeria e quarto quando o arquivo ja estiver hospedado fora da aplicacao.
-- A validacao de upload rejeita arquivos sem conteudo, arquivos acima de `UPLOAD_MAX_IMAGE_SIZE_BYTES`, MIME types fora de JPG/PNG/WEBP, extensoes inseguras, dupla extensao suspeita e conteudo cujo magic number nao corresponda ao MIME declarado.
+- A validação de upload rejeita arquivos sem conteúdo, arquivos acima de `UPLOAD_MAX_IMAGE_SIZE_BYTES`, MIME types fora de JPG/PNG/WEBP, extensões inseguras, dupla extensão suspeita e conteúdo cujo magic number não corresponda ao MIME declarado.
 - O nome salvo e sanitizado e recebe prefixo aleatorio para evitar colisao e preservar uma extensao segura.
-- A interface publica e o admin mantem fallback visual para capa, galeria e quartos quando uma URL antiga estiver ausente ou a imagem nao carregar.
+- A interface pública e o admin mantém fallback visual para capa, galeria e quartos quando uma URL antiga estiver ausente ou a imagem não carregar.
 - A remocao de arquivos preserva URLs externas fora do provider configurado e evita limpeza fora do prefixo de storage esperado.
 
 ## Fluxo publico

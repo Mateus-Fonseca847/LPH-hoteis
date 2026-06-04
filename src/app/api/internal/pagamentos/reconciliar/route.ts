@@ -25,11 +25,11 @@ export async function POST(request: Request) {
     const expectedToken = getInternalToken();
 
     if (!expectedToken) {
-      throw new ValidationError("Token interno nao configurado.");
+      throw new ValidationError("Token interno não configurado.");
     }
 
     if (getRequestToken(request) !== expectedToken) {
-      return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
+      return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
     }
 
     const body = (await request.json().catch(() => null)) as {
@@ -53,6 +53,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    return createApiErrorResponse(error, "Nao foi possivel reconciliar pagamentos.");
+    return createApiErrorResponse(error, "Não foi possível reconciliar pagamentos.");
   }
 }

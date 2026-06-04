@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 
 import { createHotelAuditLog, type HotelAuditSnapshot } from "@/lib/audit/hotel-audit";
 import { NotFoundError, ValidationError, createApiSuccessResponse } from "@/lib/errors/app-error";
+import { normalizeCoordinateValue } from "@/lib/hotel-location";
 import {
   createHotelWriteApiErrorResponse,
   getRequestIpAddress,
@@ -24,6 +25,7 @@ type HotelWithRelations = Prisma.HotelGetPayload<{
     images: true;
     amenities: true;
     policies: true;
+    experiences: true;
   };
 }>;
 
@@ -36,6 +38,8 @@ function buildHotelSnapshot(hotel: HotelWithRelations) {
     city: hotel.city,
     state: hotel.state,
     address: hotel.address,
+    latitude: normalizeCoordinateValue(hotel.latitude),
+    longitude: normalizeCoordinateValue(hotel.longitude),
     phone: hotel.phone,
     email: hotel.email,
     whatsapp: hotel.whatsapp,
@@ -50,6 +54,31 @@ function buildHotelSnapshot(hotel: HotelWithRelations) {
       description,
       position,
     })),
+    experiences: hotel.experiences.map(
+      ({
+        title,
+        city,
+        state,
+        shortDescription,
+        imageUrl,
+        imageAlt,
+        categories,
+        preferences,
+        distanceText,
+        isActive,
+      }) => ({
+        title,
+        city,
+        state,
+        shortDescription,
+        imageUrl,
+        imageAlt,
+        categories,
+        preferences,
+        distanceText,
+        isActive,
+      })
+    ),
   } satisfies HotelAuditSnapshot;
 }
 
@@ -84,6 +113,9 @@ export async function DELETE(request: Request, context: RouteContext) {
           orderBy: {
             position: "asc",
           },
+        },
+        experiences: {
+          orderBy: [{ createdAt: "asc" }, { title: "asc" }],
         },
       },
     });

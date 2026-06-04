@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BookingPageLink } from "@/components/BookingPageLink";
@@ -7,6 +6,7 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { HotelAmenitiesSection } from "@/components/HotelAmenitiesSection";
 import { HotelGallery } from "@/components/HotelGallery";
+import { IconBackLink } from "@/components/IconBackLink";
 import { HotelPageActions } from "@/components/HotelPageActions";
 import { HotelRegionDetailsSection } from "@/components/HotelRegionDetailsSection";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
@@ -369,9 +369,7 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
       <main className="hotel-page hotel-page--enter">
         <section className="section hotel-hero-section reveal is-visible">
           <div className="hotel-topbar">
-            <Link href="/#journey" className="hotel-page-back">
-              Voltar à lista de hotéis
-            </Link>
+            <IconBackLink href="/#journey" ariaLabel="Voltar à lista de hotéis" />
           </div>
 
           {checkoutNotice ? (
@@ -383,30 +381,8 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
 
           <div className="hotel-hero-layout">
             <div className="hotel-hero-copy">
-              <span className="hotel-page-eyebrow">
-                {hotel.city}, {hotel.state}
-              </span>
               <h1>{hotel.name}</h1>
-              <p className="hotel-lead">{hotel.shortDescription}</p>
               <p className="hotel-description">{hotel.fullDescription}</p>
-              <p className="hotel-booking-clarity">
-                Consulte datas e viajantes para ver quartos disponíveis. A reserva online só é
-                confirmada após pagamento aprovado.
-              </p>
-
-              <div className="hotel-rating-strip">
-                <div className="hotel-rating-stars" aria-label="Estrutura visual de avaliação">
-                  <span>★</span>
-                  <span>★</span>
-                  <span>★</span>
-                  <span>★</span>
-                  <span>★</span>
-                </div>
-                <div className="hotel-rating-copy">
-                  <strong>Perfil atualizado</strong>
-                  <span>Informações revisadas para consulta direta com a equipe LPH.</span>
-                </div>
-              </div>
 
               <div className="hotel-quick-info">
                 <div className="hotel-info-card">
@@ -455,6 +431,15 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
                   state: hotel.state,
                   coverImageUrl: hotel.coverImageUrl,
                 }}
+                rating={
+                  <div className="hotel-rating-stars" aria-label="Estrutura visual de avaliação">
+                    <span>★</span>
+                    <span>★</span>
+                    <span>★</span>
+                    <span>★</span>
+                    <span>★</span>
+                  </div>
+                }
               />
             </div>
           </div>
@@ -679,7 +664,6 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
 
         <section className="section hotel-cta-panel reveal is-visible">
           <div>
-            <span className="hotel-page-eyebrow">Reserva</span>
             <h2>Pronto para consultar sua estadia?</h2>
             <p className="hotel-description hotel-description--compact">
               Consulte disponibilidade, escolha o quarto e avance para pagamento. A reserva fica

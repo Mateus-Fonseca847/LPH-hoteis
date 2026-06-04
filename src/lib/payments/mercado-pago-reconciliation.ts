@@ -1,4 +1,4 @@
-import { ConflictError, ValidationError } from "@/lib/errors/app-error";
+﻿import { ConflictError, ValidationError } from "@/lib/errors/app-error";
 import {
   getMercadoPagoPayment,
   searchMercadoPagoPaymentByReservationId,
@@ -87,7 +87,7 @@ async function getReservationForEmail(reservationId: string) {
 
 function getReservationEmailInput(reservation: Awaited<ReturnType<typeof getReservationForEmail>>) {
   if (!reservation) {
-    throw new ValidationError("Reserva nao encontrada.");
+    throw new ValidationError("Reserva não encontrada.");
   }
 
   return {
@@ -98,6 +98,9 @@ function getReservationEmailInput(reservation: Awaited<ReturnType<typeof getRese
     guestEmail: reservation.guestEmail,
     guestPhone: reservation.guestPhone,
     guestDocument: reservation.guestDocument ?? undefined,
+    paymentObservation1: reservation.paymentObservation1,
+    paymentObservation2: reservation.paymentObservation2,
+    paymentObservation3: reservation.paymentObservation3,
     checkIn: reservation.checkIn,
     checkOut: reservation.checkOut,
     adults: reservation.adults,
@@ -107,6 +110,7 @@ function getReservationEmailInput(reservation: Awaited<ReturnType<typeof getRese
     totalPriceCents: reservation.totalPriceCents,
     reservationId: reservation.id,
     paymentMethod: reservation.paymentMethod,
+    paymentCardBrand: reservation.paymentCardBrand,
   };
 }
 
@@ -114,19 +118,12 @@ async function notifyPaidReservation(reservationId: string) {
   const reservation = await getReservationForEmail(reservationId);
   const emailInput = getReservationEmailInput(reservation);
 
-  try {
-    await sendHotelReservationEmail(emailInput);
-  } catch (error) {
-    console.error("[mercado-pago/reconciliation] Falha ao enviar e-mail para o hotel.", {
-      reservationId,
-      error,
-    });
-  }
+  await sendHotelReservationEmail(emailInput);
 
   try {
     await sendGuestReservationEmail(emailInput);
   } catch (error) {
-    console.error("[mercado-pago/reconciliation] Falha ao enviar e-mail para o hospede.", {
+    console.error("[mercado-pago/reconciliation] Falha ao enviar e-mail para o hóspede.", {
       reservationId,
       error,
     });
@@ -225,7 +222,7 @@ async function resolvePayment(input: SyncMercadoPagoPaymentInput) {
   const payment = await searchMercadoPagoPaymentByReservationId(reservationId, accessToken);
 
   if (!payment) {
-    throw new ValidationError("Pagamento nao encontrado no Mercado Pago.");
+    throw new ValidationError("Pagamento não encontrado no Mercado Pago.");
   }
 
   return payment;
@@ -242,7 +239,7 @@ async function findContextForPayment(
   });
 
   if (!context) {
-    throw new ValidationError("Reserva do pagamento nao encontrada.");
+    throw new ValidationError("Reserva do pagamento não encontrada.");
   }
 
   return context;
@@ -252,15 +249,15 @@ function validatePaymentReservationLink(payment: MercadoPagoPayment, context: Pa
   const transaction = context.paymentTransaction;
 
   if (context.paymentProvider && context.paymentProvider !== "mercado_pago") {
-    throw new ValidationError("Reserva nao usa Mercado Pago.");
+    throw new ValidationError("Reserva não usa Mercado Pago.");
   }
 
   if (transaction?.provider && transaction.provider !== "mercado_pago") {
-    throw new ValidationError("Transacao nao usa Mercado Pago.");
+    throw new ValidationError("Transação não usa Mercado Pago.");
   }
 
   if (!payment.reservationId || payment.reservationId !== context.id) {
-    throw new ValidationError("Pagamento nao corresponde a reserva.");
+    throw new ValidationError("Pagamento não corresponde a reserva.");
   }
 
   if (
@@ -270,7 +267,7 @@ function validatePaymentReservationLink(payment: MercadoPagoPayment, context: Pa
       (payment.totalPriceCents !== transaction.grossAmountCents ||
         payment.currency !== transaction.currency))
   ) {
-    throw new ValidationError("Valor do pagamento nao corresponde a reserva.");
+    throw new ValidationError("Valor do pagamento não corresponde a reserva.");
   }
 
   if (

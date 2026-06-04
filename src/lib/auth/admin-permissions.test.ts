@@ -40,7 +40,7 @@ describe("admin user management permissions", () => {
     ).toBe(true);
   });
 
-  it("bloqueia usuario comum de gerenciar alvos administrativos", () => {
+  it("bloqueia usuário comum de gerenciar alvos administrativos", () => {
     expect(
       canManageAdministrativeTarget({ globalRole: "user" }, { globalRole: "hotel_admin" })
     ).toBe(false);

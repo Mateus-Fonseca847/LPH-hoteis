@@ -24,7 +24,7 @@ function getRequiredConfig(name: string, value?: string) {
   const trimmed = value?.trim();
 
   if (!trimmed) {
-    throw new Error(`${name} nao configurado.`);
+    throw new Error(`${name} não configurado.`);
   }
 
   return trimmed;
@@ -47,7 +47,7 @@ function normalizeObjectKey(key: string) {
     normalized.includes("..") ||
     normalized.split("/").some((segment) => !segment || segment === "." || segment === "..")
   ) {
-    throw new Error("Chave de storage invalida.");
+    throw new Error("Chave de storage inválida.");
   }
 
   return normalized;

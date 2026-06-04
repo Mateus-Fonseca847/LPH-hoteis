@@ -19,7 +19,7 @@ function normalizeObjectKey(key: string) {
     normalized.includes("..") ||
     normalized.split("/").some((segment) => !segment || segment === "." || segment === "..")
   ) {
-    throw new Error("Chave de storage invalida.");
+    throw new Error("Chave de storage inválida.");
   }
 
   return normalized;
@@ -91,7 +91,7 @@ export class LocalStorageProvider implements StorageProvider {
     const absolutePath = path.resolve(this.rootDir, key.split("/").join(path.sep));
 
     if (absolutePath !== this.rootDir && !absolutePath.startsWith(`${this.rootDir}${path.sep}`)) {
-      throw new Error("Caminho de storage invalido.");
+      throw new Error("Caminho de storage inválido.");
     }
 
     return absolutePath;

@@ -1,14 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/reservas/route";
-import { createPayment, resolveHotelPaymentConfiguration } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { expirePendingReservations } from "@/lib/reservation-expiration";
-
-vi.mock("@/lib/payments", () => ({
-  createPayment: vi.fn(),
-  resolveHotelPaymentConfiguration: vi.fn(),
-}));
+import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -24,6 +19,11 @@ vi.mock("@/lib/reservation-expiration", () => ({
   getBookingPaymentExpiresAt: vi.fn(() => new Date(Date.UTC(2099, 6, 1, 0, 30))),
 }));
 
+vi.mock("@/lib/reservations", () => ({
+  sendGuestReservationEmail: vi.fn(),
+  sendHotelReservationEmail: vi.fn(),
+}));
+
 const validPayload = {
   hotelId: "hotel_123456",
   roomId: "room_1234567",
@@ -35,7 +35,11 @@ const validPayload = {
   checkOut: "2099-07-12",
   adults: 2,
   children: 1,
-  paymentMethod: "pix",
+  paymentMethod: "credit_card",
+  paymentCardBrand: "visa",
+  paymentObservation1: "Prefiro contato por WhatsApp.",
+  paymentObservation2: "Melhor horário após as 14h.",
+  paymentObservation3: "Pagamento com cartão na chegada.",
 };
 
 const room = {
@@ -52,11 +56,7 @@ const room = {
     name: "LPH Santos",
     slug: "lph-santos",
     isPublished: true,
-    paymentSettings: {
-      provider: "mercado_pago",
-      isEnabled: true,
-      encryptedAccessToken: null,
-    },
+    email: "reservas@hotel.test",
   },
   availability: [
     { date: new Date(Date.UTC(2099, 6, 10)), availableUnits: 2, closed: false },
@@ -104,16 +104,10 @@ function mockReservationTransaction(options?: { availabilityCount?: number }) {
         status: "pending",
         createdAt: new Date(Date.UTC(2099, 6, 1)),
       })),
-      updateMany: vi.fn().mockResolvedValue({
-        count: 1,
-      }),
     },
     paymentTransaction: {
       create: vi.fn().mockResolvedValue({
         id: "payment-transaction-1",
-      }),
-      updateMany: vi.fn().mockResolvedValue({
-        count: 1,
       }),
     },
   };
@@ -127,28 +121,18 @@ describe("POST /api/reservas", () => {
   beforeEach(() => {
     vi.mocked(prisma.hotelRoom.findFirst).mockReset();
     vi.mocked(prisma.$transaction).mockReset();
-    vi.mocked(createPayment).mockReset();
-    vi.mocked(resolveHotelPaymentConfiguration).mockReset();
     vi.mocked(expirePendingReservations).mockReset();
+    vi.mocked(sendHotelReservationEmail).mockReset();
+    vi.mocked(sendGuestReservationEmail).mockReset();
 
     vi.mocked(prisma.hotelRoom.findFirst).mockResolvedValue(room as never);
-    vi.mocked(resolveHotelPaymentConfiguration).mockReturnValue({
-      provider: "mercado_pago",
-      accessToken: "fake-token",
-    });
-    vi.mocked(createPayment).mockResolvedValue({
-      provider: "mercado_pago",
-      providerPaymentId: "payment-1",
-      checkoutUrl: "https://checkout.example.test",
-      status: "awaiting_payment",
-    });
     vi.mocked(expirePendingReservations).mockResolvedValue({
       expired: 0,
       scanned: 0,
     });
   });
 
-  it("cria reserva pendente, segura disponibilidade e inicia pagamento com mocks", async () => {
+  it("cria reserva manual pendente, salva observações e envia e-mails", async () => {
     const tx = mockReservationTransaction();
 
     const response = await POST(createRequest());
@@ -169,36 +153,46 @@ describe("POST /api/reservas", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: "pending",
+          paymentProvider: "manual",
+          paymentMethod: "credit_card",
+          paymentCardBrand: "visa",
           paymentStatus: "pending",
+          paymentObservation1: "Prefiro contato por WhatsApp.",
+          paymentObservation2: "Melhor horário após as 14h.",
+          paymentObservation3: "Pagamento com cartão na chegada.",
           expiresAt: new Date(Date.UTC(2099, 6, 1, 0, 30)),
           availabilityHeld: true,
           totalPriceCents: 70000,
         }),
       })
     );
-    expect(tx.reservation.updateMany).toHaveBeenCalledWith(
+    expect(tx.paymentTransaction.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          status: "awaiting_payment",
-          paymentStatus: "awaiting_payment",
-          providerPaymentId: "payment-1",
+          provider: "manual",
+          paymentMethod: "credit_card",
+          status: "pending",
         }),
       })
     );
-    expect(tx.paymentTransaction.updateMany).toHaveBeenCalledWith(
+    expect(sendHotelReservationEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          status: "awaiting_payment",
-          providerPaymentId: "payment-1",
-        }),
+        hotelEmail: "reservas@hotel.test",
+        paymentMethod: "credit_card",
+        paymentCardBrand: "visa",
+        paymentObservation1: "Prefiro contato por WhatsApp.",
+        paymentObservation2: "Melhor horário após as 14h.",
+        paymentObservation3: "Pagamento com cartão na chegada.",
       })
     );
-    expect(createPayment).toHaveBeenCalledWith(
+    expect(sendGuestReservationEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: "mercado_pago",
-        method: "pix",
-        reservationId: expect.any(String),
-        notificationUrl: "http://localhost:3000/api/mercado-pago/webhook",
+        guestEmail: "maria@example.com",
+        paymentMethod: "credit_card",
+        paymentCardBrand: "visa",
+        paymentObservation1: "Prefiro contato por WhatsApp.",
+        paymentObservation2: "Melhor horário após as 14h.",
+        paymentObservation3: "Pagamento com cartão na chegada.",
       })
     );
   });
@@ -213,7 +207,7 @@ describe("POST /api/reservas", () => {
 
     expect(response.status).toBe(400);
     expect(vi.mocked(prisma.$transaction)).not.toHaveBeenCalled();
-    expect(createPayment).not.toHaveBeenCalled();
+    expect(sendHotelReservationEmail).not.toHaveBeenCalled();
   });
 
   it("rejeita hotel despublicado ou inexistente antes de reservar disponibilidade", async () => {
@@ -225,22 +219,10 @@ describe("POST /api/reservas", () => {
     expect(response.status).toBe(400);
     expect(body.ok).toBe(false);
     expect(vi.mocked(prisma.$transaction)).not.toHaveBeenCalled();
-    expect(createPayment).not.toHaveBeenCalled();
+    expect(sendHotelReservationEmail).not.toHaveBeenCalled();
   });
 
-  it("rejeita quarto inativo ou inexistente antes de reservar disponibilidade", async () => {
-    vi.mocked(prisma.hotelRoom.findFirst).mockResolvedValue(null);
-
-    const response = await POST(createRequest());
-    const body = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(body.ok).toBe(false);
-    expect(vi.mocked(prisma.$transaction)).not.toHaveBeenCalled();
-    expect(createPayment).not.toHaveBeenCalled();
-  });
-
-  it("nao cria reserva quando disponibilidade some dentro da transacao", async () => {
+  it("não cria reserva quando disponibilidade some dentro da transação", async () => {
     const tx = mockReservationTransaction({
       availabilityCount: 1,
     });
@@ -251,6 +233,6 @@ describe("POST /api/reservas", () => {
     expect(response.status).toBe(409);
     expect(body.ok).toBe(false);
     expect(tx.reservation.create).not.toHaveBeenCalled();
-    expect(createPayment).not.toHaveBeenCalled();
+    expect(sendHotelReservationEmail).not.toHaveBeenCalled();
   });
 });

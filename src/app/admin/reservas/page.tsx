@@ -1,4 +1,4 @@
-import type { PaymentProvider, PaymentStatus, Prisma, ReservationStatus } from "@prisma/client";
+﻿import type { PaymentProvider, PaymentStatus, Prisma, ReservationStatus } from "@prisma/client";
 import Link from "next/link";
 
 import { AdminAccessDenied } from "@/app/admin/AdminAccessDenied";
@@ -88,6 +88,38 @@ function formatCurrency(cents: number, currency = "BRL") {
 
 function formatProvider(provider: PaymentProvider | null) {
   return provider ? providerLabels[provider] : "Não informado";
+}
+
+function formatPaymentMethod(method: string | null) {
+  if (!method) {
+    return "Não informado";
+  }
+
+  const labels: Record<string, string> = {
+    credit_card: "Crédito",
+    credit_debit_card: "Crédito/débito",
+    debit_card: "Débito",
+  };
+
+  return labels[method] ?? method.replaceAll("_", " ");
+}
+
+function formatPaymentCardBrand(brand: string | null) {
+  if (!brand) {
+    return "Não informada";
+  }
+
+  const labels: Record<string, string> = {
+    american_express: "American Express",
+    diners_club: "Diners Club",
+    elo: "Elo",
+    hipercard: "Hipercard",
+    mastercard: "Mastercard",
+    outra: "Outra",
+    visa: "Visa",
+  };
+
+  return labels[brand] ?? brand.replaceAll("_", " ");
 }
 
 function buildPageHref(
@@ -251,7 +283,6 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
   return (
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
-        <span className="hotel-page-eyebrow">Admin</span>
         <h1>Reservas</h1>
         <p className="admin-rooms-copy">
           Acompanhe reservas e pagamentos dentro do seu escopo, sem confirmação manual insegura.
@@ -361,6 +392,7 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
                   <th scope="col">Valor</th>
                   <th scope="col">Reserva</th>
                   <th scope="col">Pagamento</th>
+                  <th scope="col">Cartão</th>
                   <th scope="col">Provedor</th>
                   <th scope="col">Criada em</th>
                   <th scope="col">Detalhe</th>
@@ -393,6 +425,10 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
                           (option) => option.value === reservation.paymentStatus
                         )?.label ?? reservation.paymentStatus}
                       </span>
+                    </td>
+                    <td>
+                      {formatPaymentMethod(reservation.paymentMethod)} /{" "}
+                      {formatPaymentCardBrand(reservation.paymentCardBrand)}
                     </td>
                     <td>{formatProvider(reservation.paymentProvider)}</td>
                     <td>{formatDateTime(reservation.createdAt)}</td>
