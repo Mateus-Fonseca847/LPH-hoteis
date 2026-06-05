@@ -28,8 +28,6 @@ const INVALID_CREDENTIALS_MESSAGE = "Não foi possível concluir o login com os 
 const LOGIN_FAILURE_MESSAGE = "Não foi possível concluir o login.";
 const TWO_FACTOR_EMAIL_FAILURE_MESSAGE =
   "Não foi possível enviar o código de verificação. Tente novamente em alguns instantes.";
-const ADMIN_TWO_FACTOR_REQUIRED_MESSAGE =
-  "2FA administrativo obrigatório. Solicite a ativação antes de acessar o painel.";
 
 function isPrismaRuntimeError(error: unknown) {
   return (
@@ -130,24 +128,7 @@ export async function POST(request: Request) {
     clearFailedLoginAttempts({ email, ip });
     await clearAuthSessionCookie();
 
-    if (isAdminUser(user.globalRole)) {
-      if (!user.emailTwoFactorEnabled) {
-        console.warn("[auth/login] Admin login blocked without email 2FA.", {
-          email,
-          userId: user.id,
-          ip,
-        });
-
-        return NextResponse.json(
-          {
-            ok: false,
-            error: ADMIN_TWO_FACTOR_REQUIRED_MESSAGE,
-            code: "AUTHORIZATION_ERROR",
-          },
-          { status: 403 }
-        );
-      }
-
+    if (isAdminUser(user.globalRole) && user.emailTwoFactorEnabled) {
       const twoFactorRequest = await requestTwoFactorEmailCodeForUser(user.id);
 
       if (twoFactorRequest.retryAfterSeconds) {

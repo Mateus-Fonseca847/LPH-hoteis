@@ -48,6 +48,7 @@ describe("admin auth helpers", () => {
       sub: "user-1",
       globalRole: "user",
       twoFactorVerified: false,
+      twoFactorSetupRequired: false,
     });
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       id: "user-1",

@@ -3,12 +3,12 @@ import { AccountSecurityForm } from "@/app/admin/seguranca/AccountSecurityForm";
 import { AdminAccessError, isAdminUser, requireAdminRouteSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-function formatSecurityStatus(enabled: boolean, isAdmin: boolean) {
+function formatSecurityStatus(enabled: boolean) {
   if (enabled) {
     return "Ativo";
   }
 
-  return isAdmin ? "Ativação pendente" : "Inativo";
+  return "Inativo";
 }
 
 export default async function AdminSecurityPage() {
@@ -42,7 +42,7 @@ export default async function AdminSecurityPage() {
   }
 
   const isAdmin = isAdminUser(user.globalRole);
-  const status = formatSecurityStatus(user.emailTwoFactorEnabled, isAdmin);
+  const status = formatSecurityStatus(user.emailTwoFactorEnabled);
 
   return (
     <section className="section admin-section">
@@ -60,7 +60,7 @@ export default async function AdminSecurityPage() {
           <p>
             {user.emailTwoFactorEnabled
               ? "Sua conta está marcada para usar código por e-mail."
-              : "Ative o 2FA por e-mail para manter sua conta alinhada à política administrativa."}
+              : "Você pode ativar o 2FA por e-mail como camada adicional de segurança."}
           </p>
         </article>
 
@@ -72,10 +72,10 @@ export default async function AdminSecurityPage() {
 
         <article className="hotel-content-card admin-overview-card">
           <span>Política</span>
-          <strong>{isAdmin ? "Obrigatório para admins" : "Opcional"}</strong>
+          <strong>Opcional</strong>
           <p>
             {isAdmin
-              ? "Admins precisam validar o código enviado por e-mail antes de acessar o painel."
+              ? "Admins podem acessar com e-mail e senha. Quando o 2FA estiver ativo, o código por e-mail será solicitado."
               : "Usuários comuns podem usar 2FA como camada adicional quando disponível."}
           </p>
         </article>

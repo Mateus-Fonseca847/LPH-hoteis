@@ -21,7 +21,8 @@ const overviewCards = [
     href: "/admin/auditoria",
     label: "Auditoria",
     title: "Ver registros",
-    description: "Consultar histórico administrativo e alterações feitas em seus hotéis.",
+    description:
+      "Consultar histórico administrativo e alterações feitas em seus hotéis.npm cache clean --force",
     action: "Abrir auditoria",
   },
   {
