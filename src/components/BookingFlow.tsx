@@ -35,6 +35,12 @@ type GuestFormErrors = {
   guestDocument?: string;
 };
 
+type PaymentFormErrors = {
+  paymentObservation1?: string;
+  paymentObservation2?: string;
+  paymentObservation3?: string;
+};
+
 type AvailabilityFlowStep = 1 | 2 | 3 | 4 | 5;
 type PaymentMethod = "credit_card" | "debit_card";
 type PaymentCardBrand =
@@ -183,35 +189,6 @@ function formatPaymentCardBrandLabel(brand: PaymentCardBrand | "") {
   );
 }
 
-function formatCardNumberInput(value: string) {
-  return value
-    .replace(/\D/g, "")
-    .slice(0, 16)
-    .replace(/(\d{4})(?=\d)/g, "$1 ")
-    .trim();
-}
-
-function formatCardExpiryInput(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 4);
-
-  if (digits.length <= 2) {
-    return digits;
-  }
-
-  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-}
-
-function formatCardCvvInput(value: string) {
-  return value.replace(/\D/g, "").slice(0, 3);
-}
-
-function isValidCardExpiry(value: string) {
-  const match = /^(\d{2})\/(\d{2})$/.exec(value);
-  const month = match ? Number(match[1]) : 0;
-
-  return Boolean(match && month >= 1 && month <= 12);
-}
-
 function getNights(checkIn: Date | null, checkOut: Date | null) {
   if (!checkIn || !checkOut || !isAfterDay(checkOut, checkIn)) {
     return 0;
@@ -250,6 +227,53 @@ function validateGuestData({
 
   if (!normalizeGuestDocument(guestDocument)) {
     errors.guestDocument = getGuestDocumentError(guestDocument);
+  }
+
+  return errors;
+}
+
+function formatPaymentCardNumberInput(value: string) {
+  return value
+    .replace(/\D/g, "")
+    .slice(0, 16)
+    .replace(/(\d{4})(?=\d)/g, "$1 ");
+}
+
+function formatPaymentExpiryInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 4);
+
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+}
+
+function formatPaymentCvvInput(value: string) {
+  return value.replace(/\D/g, "").slice(0, 3);
+}
+
+function validatePaymentData({
+  paymentObservation1,
+  paymentObservation2,
+  paymentObservation3,
+}: {
+  paymentObservation1: string;
+  paymentObservation2: string;
+  paymentObservation3: string;
+}) {
+  const errors: PaymentFormErrors = {};
+
+  if (!/^\d{4} \d{4} \d{4} \d{4}$/.test(paymentObservation1)) {
+    errors.paymentObservation1 = "Informe 16 numeros separados de 4 em 4.";
+  }
+
+  if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(paymentObservation2)) {
+    errors.paymentObservation2 = "Informe a data no formato MM/AA.";
+  }
+
+  if (!/^\d{3}$/.test(paymentObservation3)) {
+    errors.paymentObservation3 = "Informe 3 numeros.";
   }
 
   return errors;
@@ -335,7 +359,7 @@ function AvailabilityFlowStepper({
           const content = (
             <>
               <span className="availability-flow-step__marker">
-                {isCompleted ? <span aria-hidden="true">OK</span> : stepNumber}
+                {isCompleted ? <span aria-hidden="true">✓</span> : stepNumber}
               </span>
               <span className="availability-flow-step__label">{label}</span>
             </>
@@ -385,6 +409,7 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
   const [paymentObservation1, setPaymentObservation1] = useState("");
   const [paymentObservation2, setPaymentObservation2] = useState("");
   const [paymentObservation3, setPaymentObservation3] = useState("");
+  const [paymentFormErrors, setPaymentFormErrors] = useState<PaymentFormErrors>({});
   const [reservationError, setReservationError] = useState("");
   const [createdReservationId, setCreatedReservationId] = useState<string | null>(null);
   const [isSubmittingReservation, setIsSubmittingReservation] = useState(false);
@@ -433,6 +458,7 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
     setPaymentObservation1("");
     setPaymentObservation2("");
     setPaymentObservation3("");
+    setPaymentFormErrors({});
   }
 
   function handleDateClick(date: Date) {
@@ -485,23 +511,21 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
       return;
     }
 
+    const paymentErrors = validatePaymentData({
+      paymentObservation1,
+      paymentObservation2,
+      paymentObservation3,
+    });
+
+    setPaymentFormErrors(paymentErrors);
+
+    if (Object.keys(paymentErrors).length > 0) {
+      setReservationError("Verifique os dados do cartao para enviar a solicitacao.");
+      return;
+    }
+
     if (!paymentMethod || !paymentCardBrand) {
       setReservationError("Escolha o tipo e a bandeira do cartão para enviar a solicitação.");
-      return;
-    }
-
-    if (paymentObservation1.replace(/\D/g, "").length !== 16) {
-      setReservationError("Informe os 16 números do cartão.");
-      return;
-    }
-
-    if (!isValidCardExpiry(paymentObservation2)) {
-      setReservationError("Informe a data de validade no formato MM/AA.");
-      return;
-    }
-
-    if (paymentObservation3.replace(/\D/g, "").length !== 3) {
-      setReservationError("Informe os 3 numeros do CVV.");
       return;
     }
 
@@ -1078,48 +1102,78 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
                   {PAYMENT_OBSERVATION_FIELDS[0].label}
                   <input
                     type="text"
+                    autoComplete="cc-number"
                     inputMode="numeric"
-                    autoComplete="off"
                     value={paymentObservation1}
-                    onChange={(event) =>
-                      setPaymentObservation1(formatCardNumberInput(event.target.value))
-                    }
+                    onChange={(event) => {
+                      setPaymentObservation1(formatPaymentCardNumberInput(event.target.value));
+                      setPaymentFormErrors((current) => ({
+                        ...current,
+                        paymentObservation1: undefined,
+                      }));
+                      setReservationError("");
+                    }}
+                    required
+                    pattern="\d{4} \d{4} \d{4} \d{4}"
                     maxLength={19}
                     placeholder={PAYMENT_OBSERVATION_FIELDS[0].placeholder}
-                    required
+                    aria-invalid={Boolean(paymentFormErrors.paymentObservation1)}
                   />
+                  {paymentFormErrors.paymentObservation1 ? (
+                    <span>{paymentFormErrors.paymentObservation1}</span>
+                  ) : null}
                 </label>
 
                 <label className="availability-card-data-field availability-card-data-field--expiry">
                   {PAYMENT_OBSERVATION_FIELDS[1].label}
                   <input
                     type="text"
+                    autoComplete="cc-exp"
                     inputMode="numeric"
-                    autoComplete="off"
                     value={paymentObservation2}
-                    onChange={(event) =>
-                      setPaymentObservation2(formatCardExpiryInput(event.target.value))
-                    }
+                    onChange={(event) => {
+                      setPaymentObservation2(formatPaymentExpiryInput(event.target.value));
+                      setPaymentFormErrors((current) => ({
+                        ...current,
+                        paymentObservation2: undefined,
+                      }));
+                      setReservationError("");
+                    }}
+                    required
+                    pattern="(0[1-9]|1[0-2])\/\d{2}"
                     maxLength={5}
                     placeholder={PAYMENT_OBSERVATION_FIELDS[1].placeholder}
-                    required
+                    aria-invalid={Boolean(paymentFormErrors.paymentObservation2)}
                   />
+                  {paymentFormErrors.paymentObservation2 ? (
+                    <span>{paymentFormErrors.paymentObservation2}</span>
+                  ) : null}
                 </label>
 
                 <label className="availability-card-data-field availability-card-data-field--cvv">
                   {PAYMENT_OBSERVATION_FIELDS[2].label}
                   <input
                     type="text"
+                    autoComplete="cc-csc"
                     inputMode="numeric"
-                    autoComplete="off"
                     value={paymentObservation3}
-                    onChange={(event) =>
-                      setPaymentObservation3(formatCardCvvInput(event.target.value))
-                    }
+                    onChange={(event) => {
+                      setPaymentObservation3(formatPaymentCvvInput(event.target.value));
+                      setPaymentFormErrors((current) => ({
+                        ...current,
+                        paymentObservation3: undefined,
+                      }));
+                      setReservationError("");
+                    }}
+                    required
+                    pattern="\d{3}"
                     maxLength={3}
                     placeholder={PAYMENT_OBSERVATION_FIELDS[2].placeholder}
-                    required
+                    aria-invalid={Boolean(paymentFormErrors.paymentObservation3)}
                   />
+                  {paymentFormErrors.paymentObservation3 ? (
+                    <span>{paymentFormErrors.paymentObservation3}</span>
+                  ) : null}
                 </label>
               </div>
 

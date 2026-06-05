@@ -227,11 +227,14 @@ export async function confirmReservationManually(input: ReservationOperationInpu
   const reservation = await getReservationForOperation(input.reservationId);
   await assertReservationAdminAccess(input.userId, reservation.hotelId);
 
-  if (reservation.paymentStatus === "paid") {
-    throw new ConflictError("Reserva ja possui pagamento confirmado.");
+  if (
+    (reservation.paymentStatus === "paid" || reservation.paymentTransaction?.status === "paid") &&
+    ["confirmed", "paid"].includes(reservation.status)
+  ) {
+    return { status: "confirmed" as const };
   }
 
-  if (!["pending", "awaiting_payment"].includes(reservation.status)) {
+  if (!["pending", "awaiting_payment", "confirmed"].includes(reservation.status)) {
     throw new ConflictError("Reserva não pode ser confirmada manualmente neste estado.");
   }
 
@@ -266,6 +269,14 @@ export async function updatePendingReservationPaymentStatusManually(
   const reservation = await getReservationForOperation(input.reservationId);
   await assertReservationAdminAccess(input.userId, reservation.hotelId);
 
+  if (
+    input.nextPaymentStatus === "paid" &&
+    (reservation.paymentStatus === "paid" || reservation.paymentTransaction?.status === "paid") &&
+    ["confirmed", "paid"].includes(reservation.status)
+  ) {
+    return { status: "confirmed" as const };
+  }
+
   if (!["pending", "awaiting_payment"].includes(reservation.paymentStatus)) {
     throw new ConflictError(
       "Somente reservas com pagamento pendente podem ser alteradas manualmente."
@@ -273,7 +284,34 @@ export async function updatePendingReservationPaymentStatusManually(
   }
 
   if (input.nextPaymentStatus === "paid") {
-    return confirmReservationManually(input);
+    if (!["pending", "awaiting_payment", "confirmed"].includes(reservation.status)) {
+      throw new ConflictError("Reserva não pode receber pagamento confirmado neste estado.");
+    }
+
+    const confirmation = await confirmPaidReservation({
+      reservationId: reservation.id,
+      providerPaymentId: reservation.providerPaymentId ?? `manual-${reservation.id}`,
+      paymentMethod: reservation.paymentMethod ?? "manual",
+    });
+
+    if (!confirmation?.confirmed) {
+      throw new ConflictError("Reserva não pode receber pagamento confirmado neste estado.");
+    }
+
+    await createOperationLog({
+      reservation,
+      userId: input.userId,
+      action: "reservation.payment_status_updated",
+      reason,
+      nextStatus: "confirmed",
+      nextPaymentStatus: "paid",
+      metadata: {
+        manual: true,
+        targetPaymentStatus: "paid",
+      },
+    });
+
+    return { status: "confirmed" as const };
   }
 
   if (input.nextPaymentStatus === "payment_failed") {

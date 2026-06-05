@@ -15,9 +15,9 @@ const validPayload = {
   children: 1,
   paymentMethod: "credit_card",
   paymentCardBrand: "visa",
-  paymentObservation1: "Prefiro contato por WhatsApp.",
-  paymentObservation2: "Melhor horário após as 14h.",
-  paymentObservation3: "Pagamento com cartão na chegada.",
+  paymentObservation1: "1234 5678 9012 3456",
+  paymentObservation2: "12/30",
+  paymentObservation3: "123",
 };
 
 describe("createReservationPayloadSchema", () => {
@@ -27,7 +27,7 @@ describe("createReservationPayloadSchema", () => {
       guestEmail: " MARIA@EXAMPLE.COM ",
       guestName: "  Maria   Silva  ",
       guestDocument: " ab123456 ",
-      paymentObservation1: "  Prefiro contato por WhatsApp.  ",
+      paymentObservation1: "  1234 5678 9012 3456  ",
     });
 
     expect(result.success).toBe(true);
@@ -37,7 +37,7 @@ describe("createReservationPayloadSchema", () => {
       expect(result.data.guestDocument).toBe("AB123456");
       expect(result.data.paymentMethod).toBe("credit_card");
       expect(result.data.paymentCardBrand).toBe("visa");
-      expect(result.data.paymentObservation1).toBe("Prefiro contato por WhatsApp.");
+      expect(result.data.paymentObservation1).toBe("1234 5678 9012 3456");
     }
   });
 
@@ -80,6 +80,32 @@ describe("createReservationPayloadSchema", () => {
       success: false,
       error: "Check-in inválida.",
     });
+  });
+
+  it("rejeita dados de cartao fora do formato esperado", () => {
+    expect(
+      parseCreateReservationPayload({
+        ...validPayload,
+        paymentObservation1: "1234567890123456",
+      })
+    ).toEqual({
+      success: false,
+      error: "Numero do cartao invalido.",
+    });
+
+    expect(
+      parseCreateReservationPayload({
+        ...validPayload,
+        paymentObservation2: "13/30",
+      }).success
+    ).toBe(false);
+
+    expect(
+      parseCreateReservationPayload({
+        ...validPayload,
+        paymentObservation3: "1234",
+      }).success
+    ).toBe(false);
   });
 
   it("rejeita ocupação fora dos limites", () => {

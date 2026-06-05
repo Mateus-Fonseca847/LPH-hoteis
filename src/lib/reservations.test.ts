@@ -29,9 +29,9 @@ const input = {
   reservationId: "reservation-1",
   paymentMethod: "credit_card",
   paymentCardBrand: "visa",
-  paymentObservation1: "Prefiro contato por WhatsApp.",
-  paymentObservation2: "Melhor horário após as 14h.",
-  paymentObservation3: "Pagamento com cartão na chegada.",
+  paymentObservation1: "1234 5678 9012 3456",
+  paymentObservation2: "12/30",
+  paymentObservation3: "123",
 };
 
 describe("sendHotelReservationEmail", () => {
@@ -75,14 +75,14 @@ describe("sendGuestReservationEmail", () => {
     expect(sendTransactionalEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: "maria@example.test",
-        text: expect.stringContaining("Número do cartão: Prefiro contato por WhatsApp."),
+        text: expect.stringContaining("Número do cartão: 1234 5678 9012 3456"),
         html: expect.stringContaining("CVV"),
       })
     );
     expect(sendTransactionalEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        text: expect.stringContaining("Data de validade: Melhor horário após as 14h."),
-        html: expect.stringContaining("Pagamento com cartão na chegada."),
+        text: expect.stringContaining("Data de validade: 12/30"),
+        html: expect.stringContaining("123"),
       })
     );
   });

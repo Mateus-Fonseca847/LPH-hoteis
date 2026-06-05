@@ -37,9 +37,9 @@ const validPayload = {
   children: 1,
   paymentMethod: "credit_card",
   paymentCardBrand: "visa",
-  paymentObservation1: "Prefiro contato por WhatsApp.",
-  paymentObservation2: "Melhor horário após as 14h.",
-  paymentObservation3: "Pagamento com cartão na chegada.",
+  paymentObservation1: "1234 5678 9012 3456",
+  paymentObservation2: "12/30",
+  paymentObservation3: "123",
 };
 
 const room = {
@@ -157,9 +157,9 @@ describe("POST /api/reservas", () => {
           paymentMethod: "credit_card",
           paymentCardBrand: "visa",
           paymentStatus: "pending",
-          paymentObservation1: "Prefiro contato por WhatsApp.",
-          paymentObservation2: "Melhor horário após as 14h.",
-          paymentObservation3: "Pagamento com cartão na chegada.",
+          paymentObservation1: "1234 5678 9012 3456",
+          paymentObservation2: "12/30",
+          paymentObservation3: "123",
           expiresAt: new Date(Date.UTC(2099, 6, 1, 0, 30)),
           availabilityHeld: true,
           totalPriceCents: 70000,
@@ -180,9 +180,9 @@ describe("POST /api/reservas", () => {
         hotelEmail: "reservas@hotel.test",
         paymentMethod: "credit_card",
         paymentCardBrand: "visa",
-        paymentObservation1: "Prefiro contato por WhatsApp.",
-        paymentObservation2: "Melhor horário após as 14h.",
-        paymentObservation3: "Pagamento com cartão na chegada.",
+        paymentObservation1: "1234 5678 9012 3456",
+        paymentObservation2: "12/30",
+        paymentObservation3: "123",
       })
     );
     expect(sendGuestReservationEmail).toHaveBeenCalledWith(
@@ -190,9 +190,9 @@ describe("POST /api/reservas", () => {
         guestEmail: "maria@example.com",
         paymentMethod: "credit_card",
         paymentCardBrand: "visa",
-        paymentObservation1: "Prefiro contato por WhatsApp.",
-        paymentObservation2: "Melhor horário após as 14h.",
-        paymentObservation3: "Pagamento com cartão na chegada.",
+        paymentObservation1: "1234 5678 9012 3456",
+        paymentObservation2: "12/30",
+        paymentObservation3: "123",
       })
     );
   });

@@ -77,11 +77,20 @@ export const paymentCardBrandSchema = z.enum(paymentCardBrands, {
   error: "Bandeira do cartão inválida.",
 });
 
-const paymentObservationField = (label: string) =>
-  z
-    .string()
-    .transform(sanitizeText)
-    .pipe(z.string().max(500, `${label} deve ter no maximo 500 caracteres.`));
+const paymentCardNumberField = z
+  .string()
+  .transform(sanitizeText)
+  .pipe(z.string().regex(/^\d{4} \d{4} \d{4} \d{4}$/, "Numero do cartao invalido."));
+
+const paymentExpiryField = z
+  .string()
+  .transform(sanitizeText)
+  .pipe(z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Data de validade invalida."));
+
+const paymentCvvField = z
+  .string()
+  .transform(sanitizeText)
+  .pipe(z.string().regex(/^\d{3}$/, "CVV invalido."));
 
 export const createReservationPayloadSchema = z
   .object({
@@ -97,9 +106,9 @@ export const createReservationPayloadSchema = z
     children: guestsField("Crianças", 0, 10),
     paymentMethod: paymentMethodSchema,
     paymentCardBrand: paymentCardBrandSchema,
-    paymentObservation1: paymentObservationField("Obs 1"),
-    paymentObservation2: paymentObservationField("Obs 2"),
-    paymentObservation3: paymentObservationField("Obs 3"),
+    paymentObservation1: paymentCardNumberField,
+    paymentObservation2: paymentExpiryField,
+    paymentObservation3: paymentCvvField,
   })
   .strict();
 

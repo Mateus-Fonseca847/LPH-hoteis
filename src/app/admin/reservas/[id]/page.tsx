@@ -188,6 +188,59 @@ function ReservationRescheduleForm({
   );
 }
 
+function ReservationPaymentStatusForm({
+  reservationId,
+  currentPaymentStatus,
+}: {
+  reservationId: string;
+  currentPaymentStatus: PaymentStatus;
+}) {
+  const options: Array<{ value: PaymentStatus; label: string }> = [
+    { value: "pending", label: "Pendente" },
+    { value: "awaiting_payment", label: "Aguardando pagamento" },
+    { value: "paid", label: "Pago / confirmado" },
+    { value: "payment_failed", label: "Falho" },
+    { value: "cancelled", label: "Cancelado" },
+  ];
+
+  return (
+    <form action={reservationOperationAction} className="admin-form-section">
+      <input type="hidden" name="reservationId" value={reservationId} />
+      <input type="hidden" name="operation" value="update-payment-status" />
+      <div className="admin-form-grid">
+        <label className="admin-form-field">
+          <span>Status atual</span>
+          <input value={paymentStatusLabels[currentPaymentStatus]} readOnly />
+        </label>
+        <label className="admin-form-field">
+          <span>Novo status do pagamento</span>
+          <select name="nextPaymentStatus" defaultValue={currentPaymentStatus} required>
+            {options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label className="admin-form-field">
+        <span>Motivo da alteração</span>
+        <textarea
+          name="reason"
+          rows={3}
+          minLength={5}
+          maxLength={1000}
+          required
+          placeholder="Explique o motivo da atualização manual do pagamento"
+        />
+      </label>
+      <button type="submit" className="card-cta-button admin-edit-button">
+        Atualizar pagamento
+      </button>
+    </form>
+  );
+}
+
 export default async function AdminReservationDetailPage({
   params,
   searchParams,
@@ -452,22 +505,29 @@ export default async function AdminReservationDetailPage({
         </div>
 
         <div className="admin-form-grid admin-form-grid--three">
-          <article className="admin-form-section">
-            <div className="admin-audit-meta">
-              <p>
-                <span>Status da reserva</span>
-                <strong>{reservationStatusLabels[reservation.status]}</strong>
-              </p>
-              <p>
-                <span>Status do pagamento</span>
-                <strong>{paymentStatusLabels[reservation.paymentStatus]}</strong>
-              </p>
-              <p>
-                <span>Metodo</span>
-                <strong>{formatPaymentMethod(reservation.paymentMethod)}</strong>
-              </p>
-            </div>
-          </article>
+          {["pending", "awaiting_payment"].includes(reservation.paymentStatus) ? (
+            <ReservationPaymentStatusForm
+              reservationId={reservation.id}
+              currentPaymentStatus={reservation.paymentStatus}
+            />
+          ) : (
+            <article className="admin-form-section">
+              <div className="admin-audit-meta">
+                <p>
+                  <span>Status atual</span>
+                  <strong>{paymentStatusLabels[reservation.paymentStatus]}</strong>
+                </p>
+                <p>
+                  <span>Status da reserva</span>
+                  <strong>{reservationStatusLabels[reservation.status]}</strong>
+                </p>
+                <p>
+                  <span>Metodo</span>
+                  <strong>{formatPaymentMethod(reservation.paymentMethod)}</strong>
+                </p>
+              </div>
+            </article>
+          )}
           <ReservationOperationForm
             reservationId={reservation.id}
             operation="cancel"

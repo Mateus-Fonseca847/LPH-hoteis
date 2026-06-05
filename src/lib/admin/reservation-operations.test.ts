@@ -299,10 +299,63 @@ describe("reservation admin operations", () => {
     expect(prisma.reservationOperationLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          action: "reservation.manually_confirmed",
+          action: "reservation.payment_status_updated",
+          previousStatus: "pending",
+          nextStatus: "confirmed",
+          previousPaymentStatus: "pending",
+          nextPaymentStatus: "paid",
+          metadata: expect.objectContaining({
+            manual: true,
+            targetPaymentStatus: "paid",
+          }),
         }),
       })
     );
+  });
+
+  it("nao chama confirmacao manual antiga ao atualizar pagamento para pago", async () => {
+    mockReservation({ status: "pending", paymentStatus: "pending" });
+    vi.mocked(confirmPaidReservation).mockResolvedValue({
+      reservationId: "reservation-1",
+      confirmed: true,
+    });
+
+    await expect(
+      updatePendingReservationPaymentStatusManually({
+        reservationId: "reservation-1",
+        userId: "super-admin-1",
+        reason: "Pagamento confirmado manualmente no admin.",
+        nextPaymentStatus: "paid",
+      })
+    ).resolves.toEqual({ status: "confirmed" });
+
+    expect(confirmPaidReservation).toHaveBeenCalledWith({
+      reservationId: "reservation-1",
+      providerPaymentId: "preference-1",
+      paymentMethod: "pix",
+    });
+  });
+
+  it("nao duplica auditoria critica ao repetir confirmacao de reserva ja paga", async () => {
+    mockReservation({
+      status: "confirmed",
+      paymentStatus: "paid",
+      paymentTransaction: {
+        status: "paid",
+        providerPaymentId: "payment-1",
+      },
+    });
+
+    await expect(
+      confirmReservationManually({
+        reservationId: "reservation-1",
+        userId: "super-admin-1",
+        reason: "Pagamento ja conciliado anteriormente.",
+      })
+    ).resolves.toEqual({ status: "confirmed" });
+
+    expect(confirmPaidReservation).not.toHaveBeenCalled();
+    expect(prisma.reservationOperationLog.create).not.toHaveBeenCalled();
   });
 
   it("bloqueia alteração manual de pagamento para hotel_admin sem acesso ao hotel", async () => {

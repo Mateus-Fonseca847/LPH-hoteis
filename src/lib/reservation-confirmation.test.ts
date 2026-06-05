@@ -141,6 +141,49 @@ describe("reservation payment status transitions", () => {
     );
   });
 
+  it("marca como pago reserva ja confirmada sem liberar disponibilidade", async () => {
+    const tx = createTransactionMock({
+      reservation: {
+        status: "confirmed",
+        paymentStatus: "awaiting_payment",
+        availabilityHeld: true,
+      },
+    });
+
+    await expect(
+      confirmPaidReservation({
+        reservationId: "reservation-1",
+        providerPaymentId: "payment-1",
+      })
+    ).resolves.toEqual({
+      reservationId: "reservation-1",
+      confirmed: true,
+    });
+
+    expect(tx.roomAvailability.updateMany).not.toHaveBeenCalled();
+    expect(tx.reservation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: {
+            in: ["pending", "awaiting_payment", "confirmed"],
+          },
+        }),
+        data: expect.objectContaining({
+          status: "confirmed",
+          paymentStatus: "paid",
+          availabilityHeld: true,
+        }),
+      })
+    );
+    expect(tx.paymentTransaction.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          status: "paid",
+        }),
+      })
+    );
+  });
+
   it("e idempotente para webhook aprovado duplicado", async () => {
     const tx = createTransactionMock({
       reservation: {

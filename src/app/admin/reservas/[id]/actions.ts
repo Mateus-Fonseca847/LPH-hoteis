@@ -7,12 +7,13 @@ import { requireAdminRouteSession } from "@/lib/auth";
 import {
   cancelReservationManually,
   rescheduleReservationManually,
+  updatePendingReservationPaymentStatusManually,
 } from "@/lib/admin/reservation-operations";
 import { requireHotelAdminAccess } from "@/lib/auth/authorization";
 import { syncMercadoPagoPayment } from "@/lib/payments/mercado-pago-reconciliation";
 import { prisma } from "@/lib/prisma";
 
-type Operation = "cancel" | "reschedule";
+type Operation = "cancel" | "reschedule" | "update-payment-status";
 
 function getReason(formData: FormData) {
   return String(formData.get("reason") || "");
@@ -91,6 +92,18 @@ export async function reservationOperationAction(formData: FormData) {
         reason: getReason(formData),
         checkIn: String(formData.get("checkIn") || ""),
         checkOut: String(formData.get("checkOut") || ""),
+      });
+    } else if (operation === "update-payment-status") {
+      await updatePendingReservationPaymentStatusManually({
+        reservationId,
+        userId: user.id,
+        reason: getReason(formData),
+        nextPaymentStatus: String(formData.get("nextPaymentStatus") || "") as
+          | "pending"
+          | "awaiting_payment"
+          | "paid"
+          | "payment_failed"
+          | "cancelled",
       });
     } else {
       throw new Error("Operação inválida.");

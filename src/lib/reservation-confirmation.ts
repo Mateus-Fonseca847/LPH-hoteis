@@ -214,7 +214,7 @@ export async function closeUnpaidReservation({
       where: {
         id: reservation.id,
         status: {
-          in: ["pending", "awaiting_payment"],
+          in: ["pending", "awaiting_payment", "confirmed"],
         },
         paymentStatus: {
           not: "paid",
@@ -319,7 +319,7 @@ export async function confirmPaidReservation({
       };
     }
 
-    if (!["pending", "awaiting_payment"].includes(reservation.status)) {
+    if (!["pending", "awaiting_payment", "confirmed"].includes(reservation.status)) {
       throw new ValidationError("Reserva não pode ser confirmada.");
     }
 
@@ -394,7 +394,7 @@ export async function confirmPaidReservation({
       where: {
         id: reservation.id,
         status: {
-          in: ["pending", "awaiting_payment"],
+          in: ["pending", "awaiting_payment", "confirmed"],
         },
         paymentStatus: {
           not: "paid",
