@@ -38,7 +38,15 @@ type CreateHotelErrorCode =
   | "DATABASE_UNAVAILABLE"
   | "DATABASE_SCHEMA_MISMATCH"
   | "DATABASE_RELATION_FAILED"
+  | "VALIDATION_ERROR"
   | "UNEXPECTED_ERROR";
+
+type CreateHotelLogContext = {
+  step: string;
+  formDiagnostics: ReturnType<typeof getFormDataDiagnostics>;
+  userId?: string;
+  globalRole?: string;
+};
 
 class CreateHotelTechnicalError extends Error {
   readonly userMessage: string;
@@ -371,28 +379,42 @@ function getSafeTechnicalError(error: unknown) {
   };
 }
 
-function logCreateHotelError(error: unknown) {
-  if (
-    error instanceof ValidationError ||
-    error instanceof AuthorizationError ||
-    error instanceof ConflictError
-  ) {
-    console.warn("[admin/hoteis/create] Controlled create hotel failure.", {
-      name: error.name,
-      message: error.message,
-    });
-    return;
-  }
-
+function getCreateHotelErrorStep(error: unknown, fallbackStep: string) {
   if (error instanceof CreateHotelTechnicalError) {
-    console.error("[admin/hoteis/create] Failed to create hotel.", {
-      step: error.step,
-      cause: getSafeTechnicalError(error.cause),
-    });
-    return;
+    return error.step;
   }
 
-  console.error("[admin/hoteis/create] Failed to create hotel.", getSafeTechnicalError(error));
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return "prisma";
+  }
+
+  if (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    error instanceof Prisma.PrismaClientUnknownRequestError ||
+    error instanceof Prisma.PrismaClientRustPanicError ||
+    error instanceof Prisma.PrismaClientValidationError
+  ) {
+    return "database";
+  }
+
+  return fallbackStep;
+}
+
+function logCreateHotelError(error: unknown, context: CreateHotelLogContext) {
+  const technicalError =
+    error instanceof CreateHotelTechnicalError
+      ? getSafeTechnicalError(error.cause)
+      : getSafeTechnicalError(error);
+
+  console.error("[admin/hoteis/create] Failed to create hotel.", {
+    step: getCreateHotelErrorStep(error, context.step),
+    code: technicalError.code,
+    message: technicalError.message,
+    missingFields: context.formDiagnostics.missingFields,
+    userId: context.userId,
+    globalRole: context.globalRole,
+    error: technicalError,
+  });
 }
 
 function getCreateHotelPrismaErrorMessage(error: Prisma.PrismaClientKnownRequestError) {
@@ -440,6 +462,8 @@ function getCreateHotelErrorCode(error: unknown): CreateHotelErrorCode {
     if (error.message === "Envie uma imagem de capa ou informe a URL da capa.") {
       return "COVER_IMAGE_REQUIRED";
     }
+
+    return "VALIDATION_ERROR";
   }
 
   if (error instanceof CreateHotelTechnicalError) {
@@ -497,6 +521,8 @@ function getCreateHotelErrorMessage(error: unknown) {
       return error instanceof Prisma.PrismaClientKnownRequestError
         ? getCreateHotelPrismaErrorMessage(error)
         : "Falha ao salvar hotel, galeria, comodidades ou políticas.";
+    case "VALIDATION_ERROR":
+      return getErrorMessage(error, "Dados inválidos.");
     case "UNEXPECTED_ERROR":
       return getErrorMessage(error, "Não foi possível criar o hotel.");
   }
@@ -537,14 +563,21 @@ export async function createHotelAction(
   formData: FormData
 ): Promise<CreateHotelState> {
   const formDiagnostics = getFormDataDiagnostics(formData);
+  const logContext: CreateHotelLogContext = {
+    step: "start",
+    formDiagnostics,
+  };
 
   try {
+    logContext.step = "start";
     console.info("[admin/hoteis/create] Starting hotel creation.", formDiagnostics);
 
+    logContext.step = "auth";
     const user = await requireAuthenticatedRequestUser();
+    logContext.userId = user.id;
+    logContext.globalRole = user.globalRole;
     console.info("[admin/hoteis/create] Authenticated user.", {
       userId: user.id,
-      email: user.email,
       globalRole: user.globalRole,
       isActive: user.isActive,
     });
@@ -557,6 +590,7 @@ export async function createHotelAction(
       throw new AuthorizationError("Você não tem permissão para criar hotéis.");
     }
 
+    logContext.step = "validation";
     const parsedPayload = parseCreateHotelFormData(formData);
 
     if (!parsedPayload.success) {
@@ -572,6 +606,7 @@ export async function createHotelAction(
     const coverImageFile = getCoverImageFile(formData);
     const submittedCoverImageUrl = getCreateCoverImageUrl(formData);
     const coverAlt = String(formData.get("coverAlt") ?? "");
+    logContext.step = "slug-check";
     const existingSlug = await prisma.hotel.findUnique({
       where: {
         slug: payload.slug,
@@ -590,6 +625,7 @@ export async function createHotelAction(
     }
 
     const hotelId = randomUUID();
+    logContext.step = "cover-upload";
     const storedCoverImageUrl = coverImageFile
       ? await storeHotelImageFile(hotelId, coverImageFile)
           .then((storedCoverImage) => {
@@ -629,12 +665,14 @@ export async function createHotelAction(
       : submittedCoverImageUrl;
 
     if (!storedCoverImageUrl) {
+      logContext.step = "cover-validation";
       console.warn("[admin/hoteis/create] Missing cover image.", {
         missingFields: formDiagnostics.missingFields,
       });
       throw new ValidationError("Envie uma imagem de capa ou informe a URL da capa.");
     }
 
+    logContext.step = "gallery-validation";
     const parsedGalleryImages = galleryImagesSchema.safeParse(
       parseGalleryImages(formData, payload.name, storedCoverImageUrl, coverAlt)
     );
@@ -653,6 +691,7 @@ export async function createHotelAction(
       city: payload.city,
       state: payload.state,
     });
+    logContext.step = "headers";
     const requestHeaders = await headers();
     const ipAddress = getRequestIpAddress(requestHeaders);
     console.info("[admin/hoteis/create] Persisting hotel draft.", {
@@ -665,6 +704,7 @@ export async function createHotelAction(
       hasResolvedLocation: Boolean(resolvedLocation),
     });
 
+    logContext.step = "database-transaction";
     const hotel = await prisma
       .$transaction(async (tx) => {
         const createdHotel = await tx.hotel.create({
@@ -799,7 +839,7 @@ export async function createHotelAction(
       hotelId: hotel.id,
     };
   } catch (error) {
-    logCreateHotelError(error);
+    logCreateHotelError(error, logContext);
     const message = getCreateHotelErrorMessage(error);
 
     return {

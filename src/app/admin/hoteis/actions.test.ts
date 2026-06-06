@@ -604,7 +604,11 @@ describe("createHotelAction", () => {
       "[admin/hoteis/create] Failed to create hotel.",
       expect.objectContaining({
         step: "cover-upload",
-        cause: expect.objectContaining({
+        message: "S3_ACCESS_KEY_ID missing",
+        missingFields: [],
+        userId: "admin-1",
+        globalRole: "hotel_admin",
+        error: expect.objectContaining({
           message: "S3_ACCESS_KEY_ID missing",
         }),
       })
@@ -686,6 +690,31 @@ describe("createHotelAction", () => {
     });
   });
 
+  it("mostra erro específico para falha de relação Prisma", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.$transaction).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Foreign key constraint failed", {
+        code: "P2003",
+        clientVersion: "test",
+      })
+    );
+
+    const result = await createHotelAction({ status: "idle", message: "" }, buildFormData());
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Falha ao vincular dados relacionados do hotel.",
+      errorCode: "DATABASE_RELATION_FAILED",
+    });
+  });
+
   it("mostra erro específico para falha ao criar relações do hotel", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
@@ -710,7 +739,11 @@ describe("createHotelAction", () => {
       "[admin/hoteis/create] Failed to create hotel.",
       expect.objectContaining({
         step: "database-transaction",
-        cause: expect.objectContaining({
+        message: "HotelPolicy table missing",
+        missingFields: [],
+        userId: "admin-1",
+        globalRole: "hotel_admin",
+        error: expect.objectContaining({
           message: "HotelPolicy table missing",
         }),
       })
@@ -734,7 +767,11 @@ describe("createHotelAction", () => {
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "[admin/hoteis/create] Failed to create hotel.",
       expect.objectContaining({
-        name: "UnknownError",
+        step: "auth",
+        message: "falha desconhecida",
+        error: expect.objectContaining({
+          name: "UnknownError",
+        }),
       })
     );
 
