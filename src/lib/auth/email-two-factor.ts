@@ -1,7 +1,6 @@
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 
 import { sendTwoFactorCodeEmail } from "@/lib/email";
-import { getTwoFactorLoginState } from "@/lib/auth/two-factor";
 import { prisma } from "@/lib/prisma";
 
 export type EmailAuthCodePurpose = "login_2fa" | "email_verification" | "password_reset";
@@ -52,6 +51,10 @@ function getSecondsUntil(date: Date, now = new Date()) {
 
 function isValidNumericCode(code: string) {
   return new RegExp(`^\\d{${CODE_DIGITS}}$`).test(code);
+}
+
+function isAdminRole(role: string) {
+  return role === "super_admin" || role === "hotel_admin";
 }
 
 export function generateSixDigitEmailCode() {
@@ -140,8 +143,7 @@ export async function requestTwoFactorEmailCodeForUser(
       name: true,
       email: true,
       globalRole: true,
-      twoFactorEnabled: true,
-      twoFactorSecret: true,
+      emailTwoFactorEnabled: true,
     },
   });
 
@@ -149,14 +151,8 @@ export async function requestTwoFactorEmailCodeForUser(
     return { sent: false };
   }
 
-  const twoFactorState = getTwoFactorLoginState(user);
-
-  if (twoFactorState.mode === "bypass") {
+  if (!isAdminRole(user.globalRole) || !user.emailTwoFactorEnabled) {
     return { sent: false };
-  }
-
-  if (twoFactorState.mode === "error") {
-    throw twoFactorState.error;
   }
 
   const now = new Date();

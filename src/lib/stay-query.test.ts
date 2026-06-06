@@ -1,0 +1,159 @@
+﻿import { describe, expect, it } from "vitest";
+
+import {
+  calculateStayNights,
+  formatPriceInBRL,
+  getRoomStayAvailabilityStatus,
+  getRoomStayPriceEstimate,
+  getStayDates,
+} from "@/lib/stay-query";
+
+const room = {
+  capacity: 3,
+  capacityAdults: 2,
+  capacityChildren: 1,
+  availability: [
+    { date: "2026-07-10", availableUnits: 2, closed: false },
+    { date: "2026-07-11", availableUnits: 1, closed: false },
+  ],
+  rates: [
+    {
+      id: "rate-1",
+      name: "Flexivel",
+      description: "Tarifa flexivel",
+      priceCents: 35000,
+      currency: "BRL",
+      startDate: "2026-07-01",
+      endDate: "2026-07-31",
+      minNights: 1,
+      maxGuests: 3,
+      refundable: true,
+      breakfastIncluded: true,
+    },
+  ],
+};
+
+describe("stay-query", () => {
+  it("calcula noites e datas da estadia sem incluir checkout", () => {
+    expect(calculateStayNights("2026-07-10", "2026-07-12")).toBe(2);
+    expect(getStayDates("2026-07-10", "2026-07-12")).toEqual(["2026-07-10", "2026-07-11"]);
+  });
+
+  it("rejeita check-in inválido", () => {
+    expect(() => calculateStayNights("2026-02-30", "2026-03-02")).toThrow("Data inválida");
+  });
+
+  it("rejeita check-out inválido", () => {
+    expect(() => calculateStayNights("2026-07-10", "2026-13-01")).toThrow("Data inválida");
+  });
+
+  it("exige check-out depois do check-in", () => {
+    expect(() => calculateStayNights("2026-07-10", "2026-07-10")).toThrow(
+      "Check-out deve ser posterior"
+    );
+    expect(() => calculateStayNights("2026-07-12", "2026-07-10")).toThrow(
+      "Check-out deve ser posterior"
+    );
+  });
+
+  it("calcula preco total pela melhor tarifa compativel", () => {
+    expect(
+      getRoomStayPriceEstimate(
+        {
+          ...room,
+          rates: [
+            ...room.rates,
+            {
+              ...room.rates[0],
+              id: "rate-2",
+              priceCents: 30000,
+            },
+          ],
+        },
+        "2026-07-10",
+        "2026-07-12",
+        2,
+        1
+      )
+    ).toMatchObject({
+      rateId: "rate-2",
+      nightlyPriceCents: 30000,
+      totalPriceCents: 60000,
+      nights: 2,
+    });
+  });
+
+  it("não calcula valor quando tarifa não cobre noites, moeda ou ocupação", () => {
+    expect(
+      getRoomStayPriceEstimate(
+        {
+          ...room,
+          rates: [
+            {
+              ...room.rates[0],
+              minNights: 3,
+            },
+            {
+              ...room.rates[0],
+              id: "usd",
+              currency: "USD",
+            },
+            {
+              ...room.rates[0],
+              id: "guests",
+              maxGuests: 1,
+            },
+          ],
+        },
+        "2026-07-10",
+        "2026-07-12",
+        2,
+        1
+      )
+    ).toBeNull();
+  });
+
+  it("formata o preço total em BRL sem depender de servico externo", () => {
+    const estimate = getRoomStayPriceEstimate(room, "2026-07-10", "2026-07-12", 2, 1);
+
+    expect(estimate?.totalPriceCents).toBe(70000);
+    expect(formatPriceInBRL(estimate?.totalPriceCents ?? 0)).toContain("700");
+  });
+
+  it("marca indisponível quando alguma noite está fechada ou sem unidade", () => {
+    expect(
+      getRoomStayAvailabilityStatus(
+        {
+          ...room,
+          availability: [
+            { date: "2026-07-10", availableUnits: 1, closed: false },
+            { date: "2026-07-11", availableUnits: 0, closed: false },
+          ],
+        },
+        "2026-07-10",
+        "2026-07-12",
+        2,
+        1
+      )
+    ).toBe("unavailable");
+  });
+
+  it("marca disponibilidade desconhecida quando falta dia configurado", () => {
+    expect(
+      getRoomStayAvailabilityStatus(
+        {
+          ...room,
+          availability: [{ date: "2026-07-10", availableUnits: 1, closed: false }],
+        },
+        "2026-07-10",
+        "2026-07-12",
+        2,
+        1
+      )
+    ).toBe("unknown");
+  });
+
+  it("marca disponível quando capacidade e todas as noites estao abertas", () => {
+    expect(getRoomStayAvailabilityStatus(room, "2026-07-10", "2026-07-12", 2, 1)).toBe("available");
+  });
+});

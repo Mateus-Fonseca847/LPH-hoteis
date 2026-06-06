@@ -1,7 +1,7 @@
 import { HotelRole } from "@prisma/client";
-import Image from "next/image";
 import Link from "next/link";
 
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import {
   calculateHotelCompleteness,
   getHotelCompletenessSelect,
@@ -123,7 +123,6 @@ export default async function AdminHotelsPage() {
   return (
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
-        <span className="hotel-page-eyebrow">Admin</span>
         <h1>Hotéis</h1>
       </div>
 
@@ -136,10 +135,11 @@ export default async function AdminHotelsPage() {
         <div className="admin-hotels-grid">
           {hotels.map((hotel) => (
             <article key={hotel.id} className="hotel-content-card admin-hotel-card">
-              <Image
+              <ImageWithFallback
                 className="admin-hotel-card-image"
                 src={hotel.coverImageUrl}
                 alt={`Imagem de capa do ${hotel.name}`}
+                fallbackLabel={`Imagem indisponível de ${hotel.name}`}
                 width={520}
                 height={320}
                 sizes="(max-width: 900px) 100vw, 33vw"

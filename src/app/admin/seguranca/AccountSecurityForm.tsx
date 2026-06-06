@@ -22,7 +22,7 @@ const idleState: AccountSecurityActionState = {
 export function AccountSecurityForm({ emailTwoFactorEnabled, isAdmin }: AccountSecurityFormProps) {
   const [state, setState] = useState<AccountSecurityActionState>(idleState);
   const [isPending, startTransition] = useTransition();
-  const canDisable = emailTwoFactorEnabled && !isAdmin;
+  const canDisable = emailTwoFactorEnabled;
 
   function handleEnable() {
     startTransition(async () => {
@@ -73,8 +73,7 @@ export function AccountSecurityForm({ emailTwoFactorEnabled, isAdmin }: AccountS
 
       {isAdmin ? (
         <p className="admin-availability-note">
-          Administradores devem manter 2FA por e-mail ativo. A desativação exige uma política
-          explicita do sistema.
+          Para administradores, o 2FA por e-mail é opcional. Quando ativo, será solicitado no login.
         </p>
       ) : null}
 

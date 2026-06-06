@@ -5,11 +5,36 @@ import {
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
+import {
+  isPaymentWebhookAlreadyProcessed,
+  validatePaymentWebhookIdentity,
+} from "@/lib/payments/webhook-idempotency";
 import { prisma } from "@/lib/prisma";
+import { closeUnpaidReservation, confirmPaidReservation } from "@/lib/reservation-confirmation";
 import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
 
 const WEBHOOK_FAILURE_MESSAGE = "Não foi possível processar o webhook de pagamento.";
+
+function getStripePaymentIntentId(value: Stripe.Checkout.Session["payment_intent"]) {
+  return typeof value === "string" ? value : value?.id;
+}
+
+async function findReservationForWebhook(reservationId: string) {
+  return prisma.reservation.findUnique({
+    where: {
+      id: reservationId,
+    },
+    select: {
+      id: true,
+      status: true,
+      paymentStatus: true,
+      providerPaymentId: true,
+      stripeCheckoutSessionId: true,
+      stripePaymentIntentId: true,
+    },
+  });
+}
 
 async function notifyPaidReservation(reservationId: string) {
   const reservation = await prisma.reservation.findUnique({
@@ -34,6 +59,11 @@ async function notifyPaidReservation(reservationId: string) {
     guestEmail: reservation.guestEmail,
     guestPhone: reservation.guestPhone,
     guestDocument: reservation.guestDocument ?? undefined,
+    paymentMethod: reservation.paymentMethod,
+    paymentCardBrand: reservation.paymentCardBrand,
+    paymentObservation1: reservation.paymentObservation1,
+    paymentObservation2: reservation.paymentObservation2,
+    paymentObservation3: reservation.paymentObservation3,
     checkIn: reservation.checkIn,
     checkOut: reservation.checkOut,
     adults: reservation.adults,
@@ -60,37 +90,40 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  const reservation = await prisma.reservation.findUnique({
-    where: {
-      id: reservationId,
-    },
-    select: {
-      id: true,
-      status: true,
-    },
-  });
+  const reservation = await findReservationForWebhook(reservationId);
 
-  if (!reservation || reservation.status === "paid") {
+  if (!reservation) {
     return;
   }
 
-  await prisma.reservation.update({
-    where: {
-      id: reservation.id,
-    },
-    data: {
-      status: "confirmed",
-      paymentStatus: "paid",
-      stripeCheckoutSessionId: session.id,
-      stripePaymentIntentId:
-        typeof session.payment_intent === "string"
-          ? session.payment_intent
-          : session.payment_intent?.id,
-      paidAt: new Date(),
-    },
+  const stripePaymentIntentId = getStripePaymentIntentId(session.payment_intent);
+  validatePaymentWebhookIdentity({
+    reservation,
+    reservationId,
+    stripeCheckoutSessionId: session.id,
+    stripePaymentIntentId,
   });
 
-  await notifyPaidReservation(reservation.id);
+  if (
+    isPaymentWebhookAlreadyProcessed({
+      reservation,
+      reservationId,
+      stripeCheckoutSessionId: session.id,
+      stripePaymentIntentId,
+    })
+  ) {
+    return;
+  }
+
+  const confirmation = await confirmPaidReservation({
+    reservationId: reservation.id,
+    stripeCheckoutSessionId: session.id,
+    stripePaymentIntentId,
+  });
+
+  if (confirmation?.confirmed) {
+    await notifyPaidReservation(reservation.id);
+  }
 }
 
 async function handleCheckoutFailed(session: Stripe.Checkout.Session) {
@@ -100,18 +133,32 @@ async function handleCheckoutFailed(session: Stripe.Checkout.Session) {
     return;
   }
 
-  await prisma.reservation.updateMany({
-    where: {
-      id: reservationId,
-      status: {
-        in: ["pending", "awaiting_payment"],
-      },
-    },
-    data: {
-      status: "payment_failed",
-      paymentStatus: "payment_failed",
+  const reservation = await findReservationForWebhook(reservationId);
+
+  if (!reservation) {
+    return;
+  }
+
+  validatePaymentWebhookIdentity({
+    reservation,
+    reservationId,
+    stripeCheckoutSessionId: session.id,
+  });
+
+  if (
+    isPaymentWebhookAlreadyProcessed({
+      reservation,
+      reservationId,
       stripeCheckoutSessionId: session.id,
-    },
+    })
+  ) {
+    return;
+  }
+
+  await closeUnpaidReservation({
+    reservationId,
+    status: "cancelled",
+    stripeCheckoutSessionId: session.id,
   });
 }
 
@@ -122,18 +169,32 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
     return;
   }
 
-  await prisma.reservation.updateMany({
-    where: {
-      id: reservationId,
-      status: {
-        in: ["pending", "awaiting_payment"],
-      },
-    },
-    data: {
-      status: "payment_failed",
-      paymentStatus: "payment_failed",
+  const reservation = await findReservationForWebhook(reservationId);
+
+  if (!reservation) {
+    return;
+  }
+
+  validatePaymentWebhookIdentity({
+    reservation,
+    reservationId,
+    stripePaymentIntentId: paymentIntent.id,
+  });
+
+  if (
+    isPaymentWebhookAlreadyProcessed({
+      reservation,
+      reservationId,
       stripePaymentIntentId: paymentIntent.id,
-    },
+    })
+  ) {
+    return;
+  }
+
+  await closeUnpaidReservation({
+    reservationId,
+    status: "payment_failed",
+    stripePaymentIntentId: paymentIntent.id,
   });
 }
 

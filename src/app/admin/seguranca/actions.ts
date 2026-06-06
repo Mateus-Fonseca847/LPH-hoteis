@@ -123,13 +123,46 @@ export async function disableEmailTwoFactorAction(): Promise<AccountSecurityActi
   try {
     const actor = await requireAdminRouteSession("/admin/seguranca");
 
-    if (isAdminUser(actor.globalRole)) {
-      throw new AuthorizationError("Admins devem manter 2FA por e-mail ativo.");
+    if (!isAdminUser(actor.globalRole)) {
+      throw new AuthorizationError("Acesso administrativo negado.");
     }
 
+    const requestHeaders = await headers();
+    const ipAddress = getRequestIpAddress(requestHeaders);
+    const auditHotelId = await getAuditHotelId(actor.id, actor.globalRole);
+
+    await prisma.$transaction(async (tx) => {
+      const currentUser = await tx.user.findUnique({
+        where: { id: actor.id },
+        select: { emailTwoFactorEnabled: true },
+      });
+
+      if (!currentUser) {
+        throw new AuthorizationError("Usuário autenticado não encontrado.");
+      }
+
+      const updatedUser = await tx.user.update({
+        where: { id: actor.id },
+        data: { emailTwoFactorEnabled: false },
+        select: { emailTwoFactorEnabled: true },
+      });
+
+      await createEmailTwoFactorAuditLog({
+        tx,
+        actorId: actor.id,
+        hotelId: auditHotelId,
+        previousEnabled: currentUser.emailTwoFactorEnabled,
+        nextEnabled: updatedUser.emailTwoFactorEnabled,
+        ipAddress,
+      });
+    });
+
+    revalidatePath("/admin/seguranca");
+    revalidatePath("/admin/auditoria");
+
     return {
-      status: "error",
-      message: "Desativação indisponível para este perfil.",
+      status: "success",
+      message: "2FA por e-mail desativado para sua conta.",
     };
   } catch (error) {
     return {

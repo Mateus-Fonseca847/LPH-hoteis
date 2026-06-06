@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export function Hero() {
   return (
@@ -9,13 +10,12 @@ export function Hero() {
           alt="Família aproveitando uma experiência tropical no mar"
           fill
           priority
+          quality={82}
           sizes="100vw"
         />
 
         <div className="hero-copy">
-          <p className="hero-title glitch" data-text="Explore o Brasil conosco!">
-            Explore o Brasil conosco!
-          </p>
+          <h1 className="hero-title">Explore o Brasil conosco!</h1>
 
           <div className="hero-cta">
             <a className="button-primary" href="#destinations">
@@ -28,9 +28,9 @@ export function Hero() {
           <h2>Conheça nossa curadoria de destinos inesquecíveis para viajar pelo Brasil.</h2>
 
           <div className="card-cta-row">
-            <a className="card-cta-button" href="#journey">
+            <Link className="card-cta-button" href="/mapa">
               Começar agora!
-            </a>
+            </Link>
           </div>
         </article>
       </div>

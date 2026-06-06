@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import {
+  HOTEL_EXPERIENCE_CATEGORIES,
+  HOTEL_EXPERIENCE_PREFERENCES,
+} from "@/lib/hotel-experience-options";
 import { getCanonicalAmenityLabel } from "@/lib/hotel-amenities";
 
 const allowedHotelFormKeys = new Set([
@@ -17,9 +21,12 @@ const allowedHotelFormKeys = new Set([
   "gallery",
   "amenities",
   "policies",
+  "experiences",
   "checkInTime",
   "checkOutTime",
   "isPublished",
+  "latitude",
+  "longitude",
 ]);
 
 const allowedHotelUploadFormKeys = new Set(["file", "files", "alt", "setAsCover"]);
@@ -46,6 +53,22 @@ function parseDelimitedEntries(entries: FormDataEntryValue[]) {
     .flatMap((value) => value.split(/\r?\n/))
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function parseExperienceEntries(entry: FormDataEntryValue | null) {
+  const rawValue = String(entry ?? "").trim();
+
+  if (!rawValue) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 const textField = (label: string, min: number, max: number) =>
@@ -88,12 +111,66 @@ const phoneSchema = z
   .transform(sanitizeText)
   .pipe(z.string().regex(/^\+?[0-9()\-.\s]{8,24}$/, "Telefone inválido."));
 
+export const hotelContactEmailSchema = z
+  .string()
+  .transform((value) => value.trim().toLowerCase())
+  .pipe(
+    z
+      .string()
+      .min(1, "Informe o e-mail de contato do hotel.")
+      .max(160, "E-mail muito longo.")
+      .email("Informe um e-mail de contato valido.")
+  );
+
 const timeSchema = z
   .string()
   .trim()
   .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Horário inválido. Use HH:MM.");
 
-const urlSchema = z.string().trim().pipe(z.url("URL inválida.").max(500, "URL muito longa."));
+const optionalCoordinateSchema = z
+  .union([z.string(), z.number(), z.null(), z.undefined()])
+  .transform((value) => {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    const text = String(value).trim();
+
+    if (!text) {
+      return null;
+    }
+
+    const numericValue = Number(text.replace(",", "."));
+
+    return Number.isFinite(numericValue) ? numericValue : Number.NaN;
+  })
+  .pipe(z.number().min(-180, "Coordenada inválida.").max(180, "Coordenada inválida.").nullable());
+
+const localUploadImagePathRegex =
+  /^\/uploads\/hotels\/[a-zA-Z0-9_-]{1,191}\/[a-zA-Z0-9][a-zA-Z0-9._-]{0,220}\.(?:jpg|jpeg|png|webp)$/i;
+
+function isAllowedImageUrl(value: string) {
+  if (localUploadImagePathRegex.test(value)) {
+    return true;
+  }
+
+  try {
+    const url = new URL(value);
+
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+const imageUrlSchema = z
+  .string()
+  .trim()
+  .max(500, "URL muito longa.")
+  .refine(
+    isAllowedImageUrl,
+    "URL de imagem inválida. Use uma URL HTTP/HTTPS ou um caminho local de upload."
+  );
 
 const hotelAmenitySchema = z
   .object({
@@ -112,11 +189,55 @@ const hotelPolicySchema = z
 
 const hotelImageSchema = z
   .object({
-    url: urlSchema,
+    url: imageUrlSchema,
     alt: textField("Texto alternativo da imagem", 2, 140),
     position: z.number().int().min(0).max(200),
   })
   .strict();
+
+const hotelExperienceCategorySchema = z.enum(HOTEL_EXPERIENCE_CATEGORIES);
+const hotelExperiencePreferenceSchema = z.enum(HOTEL_EXPERIENCE_PREFERENCES);
+
+const hotelExperienceSchema = z
+  .object({
+    title: textField("Título da experiência", 2, 120),
+    city: textField("Cidade da experiência", 2, 80),
+    state: stateSchema,
+    shortDescription: multilineField("Descrição curta da experiência", 10, 320),
+    imageUrl: imageUrlSchema,
+    imageAlt: textField("Texto alternativo da imagem da experiência", 2, 140),
+    categories: z
+      .array(hotelExperienceCategorySchema)
+      .min(1, "Selecione pelo menos uma categoria para a experiência.")
+      .max(HOTEL_EXPERIENCE_CATEGORIES.length, "Categorias inválidas."),
+    preferences: z
+      .array(hotelExperiencePreferenceSchema)
+      .max(HOTEL_EXPERIENCE_PREFERENCES.length, "Preferências inválidas."),
+    distanceText: z
+      .string()
+      .transform(sanitizeText)
+      .pipe(z.string().max(80, "Distância/proximidade deve ter no máximo 80 caracteres."))
+      .nullable(),
+    isActive: z.boolean(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (new Set(value.categories).size !== value.categories.length) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["categories"],
+        message: "Não repita a mesma categoria na experiência.",
+      });
+    }
+
+    if (new Set(value.preferences).size !== value.preferences.length) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["preferences"],
+        message: "Não repita a mesma preferência na experiência.",
+      });
+    }
+  });
 
 export const hotelPayloadSchema = z
   .object({
@@ -128,12 +249,9 @@ export const hotelPayloadSchema = z
     state: stateSchema,
     address: multilineField("Endereço", 8, 180),
     phone: phoneSchema,
-    email: z
-      .email("E-mail inválido.")
-      .max(160, "E-mail muito longo.")
-      .transform((value) => value.trim().toLowerCase()),
+    email: hotelContactEmailSchema,
     whatsapp: phoneSchema,
-    coverImageUrl: urlSchema,
+    coverImageUrl: imageUrlSchema,
     images: z
       .array(hotelImageSchema)
       .min(1, "Adicione pelo menos uma imagem.")
@@ -146,6 +264,9 @@ export const hotelPayloadSchema = z
       .array(hotelPolicySchema)
       .min(1, "Adicione pelo menos uma política.")
       .max(20, "Máximo de 20 políticas."),
+    experiences: z.array(hotelExperienceSchema).max(30, "Máximo de 30 experiências."),
+    latitude: optionalCoordinateSchema,
+    longitude: optionalCoordinateSchema,
     checkInTime: timeSchema,
     checkOutTime: timeSchema,
     isPublished: z.boolean(),
@@ -193,9 +314,18 @@ export const hotelPayloadSchema = z
 
       amenityLabels.add(normalizedLabel);
     });
+
+    if ((value.latitude === null) !== (value.longitude === null)) {
+      ctx.addIssue({
+        code: "custom",
+        path: value.latitude === null ? ["latitude"] : ["longitude"],
+        message: "Informe latitude e longitude juntas ou deixe ambas vazias.",
+      });
+    }
   });
 
 export type HotelPayload = z.infer<typeof hotelPayloadSchema>;
+export type HotelExperiencePayload = z.infer<typeof hotelExperienceSchema>;
 
 const uploadAltSchema = z
   .string()
@@ -252,6 +382,14 @@ export function parseHotelFormData(formData: FormData) {
       position: index,
     };
   });
+  const parsedExperiences = parseExperienceEntries(formData.get("experiences"));
+
+  if (parsedExperiences === null) {
+    return {
+      success: false as const,
+      error: "Experiências próximas inválidas.",
+    };
+  }
 
   const result = hotelPayloadSchema.safeParse({
     name,
@@ -276,6 +414,27 @@ export function parseHotelFormData(formData: FormData) {
         ],
     amenities,
     policies,
+    experiences: parsedExperiences.map((experience) => ({
+      title: String(experience?.title ?? ""),
+      city: String(experience?.city ?? ""),
+      state: String(experience?.state ?? ""),
+      shortDescription: String(experience?.shortDescription ?? ""),
+      imageUrl: String(experience?.imageUrl ?? ""),
+      imageAlt: String(experience?.imageAlt ?? ""),
+      categories: Array.isArray(experience?.categories)
+        ? experience.categories.map((value: unknown) => String(value ?? ""))
+        : [],
+      preferences: Array.isArray(experience?.preferences)
+        ? experience.preferences.map((value: unknown) => String(value ?? ""))
+        : [],
+      distanceText:
+        experience?.distanceText === null || experience?.distanceText === undefined
+          ? null
+          : String(experience.distanceText),
+      isActive: Boolean(experience?.isActive),
+    })),
+    latitude: formData.get("latitude"),
+    longitude: formData.get("longitude"),
     checkInTime: String(formData.get("checkInTime") ?? ""),
     checkOutTime: String(formData.get("checkOutTime") ?? ""),
     isPublished: formData.get("isPublished") === "on",
@@ -362,4 +521,8 @@ export function parseHotelUploadFormData(formData: FormData) {
       setAsCover: parsedFlags.data.setAsCover,
     },
   };
+}
+
+export function isValidHotelContactEmail(value: string | null | undefined) {
+  return hotelContactEmailSchema.safeParse(value ?? "").success;
 }

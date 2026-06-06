@@ -12,6 +12,7 @@ import {
   type HotelPermissionAuditSnapshot,
 } from "@/lib/audit/admin-user-audit";
 import { requireAuthenticatedRequestUser, isAdminUser } from "@/lib/auth";
+import { assertCanManageAdministrativeTarget } from "@/lib/auth/admin-permissions";
 import { validateAdminTwoFactor } from "@/lib/auth/admin-security";
 import { requireHotelAdminAccess } from "@/lib/auth/authorization";
 import {
@@ -25,7 +26,6 @@ import { getRequestIpAddress } from "@/lib/hotel-write";
 import { hashPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 import {
-  parseAdminInvitationPayload,
   parseElevatedAdminInvitationPayload,
   parseHotelPermissionPayload,
 } from "@/lib/validations/admin-user";
@@ -127,6 +127,16 @@ async function requireAdminActor() {
   return actor;
 }
 
+async function requireSuperAdminActor() {
+  const actor = await requireAdminActor();
+
+  if (actor.globalRole !== "super_admin") {
+    throw new AuthorizationError("Apenas super_admin pode gerenciar acessos de hotéis.");
+  }
+
+  return actor;
+}
+
 function getManageableHotelRoles(
   globalRole: ScopedActorContext["actor"]["globalRole"],
   hotelRole: HotelRole | null
@@ -148,16 +158,17 @@ function getManageableHotelRoles(
 
 async function getScopedActorContext(hotelId: string): Promise<ScopedActorContext> {
   const actor = await requireAdminActor();
-  const hotel = await prisma.hotel.findUnique({
-    where: { id: hotelId },
-    select: { id: true, name: true },
-  });
-
-  if (!hotel) {
-    throw new NotFoundError("Hotel não encontrado.");
-  }
 
   if (actor.globalRole === "super_admin") {
+    const hotel = await prisma.hotel.findUnique({
+      where: { id: hotelId },
+      select: { id: true, name: true },
+    });
+
+    if (!hotel) {
+      throw new NotFoundError("Hotel não encontrado.");
+    }
+
     return {
       actor,
       hotelId: hotel.id,
@@ -166,7 +177,26 @@ async function getScopedActorContext(hotelId: string): Promise<ScopedActorContex
     };
   }
 
-  const permission = await requireHotelAdminAccess(actor.id, hotelId);
+  let permission: Awaited<ReturnType<typeof requireHotelAdminAccess>>;
+
+  try {
+    permission = await requireHotelAdminAccess(actor.id, hotelId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw new NotFoundError("Hotel não encontrado.");
+    }
+
+    throw error;
+  }
+
+  const hotel = await prisma.hotel.findUnique({
+    where: { id: hotelId },
+    select: { id: true, name: true },
+  });
+
+  if (!hotel) {
+    throw new NotFoundError("Hotel não encontrado.");
+  }
 
   return {
     actor,
@@ -195,37 +225,6 @@ function assertCanCreateGlobalRole(
   if (!isAdminUser(targetGlobalRole)) {
     throw new ConflictError("O usuário precisa ter papel global administrativo.");
   }
-}
-
-async function getAccessibleHotelIds(
-  actorId: string,
-  globalRole: "super_admin" | "hotel_admin" | "user"
-) {
-  if (globalRole === "super_admin") {
-    const hotels = await prisma.hotel.findMany({
-      select: { id: true },
-    });
-
-    return hotels.map((hotel) => hotel.id);
-  }
-
-  if (globalRole !== "hotel_admin") {
-    return [];
-  }
-
-  const permissions = await prisma.hotelPermission.findMany({
-    where: {
-      userId: actorId,
-      role: {
-        in: [HotelRole.owner, HotelRole.admin],
-      },
-    },
-    select: {
-      hotelId: true,
-    },
-  });
-
-  return permissions.map((permission) => permission.hotelId);
 }
 
 async function ensureAdminTargetUser(userId: string) {
@@ -348,29 +347,12 @@ async function preventSelfLastCriticalPermissionDowngrade(
 
 export async function listAccessibleAdministratorsAction() {
   try {
-    const actor = await requireAdminActor();
-    const accessibleHotelIds = await getAccessibleHotelIds(actor.id, actor.globalRole);
+    await requireSuperAdminActor();
 
     const users = await prisma.user.findMany({
-      where:
-        actor.globalRole === "super_admin"
-          ? {
-              OR: [
-                { globalRole: { in: ["super_admin", "hotel_admin"] } },
-                { hotelPermissions: { some: {} } },
-              ],
-            }
-          : accessibleHotelIds.length > 0
-            ? {
-                hotelPermissions: {
-                  some: {
-                    hotelId: { in: accessibleHotelIds },
-                  },
-                },
-              }
-            : {
-                id: actor.id,
-              },
+      where: {
+        globalRole: "hotel_admin",
+      },
       select: {
         id: true,
         name: true,
@@ -379,12 +361,6 @@ export async function listAccessibleAdministratorsAction() {
         isActive: true,
         createdAt: true,
         hotelPermissions: {
-          where:
-            actor.globalRole === "super_admin"
-              ? undefined
-              : {
-                  hotelId: { in: accessibleHotelIds },
-                },
           select: {
             id: true,
             hotelId: true,
@@ -436,10 +412,10 @@ export async function createAdministratorAction(
 ): Promise<AdminUserActionState> {
   try {
     const context = await getScopedActorContext(scopeHotelId);
-    const parsedPayload =
-      context.actor.globalRole === "super_admin"
-        ? parseElevatedAdminInvitationPayload(payload)
-        : parseAdminInvitationPayload(payload);
+    if (context.actor.globalRole !== "super_admin") {
+      throw new AuthorizationError("Apenas super_admin pode criar e vincular hotel_admin.");
+    }
+    const parsedPayload = parseElevatedAdminInvitationPayload(payload);
 
     if (!parsedPayload.success) {
       throw new ValidationError(parsedPayload.error);
@@ -476,6 +452,7 @@ export async function createAdministratorAction(
           passwordHash,
           globalRole: parsedPayload.data.globalRole,
           isActive: parsedPayload.data.isActive,
+          emailTwoFactorEnabled: true,
         },
       });
 
@@ -535,6 +512,9 @@ export async function addUserHotelPermissionAction(
 ): Promise<AdminUserActionState> {
   try {
     const context = await getScopedActorContext(scopeHotelId);
+    if (context.actor.globalRole !== "super_admin") {
+      throw new AuthorizationError("Apenas super_admin pode conceder acessos de hotéis.");
+    }
     const parsedPayload = parseHotelPermissionPayload(payload);
 
     if (!parsedPayload.success) {
@@ -548,6 +528,7 @@ export async function addUserHotelPermissionAction(
     assertCanAssignHotelRole(context, parsedPayload.data.role as HotelRole);
 
     const targetUser = await ensureAdminTargetUser(parsedPayload.data.userId);
+    assertCanManageAdministrativeTarget(context.actor, targetUser);
 
     if (!isAdminUser(targetUser.globalRole)) {
       throw new ConflictError("O usuário precisa ter papel global administrativo.");
@@ -614,6 +595,9 @@ export async function updateHotelPermissionAction(
 ): Promise<AdminUserActionState> {
   try {
     const context = await getScopedActorContext(scopeHotelId);
+    if (context.actor.globalRole !== "super_admin") {
+      throw new AuthorizationError("Apenas super_admin pode alterar acessos de hotéis.");
+    }
     const parsedPayload = parseHotelPermissionPayload(payload);
 
     if (!parsedPayload.success) {
@@ -625,6 +609,8 @@ export async function updateHotelPermissionAction(
     }
 
     const currentPermission = await ensurePermissionBelongsToHotel(permissionId, context.hotelId);
+    const targetUser = await ensureAdminTargetUser(currentPermission.userId);
+    assertCanManageAdministrativeTarget(context.actor, targetUser);
 
     if (parsedPayload.data.userId !== currentPermission.userId) {
       throw new AuthorizationError("Usuário inválido para este vínculo.");
@@ -693,7 +679,12 @@ export async function removeUserHotelPermissionAction(
 ): Promise<AdminUserActionState> {
   try {
     const context = await getScopedActorContext(scopeHotelId);
+    if (context.actor.globalRole !== "super_admin") {
+      throw new AuthorizationError("Apenas super_admin pode remover acessos de hotéis.");
+    }
     const currentPermission = await ensurePermissionBelongsToHotel(permissionId, context.hotelId);
+    const targetUser = await ensureAdminTargetUser(currentPermission.userId);
+    assertCanManageAdministrativeTarget(context.actor, targetUser);
 
     if (
       context.actor.globalRole !== "super_admin" &&

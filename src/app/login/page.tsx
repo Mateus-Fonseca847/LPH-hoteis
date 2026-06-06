@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -8,6 +9,15 @@ import { getAuthSession } from "@/lib/auth/session";
 
 type LoginPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Entrar",
+  description: "Acesse sua conta LPH Hotéis com e-mail e senha.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 function getSearchParam(searchParams: Record<string, string | string[] | undefined>, key: string) {
@@ -34,7 +44,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <main className="auth-page">
         <section className="section auth-section">
           <div className="auth-card">
-            <span className="hotel-page-eyebrow">Acesso</span>
             <h1>Login centralizado</h1>
             <p className="auth-copy">
               Entre com e-mail e senha para acessar a área autenticada da plataforma.

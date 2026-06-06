@@ -1,13 +1,17 @@
+import { unstable_cache } from "next/cache";
+
 import {
   hotels as fallbackHotels,
   getHotelBySlug,
   type Hotel as FallbackHotel,
 } from "@/data/hotels";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_HOTEL_WHERE } from "@/lib/public-hotel";
 
 export type PublishedHotelCard = {
   slug: string;
   name: string;
+  shortDescription?: string;
   city: string;
   state: string;
   coverImageUrl: string;
@@ -174,6 +178,7 @@ function getNearbyPlaces(slug: string): HotelNearbyPlace[] {
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const canUseDevelopmentFallback =
   process.env.NODE_ENV === "development" && process.env.ALLOW_LOCAL_HOTEL_DATA_FALLBACK === "true";
+const isNextProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 let warnedUnavailableDb = false;
 let schemaSupportPromise: Promise<boolean> | null = null;
@@ -210,6 +215,10 @@ function hasDatabaseConfig() {
   return Boolean(databaseUrl);
 }
 
+function shouldSkipDatabaseDuringBuild() {
+  return isNextProductionBuild && process.env.ALLOW_DATABASE_DURING_BUILD !== "true";
+}
+
 function getFallbackPublishedHotels() {
   return canUseDevelopmentFallback ? fallbackHotels.map(mapFallbackCard) : [];
 }
@@ -228,6 +237,10 @@ function getFallbackHotelPageData(slug: string) {
 }
 
 async function hasCompatibleHotelSchema() {
+  if (shouldSkipDatabaseDuringBuild()) {
+    return false;
+  }
+
   if (!hasDatabaseConfig()) {
     if (!canUseDevelopmentFallback) {
       throw new Error("DATABASE_URL não configurada.");
@@ -262,6 +275,7 @@ function mapFallbackCard(hotel: FallbackHotel): PublishedHotelCard {
   return {
     slug: hotel.slug,
     name: hotel.name,
+    shortDescription: hotel.shortDescription,
     city: hotel.city,
     state: hotel.state,
     coverImageUrl: hotel.image,
@@ -323,19 +337,18 @@ function getPublicAvailabilityStatus(
     : "unavailable";
 }
 
-export async function getPublishedHotels(): Promise<PublishedHotelCard[]> {
+async function fetchPublishedHotels(): Promise<PublishedHotelCard[]> {
   if (!(await hasCompatibleHotelSchema())) {
     return getFallbackPublishedHotels();
   }
 
   try {
     return await prisma.hotel.findMany({
-      where: {
-        isPublished: true,
-      },
+      where: PUBLIC_HOTEL_WHERE,
       select: {
         slug: true,
         name: true,
+        shortDescription: true,
         city: true,
         state: true,
         coverImageUrl: true,
@@ -347,6 +360,15 @@ export async function getPublishedHotels(): Promise<PublishedHotelCard[]> {
   }
 }
 
+const getCachedPublishedHotels = unstable_cache(fetchPublishedHotels, ["published-hotels"], {
+  revalidate: 300,
+  tags: ["published-hotels"],
+});
+
+export async function getPublishedHotels(): Promise<PublishedHotelCard[]> {
+  return getCachedPublishedHotels();
+}
+
 export async function getHotelSlugs(): Promise<string[]> {
   if (!(await hasCompatibleHotelSchema())) {
     return getFallbackHotelSlugs();
@@ -354,9 +376,7 @@ export async function getHotelSlugs(): Promise<string[]> {
 
   try {
     const hotels = await prisma.hotel.findMany({
-      where: {
-        isPublished: true,
-      },
+      where: PUBLIC_HOTEL_WHERE,
       select: {
         slug: true,
       },
@@ -378,7 +398,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
     const hotel = await prisma.hotel.findFirst({
       where: {
         slug,
-        isPublished: true,
+        ...PUBLIC_HOTEL_WHERE,
       },
       include: {
         images: {
@@ -515,7 +535,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
       const hotel = await prisma.hotel.findFirst({
         where: {
           slug,
-          isPublished: true,
+          ...PUBLIC_HOTEL_WHERE,
         },
         include: {
           images: {

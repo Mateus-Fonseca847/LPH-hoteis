@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import {
@@ -11,9 +12,10 @@ import {
 
 type HotelPageActionsProps = {
   hotel: FavoriteHotel;
+  rating?: ReactNode;
 };
 
-export function HotelPageActions({ hotel }: HotelPageActionsProps) {
+export function HotelPageActions({ hotel, rating }: HotelPageActionsProps) {
   const [isSaved, setIsSaved] = useState(() => isHotelFavorited(hotel.slug));
   const [feedback, setFeedback] = useState("");
 
@@ -58,6 +60,7 @@ export function HotelPageActions({ hotel }: HotelPageActionsProps) {
 
   return (
     <div className="hotel-utility-actions">
+      {rating ? <div className="hotel-utility-rating">{rating}</div> : null}
       <button type="button" className="hotel-utility-button" onClick={handleShare}>
         Compartilhar
       </button>

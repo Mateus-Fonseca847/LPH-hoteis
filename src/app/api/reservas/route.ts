@@ -1,16 +1,25 @@
+﻿import { randomUUID } from "node:crypto";
+
 import {
+  ConflictError,
   createApiErrorResponse,
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
-import { resolveHotelPaymentConfiguration, startReservationPayment } from "@/lib/payments";
+import { calculatePaymentTransactionAmounts } from "@/lib/finance";
 import { prisma } from "@/lib/prisma";
+import {
+  expirePendingReservations,
+  getBookingPaymentExpiresAt,
+} from "@/lib/reservation-expiration";
+import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
 import {
   calculateStayNights,
   canRoomAccommodateGuests,
   formatPriceInBRL,
   getRoomStayAvailabilityStatus,
   getRoomStayPriceEstimate,
+  getStayDates,
 } from "@/lib/stay-query";
 import { parseCreateReservationPayload } from "@/lib/validations/reservation";
 
@@ -58,13 +67,32 @@ export async function POST(request: Request) {
       adults,
       children,
       paymentMethod,
+      paymentCardBrand,
+      paymentObservation1,
+      paymentObservation2,
+      paymentObservation3,
     } = parsedPayload.data;
 
     if (checkIn < getTodayDateOnly()) {
       throw new ValidationError("Check-in não pode estar no passado.");
     }
 
-    const nights = calculateStayNights(checkIn, checkOut);
+    let nights: number;
+
+    try {
+      nights = calculateStayNights(checkIn, checkOut);
+    } catch (error) {
+      throw new ValidationError(
+        error instanceof Error ? error.message : "Datas da reserva inválidas."
+      );
+    }
+
+    await expirePendingReservations({
+      roomId,
+      checkIn,
+      checkOut,
+    });
+
     const room = await prisma.hotelRoom.findFirst({
       where: {
         id: roomId,
@@ -75,11 +103,7 @@ export async function POST(request: Request) {
         },
       },
       include: {
-        hotel: {
-          include: {
-            paymentSettings: true,
-          },
-        },
+        hotel: true,
         availability: true,
         rates: {
           where: {
@@ -92,8 +116,6 @@ export async function POST(request: Request) {
     if (!room) {
       throw new ValidationError("Quarto indisponível para reserva.");
     }
-
-    resolveHotelPaymentConfiguration(room.hotel.paymentSettings);
 
     if (!room.isAvailable || !canRoomAccommodateGuests(room, adults, children)) {
       throw new ValidationError("O quarto selecionado não comporta essa ocupação.");
@@ -128,7 +150,7 @@ export async function POST(request: Request) {
       children
     );
 
-    if (availabilityStatus === "unavailable") {
+    if (availabilityStatus !== "available") {
       throw new ValidationError("O quarto não está disponível para o período selecionado.");
     }
 
@@ -147,58 +169,145 @@ export async function POST(request: Request) {
       throw new ValidationError("Não foi possível calcular o valor da reserva.");
     }
 
-    const reservation = await prisma.reservation.create({
-      data: {
-        hotelId,
-        roomId,
-        guestName,
-        guestEmail,
-        guestPhone,
-        guestDocument,
-        checkIn: toUtcDate(checkIn),
-        checkOut: toUtcDate(checkOut),
-        adults,
-        children,
-        nights,
-        nightlyPriceCents,
-        totalPriceCents,
-        status: "pending",
-        paymentProvider: "mercado_pago",
-        paymentMethod,
-        paymentStatus: "pending",
-      },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-      },
+    const reservationId = randomUUID();
+
+    const reservation = await prisma.$transaction(async (transaction) => {
+      const availabilityDates = getStayDates(checkIn, checkOut).map(toUtcDate);
+      const availabilityUpdate = await transaction.roomAvailability.updateMany({
+        where: {
+          roomId,
+          room: {
+            is: {
+              hotelId,
+              isActive: true,
+              isAvailable: true,
+              hotel: {
+                isPublished: true,
+              },
+            },
+          },
+          date: {
+            in: availabilityDates,
+          },
+          closed: false,
+          availableUnits: {
+            gt: 0,
+          },
+        },
+        data: {
+          availableUnits: {
+            decrement: 1,
+          },
+        },
+      });
+
+      if (availabilityUpdate.count !== nights) {
+        throw new ConflictError("O quarto não está disponível para o período selecionado.");
+      }
+
+      const createdReservation = await transaction.reservation.create({
+        data: {
+          id: reservationId,
+          hotelId,
+          roomId,
+          guestName,
+          guestEmail,
+          guestPhone,
+          guestDocument,
+          paymentObservation1: paymentObservation1 || null,
+          paymentObservation2: paymentObservation2 || null,
+          paymentObservation3: paymentObservation3 || null,
+          paymentCardBrand,
+          checkIn: toUtcDate(checkIn),
+          checkOut: toUtcDate(checkOut),
+          adults,
+          children,
+          nights,
+          nightlyPriceCents,
+          totalPriceCents,
+          status: "pending",
+          paymentProvider: "manual",
+          paymentMethod,
+          paymentStatus: "pending",
+          expiresAt: getBookingPaymentExpiresAt(),
+          availabilityHeld: true,
+        },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      await transaction.paymentTransaction.create({
+        data: {
+          reservationId: createdReservation.id,
+          hotelId,
+          provider: "manual",
+          paymentMethod,
+          status: "pending",
+          ...calculatePaymentTransactionAmounts(totalPriceCents),
+          currency: "BRL",
+          paidAt: null,
+        },
+      });
+
+      return createdReservation;
     });
-    const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL;
 
-    if (!origin) {
-      throw new ValidationError("URL pública do site não configurada.");
-    }
-
-    const payment = await startReservationPayment({
+    await sendHotelReservationEmail({
+      hotelEmail: room.hotel.email,
+      hotelName: room.hotel.name,
+      roomName: room.name,
+      guestName,
+      guestEmail,
+      guestPhone,
+      guestDocument,
+      checkIn: toUtcDate(checkIn),
+      checkOut: toUtcDate(checkOut),
+      adults,
+      children,
+      nights,
+      nightlyPriceCents,
+      totalPriceCents,
       reservationId: reservation.id,
-      method: paymentMethod,
-      origin,
+      paymentMethod,
+      paymentCardBrand,
+      paymentObservation1,
+      paymentObservation2,
+      paymentObservation3,
+    });
+
+    await sendGuestReservationEmail({
+      hotelEmail: room.hotel.email,
+      hotelName: room.hotel.name,
+      roomName: room.name,
+      guestName,
+      guestEmail,
+      guestPhone,
+      guestDocument,
+      checkIn: toUtcDate(checkIn),
+      checkOut: toUtcDate(checkOut),
+      adults,
+      children,
+      nights,
+      nightlyPriceCents,
+      totalPriceCents,
+      reservationId: reservation.id,
+      paymentMethod,
+      paymentCardBrand,
+      paymentObservation1,
+      paymentObservation2,
+      paymentObservation3,
     });
 
     return createApiSuccessResponse(
       {
         reservation: {
           id: reservation.id,
-          status: payment.status,
+          status: reservation.status,
           createdAt: reservation.createdAt.toISOString(),
           totalPriceLabel: formatPriceInBRL(totalPriceCents),
-        },
-        checkoutUrl: payment.checkoutUrl,
-        payment: {
-          method: paymentMethod,
-          checkoutUrl: payment.checkoutUrl,
-          pix: payment.pix,
-          boleto: payment.boleto,
         },
       },
       201

@@ -1,54 +1,236 @@
-const people = [
+"use client";
+
+import { useEffect, useRef } from "react";
+
+type Testimonial = {
+  name: string;
+  initials: string;
+  location: string;
+  tripType: string;
+  quote: string;
+};
+
+const testimonials: Testimonial[] = [
   {
-    name: "Mateus Fonseca",
-    location: "Petrópolis, RJ",
+    name: "Mariana Alves",
+    initials: "MA",
+    location: "Campinas, SP",
+    tripType: "Fim de semana",
+    quote:
+      "A experiência foi tranquila do começo ao fim. Encontramos uma hospedagem confortável e bem localizada.",
   },
   {
-    name: "Diogo Fonseca",
-    location: "São Paulo, SP",
+    name: "Rafael Moreira",
+    initials: "RM",
+    location: "Belo Horizonte, MG",
+    tripType: "Viagem em casal",
+    quote:
+      "Gostei da forma como as opções combinavam com o meu estilo de viagem. Foi simples escolher onde ficar.",
+  },
+  {
+    name: "Camila Rocha",
+    initials: "CR",
+    location: "Curitiba, PR",
+    tripType: "Descanso",
+    quote:
+      "A LPH deixou a busca mais leve. Em poucos minutos encontrei uma estadia com a estrutura que eu queria.",
+  },
+  {
+    name: "André Lima",
+    initials: "AL",
+    location: "Niterói, RJ",
+    tripType: "Roteiro urbano",
+    quote:
+      "Tudo pareceu pensado para facilitar a viagem. A localização e o conforto fizeram diferença.",
+  },
+  {
+    name: "Beatriz Martins",
+    initials: "BM",
+    location: "Florianópolis, SC",
+    tripType: "Praia",
+    quote: "A navegação foi clara e as sugestões ajudaram bastante na escolha do hotel.",
+  },
+  {
+    name: "Lucas Ferreira",
+    initials: "LF",
+    location: "Vitória, ES",
+    tripType: "Negócios",
+    quote:
+      "As informações estavam claras e ajudaram a escolher uma hospedagem prática para a rotina da viagem.",
   },
 ];
 
-function DefaultAvatar() {
+function TestimonialAvatar({ testimonial }: { testimonial: Testimonial }) {
   return (
-    <svg className="person-avatar" viewBox="0 0 120 120" aria-label="Avatar padrão de cliente">
-      <rect width="120" height="120" rx="60" fill="#e9e5dc" />
-      <circle cx="60" cy="45" r="22" fill="#706d64" />
-      <path d="M26 100c6-19 22-29 34-29s28 10 34 29" fill="#706d64" />
-    </svg>
+    <span className="testimonial-avatar" aria-hidden="true">
+      {testimonial.initials}
+    </span>
+  );
+}
+
+function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
+  return (
+    <article className="testimonial-slider-card">
+      <div className="testimonial-card-author">
+        <TestimonialAvatar testimonial={testimonial} />
+        <div>
+          <strong>{testimonial.name}</strong>
+          <span>{testimonial.location}</span>
+        </div>
+      </div>
+      <p>&quot;{testimonial.quote}&quot;</p>
+      <span className="testimonial-trip-type">{testimonial.tripType}</span>
+    </article>
   );
 }
 
 export function TestimonialsSection() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const groupRef = useRef<HTMLDivElement>(null);
+  const targetSpeedRef = useRef(38);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    const track = trackRef.current;
+    const group = groupRef.current;
+
+    if (!section || !track || !group) {
+      return;
+    }
+
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let frameId = 0;
+    let isVisible = false;
+    let isAnimating = false;
+    let lastFrame = performance.now();
+    let offset = 0;
+    let currentSpeed = targetSpeedRef.current;
+    let loopWidth = group.getBoundingClientRect().width + 18;
+
+    const updateLoopWidth = () => {
+      const gap = Number.parseFloat(getComputedStyle(track).columnGap || "18");
+      loopWidth = group.getBoundingClientRect().width + gap;
+      offset %= loopWidth;
+    };
+
+    const animate = (timestamp: number) => {
+      const delta = Math.min(timestamp - lastFrame, 48) / 1000;
+      lastFrame = timestamp;
+      currentSpeed += (targetSpeedRef.current - currentSpeed) * 0.08;
+      offset = (offset + currentSpeed * delta) % loopWidth;
+      track.style.transform = `translate3d(${-offset}px, 0, 0)`;
+      if (isAnimating) {
+        frameId = window.requestAnimationFrame(animate);
+      }
+    };
+
+    const start = () => {
+      if (isAnimating || reducedMotionQuery.matches || !isVisible) return;
+
+      updateLoopWidth();
+      isAnimating = true;
+      lastFrame = performance.now();
+      frameId = window.requestAnimationFrame(animate);
+    };
+
+    const stop = (resetPosition = false) => {
+      isAnimating = false;
+      window.cancelAnimationFrame(frameId);
+
+      if (resetPosition) {
+        offset = 0;
+        track.style.transform = "translate3d(0, 0, 0)";
+      }
+    };
+
+    const handleMotionChange = () => {
+      stop(reducedMotionQuery.matches);
+
+      if (!reducedMotionQuery.matches) {
+        start();
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(updateLoopWidth);
+    resizeObserver.observe(group);
+    resizeObserver.observe(track);
+
+    const visibilityObserver = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+
+        if (isVisible) {
+          start();
+        } else {
+          stop();
+        }
+      },
+      { rootMargin: "120px 0px" }
+    );
+
+    visibilityObserver.observe(section);
+
+    reducedMotionQuery.addEventListener("change", handleMotionChange);
+
+    return () => {
+      stop();
+      resizeObserver.disconnect();
+      visibilityObserver.disconnect();
+      reducedMotionQuery.removeEventListener("change", handleMotionChange);
+    };
+  }, []);
+
   return (
-    <section className="testimonials section reveal">
-      <div className="section-heading">
-        <h2>O que nossos clientes dizem</h2>
+    <section
+      ref={sectionRef}
+      className="testimonials section reveal"
+      aria-roledescription="carrossel"
+      aria-label="Depoimentos de clientes"
+    >
+      <div className="testimonial-header">
+        <div className="section-heading">
+          <h2>O que nossos clientes dizem</h2>
+        </div>
       </div>
 
-      <div className="testimonial-layout">
-        <article className="person-card reveal">
-          <DefaultAvatar />
-          <div>
-            <strong>{people[0].name}</strong>
-            <span>{people[0].location}</span>
+      <div
+        className="testimonial-slider"
+        tabIndex={0}
+        aria-label="Lista contínua de depoimentos"
+        onMouseEnter={() => {
+          targetSpeedRef.current = 8;
+        }}
+        onMouseLeave={() => {
+          targetSpeedRef.current = 38;
+        }}
+        onFocus={() => {
+          targetSpeedRef.current = 8;
+        }}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            targetSpeedRef.current = 38;
+          }
+        }}
+      >
+        <div className="testimonial-slider-track" ref={trackRef}>
+          <div className="testimonial-slider-group" ref={groupRef}>
+            {testimonials.map((testimonial) => (
+              <TestimonialCard
+                key={`${testimonial.initials}-${testimonial.location}`}
+                testimonial={testimonial}
+              />
+            ))}
           </div>
-        </article>
-
-        <article className="quote-card reveal">
-          <p>
-            &quot;A LPH transformou nossa viagem em uma sequência leve de momentos inesquecíveis. Os
-            destinos pareceram escolhidos com cuidado, conforto e charme.&quot;
-          </p>
-        </article>
-
-        <article className="person-card reveal">
-          <DefaultAvatar />
-          <div>
-            <strong>{people[1].name}</strong>
-            <span>{people[1].location}</span>
+          <div className="testimonial-slider-group" aria-hidden="true">
+            {testimonials.map((testimonial) => (
+              <TestimonialCard
+                key={`duplicate-${testimonial.initials}-${testimonial.location}`}
+                testimonial={testimonial}
+              />
+            ))}
           </div>
-        </article>
+        </div>
       </div>
     </section>
   );

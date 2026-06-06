@@ -1,9 +1,11 @@
 import { InternalServerError, ValidationError } from "@/lib/errors/app-error";
 
+import { getPaymentAccessToken } from "./config";
 import type { CreatePaymentInput, CreatePaymentResult, PaymentMethod } from "./types";
 
 const MERCADO_PAGO_PREFERENCES_URL = "https://api.mercadopago.com/checkout/preferences";
 const MERCADO_PAGO_PAYMENTS_URL = "https://api.mercadopago.com/v1/payments";
+const MERCADO_PAGO_PAYMENTS_SEARCH_URL = "https://api.mercadopago.com/v1/payments/search";
 const MERCADO_PAGO_PAYMENT_TYPES = ["credit_card", "debit_card", "ticket", "bank_transfer"];
 
 const PAYMENT_TYPE_BY_METHOD: Record<PaymentMethod, string> = {
@@ -28,16 +30,16 @@ type MercadoPagoPaymentResponse = {
   external_reference?: string;
   payment_method_id?: string;
   payment_type_id?: string;
+  transaction_amount?: number | string;
+  currency_id?: string;
+};
+
+type MercadoPagoPaymentSearchResponse = {
+  results?: MercadoPagoPaymentResponse[];
 };
 
 function getAccessToken(inputToken?: string | null) {
-  const token = inputToken?.trim() || process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
-
-  if (!token) {
-    throw new ValidationError("Mercado Pago não está configurado para este hotel.");
-  }
-
-  return token;
+  return getPaymentAccessToken("mercado_pago", inputToken);
 }
 
 function getCheckoutUrl(preference: MercadoPagoPreferenceResponse) {
@@ -135,6 +137,18 @@ export async function getMercadoPagoPayment(paymentId: string, accessToken?: str
     throw new ValidationError("Pagamento não encontrado no Mercado Pago.");
   }
 
+  const amount = Number(payment.transaction_amount);
+  const totalPriceCents = Math.round(amount * 100);
+  const currency = payment.currency_id?.trim().toUpperCase();
+
+  if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(totalPriceCents)) {
+    throw new ValidationError("Valor do pagamento inválido no Mercado Pago.");
+  }
+
+  if (!currency) {
+    throw new ValidationError("Moeda do pagamento inválida no Mercado Pago.");
+  }
+
   return {
     id: String(payment.id),
     status: payment.status || "unknown",
@@ -142,5 +156,35 @@ export async function getMercadoPagoPayment(paymentId: string, accessToken?: str
     reservationId: payment.external_reference,
     paymentMethodId: payment.payment_method_id,
     paymentTypeId: payment.payment_type_id,
+    totalPriceCents,
+    currency,
   };
+}
+
+export async function searchMercadoPagoPaymentByReservationId(
+  reservationId: string,
+  accessToken?: string | null
+) {
+  const url = new URL(MERCADO_PAGO_PAYMENTS_SEARCH_URL);
+  url.searchParams.set("sort", "date_created");
+  url.searchParams.set("criteria", "desc");
+  url.searchParams.set("external_reference", reservationId);
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${getAccessToken(accessToken)}`,
+    },
+  });
+
+  const search = (await response
+    .json()
+    .catch(() => null)) as MercadoPagoPaymentSearchResponse | null;
+
+  if (!response.ok) {
+    throw new ValidationError("Não foi possível consultar pagamentos no Mercado Pago.");
+  }
+
+  const paymentId = search?.results?.find((payment) => payment.id)?.id;
+
+  return paymentId ? getMercadoPagoPayment(String(paymentId), accessToken) : null;
 }

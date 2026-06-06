@@ -1,23 +1,29 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+﻿import { createHmac, timingSafeEqual } from "node:crypto";
+
+import { z } from "zod";
 
 import {
   createApiErrorResponse,
   createApiSuccessResponse,
   ValidationError,
 } from "@/lib/errors/app-error";
-import { getMercadoPagoPayment } from "@/lib/payments/mercado-pago";
-import { prisma } from "@/lib/prisma";
-import { sendGuestReservationEmail, sendHotelReservationEmail } from "@/lib/reservations";
+import { syncMercadoPagoPayment } from "@/lib/payments/mercado-pago-reconciliation";
 
 const WEBHOOK_FAILURE_MESSAGE = "Não foi possível processar o webhook de pagamento.";
 
-type MercadoPagoWebhookPayload = {
-  type?: string;
-  action?: string;
-  data?: {
-    id?: string | number;
-  };
-};
+const mercadoPagoWebhookPayloadSchema = z
+  .object({
+    type: z.string().optional(),
+    action: z.string().optional(),
+    data: z
+      .object({
+        id: z.union([z.string(), z.number()]).optional(),
+      })
+      .optional(),
+  })
+  .passthrough();
+
+type MercadoPagoWebhookPayload = z.infer<typeof mercadoPagoWebhookPayloadSchema>;
 
 function getRequiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -49,7 +55,8 @@ function safeCompare(a: string, b: string) {
 function validateMercadoPagoSignature(request: Request, paymentId: string) {
   const signature = request.headers.get("x-signature");
   const requestId = request.headers.get("x-request-id");
-  const secret = getRequiredEnv("MERCADO_PAGO_WEBHOOK_SECRET");
+  const secret =
+    process.env.PAYMENT_WEBHOOK_SECRET?.trim() || getRequiredEnv("MERCADO_PAGO_WEBHOOK_SECRET");
 
   if (!signature || !requestId) {
     throw new ValidationError("Assinatura do webhook ausente.");
@@ -60,14 +67,14 @@ function validateMercadoPagoSignature(request: Request, paymentId: string) {
   const expectedSignature = parsedSignature.v1;
 
   if (!timestamp || !expectedSignature) {
-    throw new ValidationError("Assinatura do webhook invalida.");
+    throw new ValidationError("Assinatura do webhook inválida.");
   }
 
   const manifest = `id:${paymentId};request-id:${requestId};ts:${timestamp};`;
   const calculatedSignature = createHmac("sha256", secret).update(manifest).digest("hex");
 
   if (!safeCompare(calculatedSignature, expectedSignature)) {
-    throw new ValidationError("Assinatura do webhook invalida.");
+    throw new ValidationError("Assinatura do webhook inválida.");
   }
 }
 
@@ -88,148 +95,17 @@ function isPaymentEvent(payload: MercadoPagoWebhookPayload) {
   return payload.type === "payment" || payload.action?.startsWith("payment.");
 }
 
-function getReservationEmailInput(reservation: Awaited<ReturnType<typeof getReservationForEmail>>) {
-  if (!reservation) {
-    throw new ValidationError("Reserva não encontrada.");
-  }
-
-  return {
-    hotelEmail: reservation.hotel.email,
-    hotelName: reservation.hotel.name,
-    roomName: reservation.room.name,
-    guestName: reservation.guestName,
-    guestEmail: reservation.guestEmail,
-    guestPhone: reservation.guestPhone,
-    guestDocument: reservation.guestDocument ?? undefined,
-    checkIn: reservation.checkIn,
-    checkOut: reservation.checkOut,
-    adults: reservation.adults,
-    children: reservation.children,
-    nights: reservation.nights,
-    nightlyPriceCents: reservation.nightlyPriceCents,
-    totalPriceCents: reservation.totalPriceCents,
-    reservationId: reservation.id,
-    paymentMethod: reservation.paymentMethod,
-  };
-}
-
-async function getReservationForEmail(reservationId: string) {
-  return prisma.reservation.findUnique({
-    where: {
-      id: reservationId,
-    },
-    include: {
-      hotel: true,
-      room: true,
-    },
-  });
-}
-
-async function notifyPaidReservation(reservationId: string) {
-  const reservation = await getReservationForEmail(reservationId);
-  const emailInput = getReservationEmailInput(reservation);
-
-  try {
-    await sendHotelReservationEmail(emailInput);
-  } catch (error) {
-    console.error("[mercado-pago/webhook] Falha ao enviar e-mail para o hotel.", {
-      reservationId,
-      error,
-    });
-  }
-
-  try {
-    await sendGuestReservationEmail(emailInput);
-  } catch (error) {
-    console.error("[mercado-pago/webhook] Falha ao enviar e-mail para o hóspede.", {
-      reservationId,
-      error,
-    });
-  }
-}
-
-async function findReservation(paymentId: string, reservationId?: string | null) {
-  const byProviderPaymentId = await prisma.reservation.findUnique({
-    where: {
-      providerPaymentId: paymentId,
-    },
-    select: {
-      id: true,
-      paymentStatus: true,
-    },
-  });
-
-  if (byProviderPaymentId || !reservationId) {
-    return byProviderPaymentId;
-  }
-
-  return prisma.reservation.findUnique({
-    where: {
-      id: reservationId,
-    },
-    select: {
-      id: true,
-      paymentStatus: true,
-    },
-  });
-}
-
-async function handleApprovedPayment(paymentId: string) {
-  const payment = await getMercadoPagoPayment(paymentId);
-  const reservation = await findReservation(payment.id, payment.reservationId);
-
-  if (!reservation) {
-    throw new ValidationError("Reserva do pagamento não encontrada.");
-  }
-
-  if (reservation.paymentStatus === "paid") {
-    return;
-  }
-
-  await prisma.reservation.update({
-    where: {
-      id: reservation.id,
-    },
-    data: {
-      status: "confirmed",
-      paymentStatus: "paid",
-      providerPaymentId: payment.id,
-      paymentMethod: payment.paymentTypeId || payment.paymentMethodId,
-      paidAt: new Date(),
-    },
-  });
-
-  await notifyPaidReservation(reservation.id);
-}
-
-async function handleRejectedPayment(paymentId: string) {
-  const payment = await getMercadoPagoPayment(paymentId);
-  const reservation = await findReservation(payment.id, payment.reservationId);
-
-  if (!reservation || reservation.paymentStatus === "paid") {
-    return;
-  }
-
-  await prisma.reservation.update({
-    where: {
-      id: reservation.id,
-    },
-    data: {
-      status: "payment_failed",
-      paymentStatus: "payment_failed",
-      providerPaymentId: payment.id,
-    },
-  });
-}
-
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json().catch(() => null)) as MercadoPagoWebhookPayload | null;
+    const payloadResult = mercadoPagoWebhookPayloadSchema.safeParse(
+      await request.json().catch(() => null)
+    );
 
-    if (!payload) {
+    if (!payloadResult.success) {
       throw new ValidationError("Payload do webhook inválido.");
     }
 
+    const payload = payloadResult.data;
     const paymentId = getPaymentId(payload, request);
 
     validateMercadoPagoSignature(request, paymentId);
@@ -240,15 +116,10 @@ export async function POST(request: Request) {
       });
     }
 
-    const payment = await getMercadoPagoPayment(paymentId);
-
-    if (payment.status === "approved") {
-      await handleApprovedPayment(payment.id);
-    }
-
-    if (["rejected", "cancelled", "refunded", "charged_back"].includes(payment.status)) {
-      await handleRejectedPayment(payment.id);
-    }
+    await syncMercadoPagoPayment({
+      paymentId,
+      source: "webhook",
+    });
 
     return createApiSuccessResponse({
       received: true,

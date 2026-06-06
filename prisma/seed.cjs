@@ -105,6 +105,40 @@ function room({
   };
 }
 
+function buildStorageSeedUrl(key) {
+  const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL?.trim();
+
+  if (!publicBaseUrl) {
+    return null;
+  }
+
+  return `${publicBaseUrl.replace(/\/+$/, "")}/${key
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/")}`;
+}
+
+function withStorageSeedUrls(hotel) {
+  const coverImageUrl = buildStorageSeedUrl(`seed/hotels/${hotel.slug}/cover.webp`);
+
+  if (!coverImageUrl) {
+    return hotel;
+  }
+
+  return {
+    ...hotel,
+    coverImageUrl,
+    galleryImages: hotel.galleryImages.map((image, index) => ({
+      ...image,
+      url: buildStorageSeedUrl(`seed/hotels/${hotel.slug}/gallery-${index + 1}.webp`),
+    })),
+    rooms: hotel.rooms.map((roomData, index) => ({
+      ...roomData,
+      imageUrl: buildStorageSeedUrl(`seed/hotels/${hotel.slug}/rooms-${index + 1}.webp`),
+    })),
+  };
+}
+
 const hotels = [
   {
     slug: "lph-marina-santos",
@@ -117,7 +151,7 @@ const hotels = [
     state: "SP",
     address: "Avenida Almirante Saldanha, 410 - Ponta da Praia, Santos - SP",
     phone: "(13) 3201-4400",
-    email: "reservas.marina@lphhoteis.com.br",
+    email: "reservas+marina-santos@lph.test",
     whatsapp: "(13) 99740-4410",
     coverImageUrl:
       "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=80",
@@ -203,7 +237,7 @@ const hotels = [
     state: "RS",
     address: "Estrada Linha Bonita, 1280 - Zona Rural, Gramado - RS",
     phone: "(54) 3295-1180",
-    email: "reservas.araucarias@lphhoteis.com.br",
+    email: "reservas+serra-araucarias@lph.test",
     whatsapp: "(54) 99620-1180",
     coverImageUrl:
       "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1400&q=80",
@@ -288,7 +322,7 @@ const hotels = [
     state: "SP",
     address: "Alameda Lorena, 870 - Jardins, São Paulo - SP",
     phone: "(11) 3123-8700",
-    email: "reservas.jardins@lphhoteis.com.br",
+    email: "reservas+jardins-business@lph.test",
     whatsapp: "(11) 99712-8700",
     coverImageUrl:
       "https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?auto=format&fit=crop&w=1400&q=80",
@@ -373,7 +407,7 @@ const hotels = [
     state: "PE",
     address: "Avenida Boa Viagem, 1890 - Boa Viagem, Recife - PE",
     phone: "(81) 3321-6789",
-    email: "reservas.boaviagem@lphhoteis.com.br",
+    email: "reservas+boa-viagem@lph.test",
     whatsapp: "(81) 99771-6644",
     coverImageUrl:
       "https://images.unsplash.com/photo-1455587734955-081b22074882?auto=format&fit=crop&w=1400&q=80",
@@ -459,7 +493,7 @@ const hotels = [
     state: "DF",
     address: "SHIS QI 12, Conjunto 3 - Lago Sul, Brasília - DF",
     phone: "(61) 3344-2211",
-    email: "reservas.lagosul@lphhoteis.com.br",
+    email: "reservas+lago-sul@lph.test",
     whatsapp: "(61) 99876-5500",
     coverImageUrl:
       "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1400&q=80",
@@ -680,23 +714,24 @@ async function upsertSeedAdmin() {
 }
 
 async function upsertHotel(hotel) {
+  const storageHotel = withStorageSeedUrls(hotel);
   const baseData = {
-    slug: hotel.slug,
-    name: hotel.name,
-    shortDescription: hotel.shortDescription,
-    fullDescription: hotel.fullDescription,
-    city: hotel.city,
-    state: hotel.state,
-    address: hotel.address,
-    phone: hotel.phone,
-    email: hotel.email,
-    whatsapp: hotel.whatsapp,
-    coverImageUrl: hotel.coverImageUrl,
-    checkInTime: hotel.checkInTime,
-    checkOutTime: hotel.checkOutTime,
-    latitude: new Prisma.Decimal(hotel.latitude),
-    longitude: new Prisma.Decimal(hotel.longitude),
-    isPublished: hotel.isPublished,
+    slug: storageHotel.slug,
+    name: storageHotel.name,
+    shortDescription: storageHotel.shortDescription,
+    fullDescription: storageHotel.fullDescription,
+    city: storageHotel.city,
+    state: storageHotel.state,
+    address: storageHotel.address,
+    phone: storageHotel.phone,
+    email: storageHotel.email,
+    whatsapp: storageHotel.whatsapp,
+    coverImageUrl: storageHotel.coverImageUrl,
+    checkInTime: storageHotel.checkInTime,
+    checkOutTime: storageHotel.checkOutTime,
+    latitude: new Prisma.Decimal(storageHotel.latitude),
+    longitude: new Prisma.Decimal(storageHotel.longitude),
+    isPublished: storageHotel.isPublished,
   };
 
   await prisma.$transaction(async (tx) => {
@@ -712,7 +747,7 @@ async function upsertHotel(hotel) {
     await tx.hotelPolicy.deleteMany({ where: { hotelId: savedHotel.id } });
 
     await tx.hotelImage.createMany({
-      data: hotel.galleryImages.map((image, index) => ({
+      data: storageHotel.galleryImages.map((image, index) => ({
         hotelId: savedHotel.id,
         url: image.url,
         alt: image.alt,
@@ -737,7 +772,7 @@ async function upsertHotel(hotel) {
       })),
     });
 
-    for (const roomData of hotel.rooms) {
+    for (const roomData of storageHotel.rooms) {
       const savedRoom = await tx.hotelRoom.create({
         data: {
           hotelId: savedHotel.id,

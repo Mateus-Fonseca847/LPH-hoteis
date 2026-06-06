@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { Footer } from "@/components/Footer";
@@ -8,6 +9,13 @@ import { AdminAccessDenied } from "./AdminAccessDenied";
 
 type AdminLayoutProps = {
   children: ReactNode;
+};
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {

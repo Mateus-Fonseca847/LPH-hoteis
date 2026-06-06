@@ -5,7 +5,7 @@ import * as OTPAuth from "otpauth";
 import { ConflictError, InternalServerError } from "@/lib/errors/app-error";
 import { prisma } from "@/lib/prisma";
 
-const TWO_FACTOR_ISSUER = "LPH Hoteis";
+const TWO_FACTOR_ISSUER = "LPH Hotéis";
 const TOTP_PERIOD_SECONDS = 30;
 const TOTP_DIGITS = 6;
 const TOTP_WINDOW = 1;

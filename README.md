@@ -1,11 +1,13 @@
-# LPH Hotéis
+﻿# LPH Hotéis
+
+[![CI](https://github.com/Mateus-Fonseca847/PH-hot-is/actions/workflows/ci.yml/badge.svg)](https://github.com/Mateus-Fonseca847/PH-hot-is/actions/workflows/ci.yml)
 
 Plataforma web da rede LPH para catálogo público de hotéis e operação administrativa interna.
 
 ## Stack
 
-- Next.js 15 com App Router
-- React 19
+- Next.js 15.5.18+ com App Router
+- React 19.2.6+
 - TypeScript
 - Prisma ORM
 - PostgreSQL
@@ -14,11 +16,46 @@ Plataforma web da rede LPH para catálogo público de hotéis e operação admin
 - `jose` para sessão em cookie assinado
 - `otpauth` para 2FA
 
+## Status do projeto
+
+### Implementado
+
+- Catálogo público de hotéis publicados, páginas de hotel, busca e favoritos locais.
+- Consulta pública de disponibilidade por datas, viajantes e quarto.
+- Fluxo público real de reserva: criação de reserva, retenção de disponibilidade, checkout externo, webhooks de pagamento e e-mails após confirmação.
+- Pagamento online ativo via Mercado Pago, com Pix, cartão de crédito, cartão de débito e boleto conforme disponibilidade do provedor.
+- Painel administrativo com hotéis, quartos, tarifas, disponibilidade, imagens, configurações de pagamento, reservas, administradores, auditoria, segurança e financeiro.
+- Autenticação com sessão em cookie, cadastro público e 2FA administrativo por e-mail.
+- Testes automatizados com Vitest para regras críticas de reserva, pagamento, disponibilidade, autorização e 2FA.
+
+### Parcialmente implementado
+
+- Motor de reserva: existe fluxo transacional público com pagamento e controle de disponibilidade; o admin possui acompanhamento, cancelamento manual, confirmação manual, falha de pagamento, reenvio de e-mail, observações internas e histórico de operações.
+- Financeiro: exibe reservas pagas, métodos, receita e comissão, mas não executa repasses bancários.
+- E-mails transacionais: envio existe para 2FA e confirmação de reserva paga, condicionado à configuração do provedor de e-mail.
+- Pagamentos por hotel: configuração administrativa existe; o checkout público exige provedor habilitado e credenciais válidas.
+
+### Pendente
+
+- Convite por e-mail para novos administradores.
+- Calendário visual avançado de disponibilidade.
+
+### Legado/compatibilidade
+
+- Webhook Stripe legado permanece disponível para compatibilidade com reservas antigas/campos legados.
+- Campos `stripeCheckoutSessionId`, `stripePaymentIntentId`, `twoFactorEnabled` e `twoFactorSecret` são mantidos por compatibilidade.
+- `manual` existe em `PaymentProvider` para configuração/desativação administrativa, mas não é checkout público online.
+- Dados locais em `src/data` são apoio de desenvolvimento e não devem ser fonte de staging/produção.
+
 ## Requisitos
 
 - Node.js 20+
 - npm
 - PostgreSQL
+
+Versoes minimas recomendadas para produção: `next >= 15.5.18`, `react >= 19.2.6`,
+`react-dom >= 19.2.6` e `eslint-config-next >= 15.5.18`. Não publique builds abaixo
+dessas versoes por causa de correcoes recentes em Next.js/React Server Components.
 
 ## Variáveis de ambiente
 
@@ -30,11 +67,25 @@ AUTH_SECRET=""
 TWO_FACTOR_ENCRYPTION_KEY=""
 NODE_ENV="production"
 UPLOAD_MAX_IMAGE_SIZE_BYTES="5242880"
+STORAGE_PROVIDER="s3"
+S3_ENDPOINT=""
+S3_BUCKET=""
+S3_ACCESS_KEY_ID=""
+S3_SECRET_ACCESS_KEY=""
+S3_PUBLIC_BASE_URL=""
 EMAIL_PROVIDER="resend"
 EMAIL_FROM="LPH Testes <onboarding@resend.dev>"
 RESEND_API_KEY=""
 NEXT_PUBLIC_APP_URL="https://staging.seu-dominio.com"
+BOOKING_PAYMENT_TTL_MINUTES="30"
+APP_INTERNAL_BASE_URL="https://staging.seu-dominio.com"
+INTERNAL_API_TOKEN=""
+CRON_SECRET=""
 PAYMENT_SECRETS_ENCRYPTION_KEY=""
+PAYMENT_PROVIDER="mercado_pago"
+PAYMENT_ACCESS_TOKEN=""
+PAYMENT_WEBHOOK_URL=""
+PAYMENT_WEBHOOK_SECRET=""
 MERCADO_PAGO_ACCESS_TOKEN=""
 MERCADO_PAGO_SANDBOX="true"
 MERCADO_PAGO_WEBHOOK_URL=""
@@ -62,15 +113,23 @@ Variáveis obrigatórias para staging:
 - `TWO_FACTOR_ENCRYPTION_KEY`: chave base64 de 32 bytes. Gere com `openssl rand -base64 32`.
 - `NODE_ENV`: em deploy de staging, use `production`.
 - `UPLOAD_MAX_IMAGE_SIZE_BYTES`: limite de upload em bytes. Exemplo: `5242880` para 5 MB.
+- `STORAGE_PROVIDER`: use `s3` em staging/produção. Use `local` somente em desenvolvimento.
+- `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL`: obrigatorias quando `STORAGE_PROVIDER=s3`.
 - `ALLOW_LOCAL_HOTEL_DATA_FALLBACK`: manter `false` em staging. O app não deve usar dados locais quando o banco falhar.
 
 Variáveis recomendadas conforme recursos ativos:
 
-- `PAYMENT_SECRETS_ENCRYPTION_KEY`: chave base64 de 32 bytes para credenciais de pagamento por hotel.
+- `PAYMENT_SECRETS_ENCRYPTION_KEY`: obrigatória quando houver pagamentos por hotel com credencial criptografada; chave base64 de 32 bytes.
 - `EMAIL_PROVIDER`, `EMAIL_FROM`, `RESEND_API_KEY`: envio real de e-mails transacionais.
-- `NEXT_PUBLIC_APP_URL`: URL pública de homologação, usada em retornos de checkout.
-- `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_SANDBOX`, `MERCADO_PAGO_WEBHOOK_URL`, `MERCADO_PAGO_WEBHOOK_SECRET`: pagamentos em sandbox.
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`: ainda são lidas pelo webhook legado de Stripe.
+- `NEXT_PUBLIC_APP_URL`: obrigatória para checkout quando a origem da requisição não estiver disponível; use a URL pública de homologação.
+- `BOOKING_PAYMENT_TTL_MINUTES`: tempo para reserva `awaiting_payment` expirar e liberar disponibilidade. Padrão seguro: `30`.
+- `APP_INTERNAL_BASE_URL`: URL pública HTTPS usada por cron externo/GitHub Actions para chamar rotas internas; não é exposta ao client.
+- `INTERNAL_API_TOKEN`: token Bearer para `POST /api/internal/reservas/expirar`, rotina idempotente de expiração e reconciliação.
+- `CRON_SECRET`: alias opcional aceito pelas rotas internas quando a plataforma de cron usa esse nome.
+- `PAYMENT_PROVIDER`: provedor online ativo. Hoje use `mercado_pago`.
+- `PAYMENT_ACCESS_TOKEN`, `PAYMENT_WEBHOOK_URL`, `PAYMENT_WEBHOOK_SECRET`: aliases genéricos aceitos pelo código de pagamento.
+- `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_SANDBOX`, `MERCADO_PAGO_WEBHOOK_URL`, `MERCADO_PAGO_WEBHOOK_SECRET`: obrigatórias para checkout/webhook Mercado Pago em sandbox quando os aliases genéricos não forem usados.
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`: ainda são lidas apenas pelo webhook legado de Stripe.
 - `SEED_STAGING_*`: opcionais para criar usuários administrativos de teste via seed.
 - `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`: aliases legados ainda aceitos pelo seed.
 
@@ -79,24 +138,50 @@ Passos recomendados:
 ```bash
 npm ci
 npm run prisma:generate
-npx prisma migrate deploy
+npm run prisma:migrate:deploy
+npm run prisma:seed
 npm run build
-npm run start
+npm start
 ```
 
 Antes de liberar para o cliente:
 
 - O banco de staging deve ter as migrations aplicadas.
-- O banco deve conter hotéis publicados para a home e páginas públicas.
+- O banco deve conter hotéis publicados para a página inicial e páginas públicas.
 - Deve existir ao menos um usuário `super_admin` ativo para acessar `/admin`.
-- Se usar as variáveis `SEED_STAGING_*`, rode `npm run prisma:seed` após as migrations; o primeiro login exigirá ativação de 2FA.
+- Para testar reserva pública completa, o hotel deve ter quartos ativos, tarifas ativas, disponibilidade futura com unidades disponíveis e pagamento Mercado Pago habilitado nas configurações do hotel.
+- O webhook Mercado Pago precisa apontar para a URL pública de staging. Sem webhook público, o checkout pode iniciar, mas a confirmação automática não será validada no ambiente.
+- Se usar as variáveis `SEED_STAGING_*`, rode `npm run prisma:seed` após as migrations e provisione `emailTwoFactorEnabled=true` para administradores antes do primeiro login.
 - Credenciais `SEED_STAGING_*` são apenas para homologação/testes do cliente. Não use esses usuários nem essas senhas em produção.
 - `NODE_ENV` deve ser `production` no runtime de staging.
 - Não use `.env` local, SQLite, seed ou mocks como fonte de dados do staging.
 - Com `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"`, a aplicação falha de forma explícita se `DATABASE_URL` estiver ausente.
 - A autenticação falha de forma explícita se `AUTH_SECRET` estiver ausente.
 - A ativação/validação de 2FA falha de forma explícita se `TWO_FACTOR_ENCRYPTION_KEY` estiver ausente ou não for base64 de 32 bytes.
-- Uploads gravados em `public/uploads` dependem de disco persistente; em hospedagem serverless, use URLs externas ou configure armazenamento persistente antes de testar upload.
+- O checkout falha de forma explícita se `NEXT_PUBLIC_APP_URL` não estiver configurada e a requisição não enviar origem.
+- Pagamentos Mercado Pago falham de forma explícita se `PAYMENT_PROVIDER`, credenciais, webhook ou credenciais criptografadas do hotel estiverem ausentes/incompatíveis.
+- Credenciais de pagamento por hotel falham de forma explícita se `PAYMENT_SECRETS_ENCRYPTION_KEY` estiver ausente ou não for base64 de 32 bytes.
+- Uploads de staging/produção devem usar `STORAGE_PROVIDER="s3"` com storage S3-compatible. O provider `local` e bloqueado quando `NODE_ENV="production"`.
+
+## Produção
+
+Produção deve usar banco, domínio, e-mail, pagamento e storage separados de staging. Não use seed, mocks, credenciais sandbox ou dados locais como fonte de produção.
+
+Requisitos mínimos:
+
+- `NEXT_PUBLIC_APP_URL` com o domínio público final, usando HTTPS.
+- `DATABASE_URL` apontando para PostgreSQL de produção.
+- `AUTH_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` e `PAYMENT_SECRETS_ENCRYPTION_KEY` fortes e exclusivos do ambiente.
+- `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"`.
+- Migrations aplicadas com `npm run prisma:migrate:deploy`.
+- Cron de manutenção configurado para chamar `POST /api/internal/reservas/expirar` a cada 10 minutos, com `Authorization: Bearer $INTERNAL_API_TOKEN`.
+- Pelo menos um `super_admin` ativo, com senha forte e 2FA por e-mail habilitado.
+- Mercado Pago em modo produção apenas quando o hotel for operar reservas pagas online.
+- `STORAGE_PROVIDER="s3"` com `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` e `S3_PUBLIC_BASE_URL` configurados.
+- Webhook Mercado Pago configurado para `https://seu-dominio.com/api/mercado-pago/webhook`.
+- E-mail transacional configurado para 2FA e confirmação de reserva.
+- Storage externo S3-compatible configurado para uploads administrativos.
+- `npm run quality` passando antes do deploy.
 
 ## Deploy na Railway
 
@@ -105,19 +190,20 @@ Antes de liberar para o cliente:
 3. No serviço da aplicação, configure `DATABASE_URL` usando a URL interna do PostgreSQL da Railway.
 4. Configure as demais variáveis de ambiente listadas em `.env.example`.
 5. Defina `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"` em homologação.
-6. Configure o Pre-deploy Command como:
+6. Para testar upload em staging/produção, configure `STORAGE_PROVIDER="s3"` e as variáveis `S3_*`; não use `public/uploads` em runtime de produção.
+7. Configure o Pre-deploy Command como:
 
 ```bash
 npm run prisma:migrate:deploy
 ```
 
-7. Use o Build Command padrão do projeto:
+8. Use o Build Command padrão do projeto:
 
 ```bash
 npm run build
 ```
 
-8. Use o Start Command:
+9. Use o Start Command:
 
 ```bash
 npm start
@@ -131,6 +217,59 @@ Scripts de produção:
 - `npm run prisma:migrate:deploy`: aplica migrations em ambientes de deploy.
 
 Não use banco local em homologação.
+
+## Cron de manutenção
+
+A rotina `POST /api/internal/reservas/expirar` reconcilia pagamentos Mercado Pago recentes em `awaiting_payment` e depois expira reservas vencidas, liberando disponibilidade de forma idempotente.
+
+Frequência recomendada: a cada 5 ou 10 minutos. O endpoint exige token interno e aceita uma destas formas:
+
+- Header `Authorization: Bearer $INTERNAL_API_TOKEN`.
+- Header `x-internal-token: $INTERNAL_API_TOKEN`.
+- `CRON_SECRET` pode substituir `INTERNAL_API_TOKEN` no ambiente da aplicação quando a plataforma de cron usar esse nome.
+
+### Railway Cron
+
+Recomendação principal: use Railway Cron no ambiente de deploy. Crie um Cron Job separado no mesmo projeto, configure o schedule `*/10 * * * *` e use as mesmas variáveis do serviço web:
+
+- `APP_INTERNAL_BASE_URL`: URL pública HTTPS da aplicação, sem barra final.
+- `INTERNAL_API_TOKEN`: valor forte e exclusivo do ambiente, igual ao configurado no serviço web.
+
+Comando do Cron Job:
+
+```bash
+curl --fail --show-error --silent \
+  --request POST \
+  --header "Authorization: Bearer $INTERNAL_API_TOKEN" \
+  "$APP_INTERNAL_BASE_URL/api/internal/reservas/expirar"
+```
+
+O Cron Job deve falhar se `APP_INTERNAL_BASE_URL` ou `INTERNAL_API_TOKEN` não estiverem configurados. Não coloque o token no comando versionado; use variáveis/secrets da Railway.
+
+Para validar, execute o job manualmente e confira se a resposta JSON retorna `status: "ok"` com os contadores `expired`, `scanned` e `reconciliation`. Os logs da aplicação devem conter `[reservation-maintenance] Rotina executada.` sem imprimir tokens.
+
+### GitHub Actions schedule
+
+O repositório inclui o workflow `.github/workflows/reservation-maintenance.yml`, executado a cada 10 minutos e manualmente por `workflow_dispatch`. Configure estes secrets no GitHub Actions do ambiente:
+
+- `APP_INTERNAL_BASE_URL`: URL pública HTTPS da aplicação, sem barra final.
+- `INTERNAL_API_TOKEN`: mesmo valor configurado no ambiente da aplicação.
+
+Esse workflow é a alternativa reproduzível quando a plataforma de deploy não tiver scheduler configurado. Exemplo da chamada:
+
+```bash
+curl --fail --show-error --silent --request POST \
+  --header "Authorization: Bearer $INTERNAL_API_TOKEN" \
+  "$APP_INTERNAL_BASE_URL/api/internal/reservas/expirar"
+```
+
+O workflow valida secrets obrigatórios antes da chamada, tem timeout de 5 minutos e tenta a requisição até 3 vezes antes de falhar.
+
+Checklist de secrets do cron:
+
+- `APP_INTERNAL_BASE_URL`: URL HTTPS pública da aplicação, sem barra final.
+- `INTERNAL_API_TOKEN`: token forte e igual ao configurado na aplicação.
+- Não versionar valores reais em `.env.example`, README, workflows ou comandos salvos.
 
 ## Prisma e migrations
 
@@ -186,6 +325,17 @@ npm run dev
 
 Aplicação local: [http://localhost:3000](http://localhost:3000)
 
+Para validar localmente sem serviços externos reais:
+
+```bash
+npm run test
+npm run quality
+```
+
+`npm run test` executa rapidamente as regras unitárias e integrações isoladas com mocks, sem banco ou credenciais reais. `npm run quality` é o gate completo antes de merge/deploy: formatação, lint, Prisma, testes e build.
+
+O fluxo público de checkout exige credenciais Mercado Pago e URL de webhook acessível pelo provedor. Em ambiente puramente local, teste a criação/validação com mocks automatizados ou use uma URL pública de túnel apenas em sandbox.
+
 ## Comandos úteis
 
 ```bash
@@ -193,6 +343,9 @@ npm run dev
 npm run build
 npm run start
 npm run lint
+npm run test
+npm run test:watch
+npm run test:coverage
 npm run format
 npm run format:check
 npm run quality
@@ -203,28 +356,75 @@ npm run prisma:seed
 npm run prisma:validate
 ```
 
-O quality gate executa formatação, lint, validação do Prisma e build:
+O quality gate executa formatação, lint, validação do Prisma, testes automatizados e build:
 
 ```bash
 npm run quality
 ```
 
+Durante desenvolvimento, os testes podem ser rodados isoladamente:
+
+```bash
+npm run test
+```
+
+`npm run test` executa somente a suíte Vitest em ambiente Node, com mocks de Prisma, Mercado Pago, Resend e Stripe legado onde há integração externa. Ele não usa banco real, internet, credenciais reais ou serviços de terceiros.
+
+`npm run quality` é o gate completo antes de publicar: valida formatação, lint, schema Prisma, testes automatizados e build de produção.
+
+## CI
+
+O repositório possui GitHub Actions em `.github/workflows/ci.yml`. O pipeline roda em `push` para `main`/`staging` e em `pull_request`, usando Node.js 20.
+
+Ele sobe PostgreSQL real, executa `npm ci` com cache de npm, gera o Prisma Client, valida o schema, aplica migrations com `prisma migrate deploy`, roda testes com `RUN_DATABASE_TESTS=true` e executa o build. As variáveis de Mercado Pago/e-mail no workflow são valores fake seguros apenas para CI; credenciais reais devem ficar somente nos ambientes de staging/produção. O CI não faz deploy automático.
+
 ## Arquitetura
 
+- A entrada da aplicação é o App Router em `src/app`; não há HTML/CSS/JS estático legado na raiz.
 - `src/app`: rotas públicas, rotas administrativas e APIs.
-- `src/components`: componentes reutilizáveis da home e páginas públicas.
+- `src/components`: componentes reutilizáveis da página inicial e páginas públicas.
 - `src/lib`: autenticação, autorização, validações, auditoria, upload, erros e Prisma.
 - `src/data`: dados locais de apoio para desenvolvimento.
 - `prisma`: schema, migrations e seed.
 
-## Fluxo público
+## Uploads e imagens
 
-- A home lista hotéis publicados.
+- Hoteis, capas, galeria e quartos usam URLs salvas no banco. URLs antigas continuam validas enquanto o arquivo local ou a URL externa existir.
+- A abstracao `StorageProvider` fica em `src/lib/storage`. Uploads administrativos chamam essa camada e nunca expoem credenciais no client.
+- Para desenvolvimento local, use `STORAGE_PROVIDER="local"`; ele grava em `public/uploads/hotels/[hotelId]` e retorna URLs `/uploads/hotels/...`.
+- Para staging/produção, use `STORAGE_PROVIDER="s3"` com storage S3-compatible. O app assina `PUT`/`DELETE` no servidor e retorna URLs baseadas em `S3_PUBLIC_BASE_URL`.
+- `S3_PUBLIC_BASE_URL` tambem e usado pelo `next.config.ts` para permitir otimizacao de imagens remotas do storage.
+- O seed usa URLs baseadas em `S3_PUBLIC_BASE_URL` quando essa variavel esta configurada; caso contrario, mantem as URLs externas demonstrativas.
+- URLs externas manuais continuam aceitas nos campos de capa, galeria e quarto quando o arquivo ja estiver hospedado fora da aplicacao.
+- A validação de upload rejeita arquivos sem conteúdo, arquivos acima de `UPLOAD_MAX_IMAGE_SIZE_BYTES`, MIME types fora de JPG/PNG/WEBP, extensões inseguras, dupla extensão suspeita e conteúdo cujo magic number não corresponda ao MIME declarado.
+- O nome salvo e sanitizado e recebe prefixo aleatorio para evitar colisao e preservar uma extensao segura.
+- A interface pública e o admin mantém fallback visual para capa, galeria e quartos quando uma URL antiga estiver ausente ou a imagem não carregar.
+- A remocao de arquivos preserva URLs externas fora do provider configurado e evita limpeza fora do prefixo de storage esperado.
+
+## Fluxo publico
+
+- A página inicial lista hotéis publicados.
 - Cards da seção `Conheça nossos hotéis` navegam para `/hoteis/[slug]`.
 - A página pública do hotel usa dados do banco.
 - Hotéis inexistentes ou despublicados retornam 404.
 - Quartos ativos aparecem publicamente com preço inicial baseado em tarifas ativas.
-- Disponibilidade pública é exibida como status simples, sem motor de reserva.
+- O botão `Consultar disponibilidade` navega para `/hoteis/[slug]/reservar`, uma página pública em etapas: datas/viajantes, escolha do quarto, dados do hóspede, pagamento e confirmação. A URL anterior `/hoteis/[slug]/disponibilidade` apenas redireciona para preservar links existentes.
+- A etapa de quartos usa disponibilidade configurada, capacidade e tarifas ativas. Quartos com disponibilidade desconhecida ou indisponível não seguem para reserva.
+- A API `/api/reservas` cria a reserva inicialmente como `awaiting_payment`/`pending`, retém uma unidade de disponibilidade por noite e inicia checkout externo.
+- Reservas `awaiting_payment` recebem `expiresAt`, expiram após `BOOKING_PAYMENT_TTL_MINUTES` e liberam a disponibilidade pela rotina interna `POST /api/internal/reservas/expirar`.
+- O pagamento aprovado por webhook confirma a reserva, marca `paymentStatus` como `paid`, registra transação financeira e dispara e-mails.
+- Pagamento recusado, cancelado, expirado, estornado ou com chargeback marca a reserva como falha/cancelada e libera a disponibilidade retida.
+- Webhooks duplicados são tratados de forma idempotente para não duplicar reserva, disponibilidade ou e-mails.
+- O motor atual é um fluxo transacional público de reserva e pagamento com gestão administrativa básica de reservas, incluindo cancelamento, remarcação, confirmação manual, falha de pagamento, notas internas e histórico operacional. Ainda não possui calendário operacional avançado.
+
+## Pagamentos
+
+- Provedor online ativo: Mercado Pago.
+- Métodos expostos no fluxo público: Pix, cartão de crédito, cartão de débito e boleto.
+- Cada hotel precisa ter configuração de pagamento habilitada para permitir reserva pública.
+- `PaymentProvider.manual` existe para estado/configuração administrativa e compatibilidade, mas não inicia checkout online público.
+- Stripe é legado: o webhook `/api/stripe/webhook` continua disponível para compatibilidade com campos e eventos antigos, mas o checkout público atual usa Mercado Pago.
+- Nunca use credenciais reais em desenvolvimento local ou homologação. Use sandbox e banco separado.
 
 ## Admin Fase 2
 
@@ -274,6 +474,7 @@ Na edição do hotel:
 - criar quarto;
 - editar quarto;
 - ativar/desativar quarto.
+- enviar imagem do quarto por upload validado.
 
 Campos principais:
 
@@ -311,6 +512,18 @@ Na edição do hotel:
 - salvar em lote.
 
 O intervalo de edição em lote é limitado pelos validadores do backend.
+
+### Configuração de pagamento
+
+Na edição do hotel:
+
+- configurar provedor `manual` ou `mercado_pago`;
+- ativar/desativar pagamento online do hotel;
+- salvar credencial sensível criptografada;
+- preservar credencial existente sem exibi-la novamente;
+- registrar auditoria da alteração.
+
+O checkout público só inicia quando a configuração do hotel está habilitada e compatível com o provedor ativo do ambiente.
 
 ### Administradores e permissões
 
@@ -365,7 +578,12 @@ As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
 - Sessão usa cookie `HttpOnly`.
 - Cookie usa `Secure` em produção.
 - `SameSite` configurado.
-- Administradores precisam de 2FA.
+- O fluxo atual de login administrativo usa 2FA por e-mail.
+- `emailTwoFactorEnabled` controla a exigência de código por e-mail no login.
+- `twoFactorEnabled` e `twoFactorSecret` são campos legados de app autenticador/TOTP e não controlam o login atual.
+- Usuários comuns entram apenas com e-mail e senha.
+- Administradores com `emailTwoFactorEnabled=false` são bloqueados no login administrativo.
+- Administradores com `emailTwoFactorEnabled=true` recebem um código de 6 dígitos por e-mail antes de acessar o painel.
 - Usuário desativado não autentica como usuário válido.
 - Escritas administrativas exigem autenticação e autorização no backend.
 - Escritas ligadas a hotel validam permissão por hotel.
@@ -374,22 +592,32 @@ As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
 - Remoção de imagem exige permissão e registra auditoria.
 - Erros usam padrão comum e não devem expor stack trace em produção.
 - Auditoria não deve registrar senhas, tokens, segredos de 2FA ou dados sensíveis.
+- `npm audit` revisado em 2026-06-01: sem vulnerabilidades reportadas em dependências de produção ou desenvolvimento.
 
 ## Pendências reais
 
 - Convite por e-mail ainda não existe.
-- Não há motor de reserva.
+- Há tela administrativa de acompanhamento e operação básica de reservas/pagamentos em `/admin/reservas`.
 - Não há calendário visual avançado de disponibilidade.
-- Não há gestão dedicada de upload para imagem de quarto; hoje o quarto usa URL/imagem existente.
-- Warnings de lint sobre `<img>` ainda existem e podem ser tratados futuramente com `next/image`.
-- `npm audit` deve ser revisado antes de produção.
 - Dados locais de apoio continuam existindo para desenvolvimento e não devem contaminar produção.
 
-## Checklist operacional
+## Checklist para ir ao ar
 
-- Rode `npm run quality` antes de merge/deploy.
-- Revise migrations antes de aplicar em ambientes compartilhados.
-- Use `DATABASE_URL` real e separado por ambiente.
-- Nunca use mocks em produção.
-- Nunca exponha segredos no frontend.
-- Nunca commite `.env`, credenciais ou chaves reais.
+- Domínio final configurado com HTTPS.
+- `NEXT_PUBLIC_APP_URL` aponta para o domínio final.
+- `DATABASE_URL` de produção configurado.
+- Migrations aplicadas com `npm run prisma:migrate:deploy`.
+- Seed não usado para popular produção.
+- `super_admin` criado com senha forte.
+- 2FA por e-mail ativado para administradores.
+- Mercado Pago em modo produção, se reservas online forem usadas.
+- `STORAGE_PROVIDER="s3"` com `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` e `S3_PUBLIC_BASE_URL` configurados.
+- Webhook Mercado Pago configurado no provedor.
+- Cron de manutenção configurado e testado com `INTERNAL_API_TOKEN`.
+- E-mail transacional configurado e testado.
+- Uploads/storage decidido antes de liberar uso real.
+- Testes manuais de homologação concluídos.
+- `npm run quality` passando.
+- Backup do banco planejado.
+- Nenhum segredo real commitado no repositório.
+- `npm audit` sem vulnerabilidades no gate final.

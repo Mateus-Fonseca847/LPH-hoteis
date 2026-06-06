@@ -18,42 +18,25 @@ export default async function AdminAdministratorsPage() {
     throw error;
   }
 
+  if (user.globalRole !== "super_admin") {
+    return (
+      <AdminAccessDenied
+        title="Acesso restrito"
+        description="Somente super_admin pode definir quais hoteis cada hotel_admin gerencia."
+      />
+    );
+  }
+
   const result = await listAccessibleAdministratorsAction();
-  const manageableHotels =
-    user.globalRole === "super_admin"
-      ? await prisma.hotel.findMany({
-          select: { id: true, name: true },
-          orderBy: { name: "asc" },
-        })
-      : (
-          await prisma.hotelPermission.findMany({
-            where: {
-              userId: user.id,
-              role: { in: ["owner", "admin"] },
-            },
-            select: {
-              role: true,
-              hotel: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-            orderBy: { hotel: { name: "asc" } },
-          })
-        ).map((permission) => ({
-          id: permission.hotel.id,
-          name: permission.hotel.name,
-          actorHotelRole: permission.role,
-        }));
-  const activationScopeHotelId =
-    user.globalRole === "super_admin" ? (manageableHotels[0]?.id ?? null) : null;
+  const manageableHotels = await prisma.hotel.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+  const activationScopeHotelId = manageableHotels[0]?.id ?? null;
 
   if (result.status === "error") {
     return (
       <section className="section admin-section admin-access-denied">
-        <span className="hotel-page-eyebrow">Admin</span>
         <div className="section-heading admin-section-heading">
           <h1>Administradores</h1>
         </div>

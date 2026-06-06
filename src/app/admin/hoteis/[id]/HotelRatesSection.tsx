@@ -10,11 +10,17 @@ import {
   toggleRoomRateActiveAction,
   updateRoomRateAction,
 } from "./room-rate-actions";
+import {
+  getCreateRateDisabledReason,
+  getInitialRateRoomId,
+  getSelectedRateRoom,
+} from "./HotelRatesSection.rules";
 import { createRoomRatePayloadSchema } from "@/lib/validations/room-rate";
 
 type HotelRatesSectionProps = {
   hotelId: string;
   rooms: Pick<AuthorizedHotelRoom, "id" | "name">[];
+  canEdit?: boolean;
 };
 
 type RateFormValues = {
@@ -318,12 +324,12 @@ function RateFormCard({
   );
 }
 
-export function HotelRatesSection({ hotelId, rooms }: HotelRatesSectionProps) {
+export function HotelRatesSection({ hotelId, rooms, canEdit = true }: HotelRatesSectionProps) {
   const roomOptions = useMemo(
-    () => rooms.map((room) => ({ id: room.id, name: room.name })),
+    () => rooms.map((room) => ({ id: String(room.id), name: room.name })),
     [rooms]
   );
-  const [selectedRoomId, setSelectedRoomId] = useState(roomOptions[0]?.id ?? "");
+  const [selectedRoomId, setSelectedRoomId] = useState(getInitialRateRoomId(roomOptions));
   const [rates, setRates] = useState<AuthorizedRoomRate[]>([]);
   const [isLoadingRates, setIsLoadingRates] = useState(Boolean(roomOptions[0]?.id));
   const [feedback, setFeedback] = useState("");
@@ -336,9 +342,34 @@ export function HotelRatesSection({ hotelId, rooms }: HotelRatesSectionProps) {
   const [editErrors, setEditErrors] = useState<RateFormErrors>({});
   const [pendingRateId, setPendingRateId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const selectedRoom = getSelectedRateRoom(roomOptions, selectedRoomId);
+  const createRateDisabledReason = getCreateRateDisabledReason({
+    canEdit,
+    isPending,
+    hasRooms: roomOptions.length > 0,
+    selectedRoom,
+  });
+  const isCreateRateDisabled = Boolean(createRateDisabledReason);
+
+  useEffect(() => {
+    if (roomOptions.length === 0) {
+      if (selectedRoomId) {
+        setSelectedRoomId("");
+      }
+
+      setIsLoadingRates(false);
+      return;
+    }
+
+    if (!selectedRoom) {
+      setSelectedRoomId(roomOptions[0].id);
+      setIsLoadingRates(true);
+    }
+  }, [roomOptions, selectedRoom, selectedRoomId]);
 
   useEffect(() => {
     if (!selectedRoomId) {
+      setIsLoadingRates(false);
       return;
     }
 
@@ -501,11 +532,18 @@ export function HotelRatesSection({ hotelId, rooms }: HotelRatesSectionProps) {
             setCreateErrors({});
             setEditErrors({});
           }}
-          disabled={isPending || !selectedRoomId}
+          disabled={isCreateRateDisabled}
+          aria-describedby={isCreateRateDisabled ? "create-rate-disabled-reason" : undefined}
         >
           {isCreating ? "Fechar" : "Criar tarifa"}
         </button>
       </div>
+
+      {isCreateRateDisabled ? (
+        <p id="create-rate-disabled-reason" className="admin-form-error admin-form-error--block">
+          {createRateDisabledReason}
+        </p>
+      ) : null}
 
       <div className="admin-rate-toolbar">
         <label className="admin-form-field admin-rate-room-select">

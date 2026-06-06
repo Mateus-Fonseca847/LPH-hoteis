@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import type { AuthorizedHotelRoom, HotelRoomActionState } from "./room-actions";
 import {
   createHotelRoomAction,
@@ -606,9 +606,10 @@ function RoomFormCard({
 
               {imagePreviewUrl ? (
                 <div className="admin-room-image-preview">
-                  <Image
+                  <ImageWithFallback
                     src={imagePreviewUrl}
                     alt={values.name ? `Imagem de ${values.name}` : "Imagem do quarto"}
+                    fallbackLabel="Imagem do quarto indisponível"
                     fill
                     sizes="(max-width: 768px) 100vw, 420px"
                     unoptimized
@@ -963,7 +964,14 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
             return (
               <article key={room.id} className="admin-room-card">
                 <div className="admin-room-card-media">
-                  <Image src={room.imageUrl} alt={room.name} fill sizes="260px" unoptimized />
+                  <ImageWithFallback
+                    src={room.imageUrl}
+                    alt={room.name}
+                    fallbackLabel={`Imagem indisponível do quarto ${room.name}`}
+                    fill
+                    sizes="260px"
+                    unoptimized
+                  />
                 </div>
 
                 <div className="admin-room-card-body">

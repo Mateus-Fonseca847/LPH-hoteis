@@ -1,7 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useMemo, useState } from "react";
+
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 
 type HotelGalleryImage = {
   url: string;
@@ -29,16 +30,22 @@ export function HotelGallery({ hotelName, images }: HotelGalleryProps) {
   );
 
   if (!featuredImage) {
-    return null;
+    return (
+      <div className="hotel-gallery-empty" role="status">
+        <strong>Galeria em atualização</strong>
+        <p>As imagens deste hotel serão exibidas assim que estiverem disponíveis.</p>
+      </div>
+    );
   }
 
   return (
     <div className="hotel-gallery-shell">
       <div className="hotel-gallery-grid">
         <article className="hotel-gallery-card hotel-gallery-card--featured">
-          <Image
+          <ImageWithFallback
             src={featuredImage.url}
             alt={featuredImage.alt || `Imagem principal de ${hotelName}`}
+            fallbackLabel={`Imagem indisponível de ${hotelName}`}
             fill
             sizes="(max-width: 900px) 100vw, 58vw"
             unoptimized
@@ -51,9 +58,10 @@ export function HotelGallery({ hotelName, images }: HotelGalleryProps) {
               key={`${image.position}-${index}-${image.url}`}
               className="hotel-gallery-card hotel-gallery-card--secondary"
             >
-              <Image
+              <ImageWithFallback
                 src={image.url}
                 alt={image.alt || `${hotelName} - foto ${index + 2}`}
+                fallbackLabel={`Imagem indisponível de ${hotelName}`}
                 fill
                 sizes="(max-width: 900px) 50vw, 20vw"
                 unoptimized
@@ -82,12 +90,13 @@ export function HotelGallery({ hotelName, images }: HotelGalleryProps) {
                   key={`${image.position}-extra-${index}-${image.url}`}
                   className="hotel-gallery-card hotel-gallery-card--extra"
                 >
-                  <Image
+                  <ImageWithFallback
                     src={image.url}
                     alt={
                       image.alt ||
                       `${hotelName} - foto adicional ${index + SECONDARY_VISIBLE_COUNT + 2}`
                     }
+                    fallbackLabel={`Imagem indisponível de ${hotelName}`}
                     fill
                     sizes="(max-width: 900px) 50vw, 28vw"
                     unoptimized

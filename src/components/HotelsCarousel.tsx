@@ -1,8 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 
 type PublishedHotelCard = {
   slug: string;
@@ -25,10 +26,14 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
   const resumeTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    const carousel = carouselRef.current;
     const track = trackRef.current;
-    if (!track || hotels.length <= 1) return;
+    if (!carousel || !track || hotels.length <= 1) return;
 
     const pixelsPerSecond = 36;
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let isVisible = false;
+    let isAnimating = false;
 
     const step = (timestamp: number) => {
       if (!lastTimestampRef.current) {
@@ -47,7 +52,9 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
         }
       }
 
-      frameRef.current = window.requestAnimationFrame(step);
+      if (isAnimating) {
+        frameRef.current = window.requestAnimationFrame(step);
+      }
     };
 
     const handleResize = () => {
@@ -55,14 +62,54 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
       lastTimestampRef.current = 0;
     };
 
+    const start = () => {
+      if (isAnimating || reducedMotionQuery.matches || !isVisible) return;
+
+      isAnimating = true;
+      lastTimestampRef.current = 0;
+      frameRef.current = window.requestAnimationFrame(step);
+    };
+
+    const stop = () => {
+      isAnimating = false;
+      lastTimestampRef.current = 0;
+
+      if (frameRef.current) {
+        window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+
+    const handleMotionChange = () => {
+      if (reducedMotionQuery.matches) {
+        stop();
+      } else {
+        start();
+      }
+    };
+
+    const visibilityObserver = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+
+        if (isVisible) {
+          start();
+        } else {
+          stop();
+        }
+      },
+      { rootMargin: "120px 0px" }
+    );
+
     window.addEventListener("resize", handleResize);
-    frameRef.current = window.requestAnimationFrame(step);
+    reducedMotionQuery.addEventListener("change", handleMotionChange);
+    visibilityObserver.observe(carousel);
 
     return () => {
       window.removeEventListener("resize", handleResize);
-      if (frameRef.current) {
-        window.cancelAnimationFrame(frameRef.current);
-      }
+      reducedMotionQuery.removeEventListener("change", handleMotionChange);
+      visibilityObserver.disconnect();
+      stop();
       if (resumeTimeoutRef.current) {
         window.clearTimeout(resumeTimeoutRef.current);
       }
@@ -146,6 +193,14 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
           onMouseLeave={() => {
             pausedRef.current = false;
           }}
+          onFocusCapture={() => {
+            pausedRef.current = true;
+          }}
+          onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              pausedRef.current = false;
+            }
+          }}
         >
           {hotels.length > 1 ? (
             <button
@@ -176,9 +231,11 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
                 aria-hidden={index >= hotels.length}
                 tabIndex={index >= hotels.length ? -1 : 0}
               >
-                <Image
+                <ImageWithFallback
                   src={hotel.coverImageUrl}
-                  alt={hotel.name}
+                  alt={`Vista de ${hotel.name} em ${hotel.city}, ${hotel.state}`}
+                  fallbackLabel={`Imagem indisponível de ${hotel.name}`}
+                  wrapperClassName="hotel-card-image-frame"
                   width={420}
                   height={260}
                   sizes="(max-width: 560px) 292px, (max-width: 900px) 360px, 33vw"

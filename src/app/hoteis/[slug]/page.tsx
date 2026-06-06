@@ -1,17 +1,23 @@
-import Image from "next/image";
-import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { BookingPageLink } from "@/components/BookingPageLink";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { HotelAmenitiesSection } from "@/components/HotelAmenitiesSection";
-import { HotelAvailabilityModalTrigger } from "@/components/HotelAvailabilityModalTrigger";
 import { HotelGallery } from "@/components/HotelGallery";
+import { IconBackLink } from "@/components/IconBackLink";
 import { HotelPageActions } from "@/components/HotelPageActions";
 import { HotelRegionDetailsSection } from "@/components/HotelRegionDetailsSection";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import { getHotelPageData } from "@/lib/hotel-data";
-import { prisma } from "@/lib/prisma";
+import { getMercadoPagoCheckoutReturnNotice } from "@/lib/payments/checkout-return";
 import { parseBedsValue, ROOM_BED_OPTIONS } from "@/lib/room-options";
+import {
+  DEFAULT_SOCIAL_IMAGE_ALT,
+  DEFAULT_SOCIAL_IMAGE_PATH,
+  SITE_NAME,
+} from "@/lib/site-metadata";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +27,79 @@ type HotelPageProps = {
   }>;
   searchParams?: Promise<{
     checkout?: string;
-    session_id?: string;
     reservation?: string;
+    external_reference?: string;
+    payment?: string;
+    payment_id?: string;
+    collection_id?: string;
+    preference?: string;
+    preference_id?: string;
+    status?: string;
   }>;
 };
 
 type HotelPageRoom = NonNullable<Awaited<ReturnType<typeof getHotelPageData>>>["rooms"][number];
+
+export async function generateMetadata({ params }: HotelPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const hotel = await getHotelPageData(slug);
+
+  if (!hotel) {
+    return {
+      title: "Hotel não encontrado",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  const hotelSummary =
+    hotel.shortDescription?.trim() ||
+    hotel.fullDescription?.trim() ||
+    "Hospedagem selecionada pela curadoria LPH Hotéis.";
+  const description = `${hotel.name} em ${hotel.city}, ${hotel.state}. ${hotelSummary}`;
+  const image = hotel.coverImageUrl?.trim() || DEFAULT_SOCIAL_IMAGE_PATH;
+  const imageAlt = hotel.coverImageUrl?.trim()
+    ? `Imagem de capa de ${hotel.name} em ${hotel.city}, ${hotel.state}`
+    : DEFAULT_SOCIAL_IMAGE_ALT;
+  const title = `${hotel.name} em ${hotel.city}, ${hotel.state}`;
+  const canonicalUrl = `/hoteis/${hotel.slug}`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+    openGraph: {
+      type: "website",
+      locale: "pt_BR",
+      siteName: SITE_NAME,
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      url: canonicalUrl,
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: imageAlt,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      images: [image],
+    },
+  };
+}
 
 function buildAccessibility(hotel: Awaited<ReturnType<typeof getHotelPageData>>) {
   if (!hotel) {
@@ -175,7 +248,7 @@ function formatRoomStartingPrice(priceCents: number | null) {
 
 function getRoomAvailabilityLabel(room: HotelPageRoom) {
   if (room.publicAvailabilityStatus === "available") {
-    return "Disponível para consulta";
+    return "Disponível para reserva online";
   }
 
   if (room.publicAvailabilityStatus === "unavailable") {
@@ -274,56 +347,21 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
     notFound();
   }
 
-  const gallery = hotel.images.length
-    ? hotel.images
-    : [{ url: hotel.coverImageUrl, alt: hotel.name, position: 0 }];
-  const availabilityRooms = hotel.rooms.map((room) => ({
-    id: room.id,
-    name: room.name,
-    description: room.description,
-    imageUrl: room.imageUrl,
-    capacity: room.capacity,
-    capacityAdults: room.capacityAdults,
-    capacityChildren: room.capacityChildren,
-    beds: room.beds,
-    sizeM2: room.sizeM2,
-    size: room.size,
-    amenities: room.amenities,
-    lowestActiveRateCents: room.lowestActiveRateCents,
-    publicAvailabilityStatus: room.publicAvailabilityStatus,
-    availability: room.availability,
-    rates: room.rates,
-  }));
+  const gallerySource =
+    hotel.images.length || !hotel.coverImageUrl
+      ? hotel.images
+      : [
+          {
+            url: hotel.coverImageUrl,
+            alt: `Vista principal de ${hotel.name} em ${hotel.city}, ${hotel.state}`,
+            position: 0,
+          },
+        ];
+  const gallery = gallerySource.filter((image) => image.url.trim());
   const accessibility = buildAccessibility(hotel);
   const faq = buildFaq(hotel);
   const policySections = buildPolicySections(hotel);
-  const paidReservation = checkoutParams.session_id
-    ? await prisma.reservation.findUnique({
-        where: {
-          stripeCheckoutSessionId: checkoutParams.session_id,
-        },
-        select: {
-          id: true,
-          status: true,
-        },
-      })
-    : null;
-  const checkoutNotice =
-    checkoutParams.checkout === "success"
-      ? {
-          title: paidReservation?.status === "paid" ? "Pagamento aprovado" : "Pagamento recebido",
-          description:
-            paidReservation?.status === "paid"
-              ? `Reserva ${paidReservation.id} confirmada com pagamento aprovado. O hotel e o hóspede receberão os e-mails de confirmação.`
-              : "Aguardando confirmação automática do pagamento. Você receberá a confirmação por e-mail.",
-        }
-      : checkoutParams.checkout === "cancelled"
-        ? {
-            title: "Pagamento não concluído",
-            description:
-              "Nenhuma cobrança foi confirmada. Abra a consulta de disponibilidade para tentar novamente.",
-          }
-        : null;
+  const checkoutNotice = await getMercadoPagoCheckoutReturnNotice(checkoutParams);
   return (
     <div className="page-shell">
       <Header />
@@ -331,9 +369,7 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
       <main className="hotel-page hotel-page--enter">
         <section className="section hotel-hero-section reveal is-visible">
           <div className="hotel-topbar">
-            <Link href="/#journey" className="hotel-page-back">
-              Voltar à lista de hotéis
-            </Link>
+            <IconBackLink href="/#journey" ariaLabel="Voltar à lista de hotéis" />
           </div>
 
           {checkoutNotice ? (
@@ -345,26 +381,8 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
 
           <div className="hotel-hero-layout">
             <div className="hotel-hero-copy">
-              <span className="hotel-page-eyebrow">
-                {hotel.city}, {hotel.state}
-              </span>
               <h1>{hotel.name}</h1>
-              <p className="hotel-lead">{hotel.shortDescription}</p>
               <p className="hotel-description">{hotel.fullDescription}</p>
-
-              <div className="hotel-rating-strip">
-                <div className="hotel-rating-stars" aria-label="Estrutura visual de avaliação">
-                  <span>★</span>
-                  <span>★</span>
-                  <span>★</span>
-                  <span>★</span>
-                  <span>★</span>
-                </div>
-                <div className="hotel-rating-copy">
-                  <strong>Perfil atualizado</strong>
-                  <span>Informações revisadas para consulta direta com a equipe LPH.</span>
-                </div>
-              </div>
 
               <div className="hotel-quick-info">
                 <div className="hotel-info-card">
@@ -380,26 +398,30 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
               </div>
 
               <div className="hotel-page-actions">
-                <HotelAvailabilityModalTrigger
+                <BookingPageLink
                   className="card-cta-button hotel-page-cta"
                   hotelSlug={hotel.slug}
-                  hotelId={hotel.id}
-                  hotelName={hotel.name}
-                  rooms={availabilityRooms}
                 />
               </div>
             </div>
 
             <div className="hotel-hero-media-shell">
               <div className="hotel-hero-media">
-                <Image
-                  src={hotel.coverImageUrl}
-                  alt={hotel.name}
-                  fill
-                  priority
-                  sizes="(max-width: 900px) 100vw, 52vw"
-                  unoptimized
-                />
+                {hotel.coverImageUrl ? (
+                  <ImageWithFallback
+                    src={hotel.coverImageUrl}
+                    alt={`Vista principal de ${hotel.name} em ${hotel.city}, ${hotel.state}`}
+                    fallbackLabel={`Imagem indisponível de ${hotel.name}`}
+                    fill
+                    priority
+                    sizes="(max-width: 900px) 100vw, 52vw"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="hotel-image-placeholder" role="img" aria-label={hotel.name}>
+                    {hotel.name}
+                  </div>
+                )}
               </div>
               <HotelPageActions
                 hotel={{
@@ -409,6 +431,15 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
                   state: hotel.state,
                   coverImageUrl: hotel.coverImageUrl,
                 }}
+                rating={
+                  <div className="hotel-rating-stars" aria-label="Estrutura visual de avaliação">
+                    <span>★</span>
+                    <span>★</span>
+                    <span>★</span>
+                    <span>★</span>
+                    <span>★</span>
+                  </div>
+                }
               />
             </div>
           </div>
@@ -493,13 +524,20 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
                 {hotel.rooms.map((room) => (
                   <article id={`quarto-${room.id}`} key={room.id} className="hotel-room-card">
                     <div className="hotel-room-media">
-                      <Image
-                        src={room.imageUrl}
-                        alt={`Quarto ${room.name}`}
-                        fill
-                        sizes="(max-width: 900px) 100vw, 280px"
-                        unoptimized
-                      />
+                      {room.imageUrl ? (
+                        <ImageWithFallback
+                          src={room.imageUrl}
+                          alt={`Quarto ${room.name}`}
+                          fallbackLabel={`Imagem indisponível do quarto ${room.name}`}
+                          fill
+                          sizes="(max-width: 900px) 100vw, 280px"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="hotel-image-placeholder" role="img" aria-label={room.name}>
+                          {room.name}
+                        </div>
+                      )}
                     </div>
                     <div className="hotel-room-body">
                       <div className="hotel-room-header">
@@ -559,15 +597,15 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
                       <div className="hotel-room-footer">
                         <div>
                           <strong>{formatRoomStartingPrice(room.lowestActiveRateCents)}</strong>
-                          <p className="hotel-room-status">{getRoomAvailabilityLabel(room)}</p>
+                          <p className="hotel-room-status">
+                            {getRoomAvailabilityLabel(room)}. Valor final calculado por data e
+                            ocupação.
+                          </p>
                         </div>
-                        <HotelAvailabilityModalTrigger
+                        <BookingPageLink
                           className="hotel-room-cta"
                           hotelSlug={hotel.slug}
-                          hotelId={hotel.id}
-                          hotelName={hotel.name}
                           roomName={room.name}
-                          rooms={availabilityRooms}
                         />
                       </div>
                     </div>
@@ -626,19 +664,13 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
 
         <section className="section hotel-cta-panel reveal is-visible">
           <div>
-            <span className="hotel-page-eyebrow">Reserva</span>
             <h2>Pronto para consultar sua estadia?</h2>
             <p className="hotel-description hotel-description--compact">
-              Consulte disponibilidade, escolha o quarto e avance a reserva pelo site.
+              Consulte disponibilidade, escolha o quarto e avance para pagamento. A reserva fica
+              pendente até a aprovação do provedor.
             </p>
           </div>
-          <HotelAvailabilityModalTrigger
-            className="card-cta-button hotel-page-cta"
-            hotelSlug={hotel.slug}
-            hotelId={hotel.id}
-            hotelName={hotel.name}
-            rooms={availabilityRooms}
-          />
+          <BookingPageLink className="card-cta-button hotel-page-cta" hotelSlug={hotel.slug} />
         </section>
       </main>
 

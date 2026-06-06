@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { isAdminUser, isFullyAuthenticatedSession } from "@/lib/auth";
@@ -8,6 +9,15 @@ import { prisma } from "@/lib/prisma";
 import { TwoFactorEmailForm } from "./TwoFactorEmailForm";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Verificação em duas etapas",
+  description: "Confirme o código de segurança para acessar o painel administrativo LPH Hotéis.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 type TwoFactorPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -64,7 +74,6 @@ export default async function TwoFactorPage({ searchParams }: TwoFactorPageProps
       <main className="auth-page">
         <section className="section auth-section">
           <div className="auth-card">
-            <span className="hotel-page-eyebrow">Acesso seguro</span>
             <h1>Verificação em duas etapas</h1>
             <p className="auth-copy">
               Enviamos um código de segurança para {maskEmail(user.email)}. Informe o código para

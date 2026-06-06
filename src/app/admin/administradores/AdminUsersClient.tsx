@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 
 import type { AccessibleAdministrator, AdminUserActionState } from "../users/actions";
 import {
+  addUserHotelPermissionAction,
   createAdministratorAction,
   listAccessibleAdministratorsAction,
   removeUserHotelPermissionAction,
@@ -17,7 +18,6 @@ type GlobalRole = "super_admin" | "hotel_admin" | "user";
 type ManageableHotel = {
   id: string;
   name: string;
-  actorHotelRole?: HotelRole;
 };
 
 type AdminUsersClientProps = {
@@ -28,11 +28,12 @@ type AdminUsersClientProps = {
 };
 
 type RoleDrafts = Record<string, HotelRole>;
+type PermissionDrafts = Record<string, { hotelId: string; role: HotelRole }>;
 
 type InviteForm = {
   name: string;
   email: string;
-  globalRole: "super_admin" | "hotel_admin";
+  globalRole: "hotel_admin";
   hotelId: string;
   role: HotelRole;
   isActive: boolean;
@@ -47,7 +48,7 @@ function formatGlobalRole(role: AccessibleAdministrator["globalRole"]) {
     return "Admin de hotel";
   }
 
-  return "Usuário";
+  return "Usuario";
 }
 
 function formatPermissionRole(role: HotelRole) {
@@ -77,34 +78,51 @@ function buildRoleDrafts(administrators: AccessibleAdministrator[]) {
   ) as RoleDrafts;
 }
 
-function getManageableRoles(actorGlobalRole: GlobalRole, hotel?: ManageableHotel) {
+function getManageableRoles(actorGlobalRole: GlobalRole) {
   if (actorGlobalRole === "super_admin") {
     return ["owner", "admin", "editor"] as HotelRole[];
-  }
-
-  if (hotel?.actorHotelRole === "owner") {
-    return ["admin", "editor"] as HotelRole[];
-  }
-
-  if (hotel?.actorHotelRole === "admin") {
-    return ["editor"] as HotelRole[];
   }
 
   return [] as HotelRole[];
 }
 
-function getDefaultInviteForm(actorGlobalRole: GlobalRole, hotels: ManageableHotel[]): InviteForm {
-  const firstHotel = hotels[0];
-  const allowedRoles = getManageableRoles(actorGlobalRole, firstHotel);
+function getDefaultRole(actorGlobalRole: GlobalRole) {
+  const allowedRoles = getManageableRoles(actorGlobalRole);
+  return allowedRoles.includes("admin") ? "admin" : (allowedRoles[0] ?? "editor");
+}
 
+function getDefaultInviteForm(actorGlobalRole: GlobalRole, hotels: ManageableHotel[]): InviteForm {
   return {
     name: "",
     email: "",
-    globalRole: actorGlobalRole === "super_admin" ? "hotel_admin" : "hotel_admin",
-    hotelId: firstHotel?.id ?? "",
-    role: allowedRoles[0] ?? "editor",
+    globalRole: "hotel_admin",
+    hotelId: hotels[0]?.id ?? "",
+    role: getDefaultRole(actorGlobalRole),
     isActive: true,
   };
+}
+
+function buildPermissionDrafts(
+  administrators: AccessibleAdministrator[],
+  hotels: ManageableHotel[],
+  actorGlobalRole: GlobalRole
+) {
+  return Object.fromEntries(
+    administrators.map((administrator) => {
+      const linkedHotelIds = new Set(
+        administrator.permissions.map((permission) => permission.hotelId)
+      );
+      const firstAvailableHotel = hotels.find((hotel) => !linkedHotelIds.has(hotel.id));
+
+      return [
+        administrator.id,
+        {
+          hotelId: firstAvailableHotel?.id ?? "",
+          role: getDefaultRole(actorGlobalRole),
+        },
+      ];
+    })
+  ) as PermissionDrafts;
 }
 
 function validateInviteForm(form: InviteForm) {
@@ -113,7 +131,7 @@ function validateInviteForm(form: InviteForm) {
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-    return "Informe um e-mail válido.";
+    return "Informe um e-mail valido.";
   }
 
   if (!form.hotelId) {
@@ -122,10 +140,6 @@ function validateInviteForm(form: InviteForm) {
 
   if (!form.role) {
     return "Selecione um papel no hotel.";
-  }
-
-  if (!form.globalRole) {
-    return "Selecione um papel global.";
   }
 
   return "";
@@ -141,6 +155,9 @@ export function AdminUsersClient({
   const [roleDrafts, setRoleDrafts] = useState<RoleDrafts>(() =>
     buildRoleDrafts(initialAdministrators)
   );
+  const [permissionDrafts, setPermissionDrafts] = useState<PermissionDrafts>(() =>
+    buildPermissionDrafts(initialAdministrators, manageableHotels, actorGlobalRole)
+  );
   const [inviteForm, setInviteForm] = useState<InviteForm>(() =>
     getDefaultInviteForm(actorGlobalRole, manageableHotels)
   );
@@ -151,8 +168,7 @@ export function AdminUsersClient({
 
   const isSuperAdmin = actorGlobalRole === "super_admin";
   const hasAdministrators = administrators.length > 0;
-  const selectedHotel = manageableHotels.find((hotel) => hotel.id === inviteForm.hotelId);
-  const inviteRoleOptions = getManageableRoles(actorGlobalRole, selectedHotel);
+  const inviteRoleOptions = getManageableRoles(actorGlobalRole);
   const totalPermissions = useMemo(
     () =>
       administrators.reduce((total, administrator) => total + administrator.permissions.length, 0),
@@ -163,11 +179,14 @@ export function AdminUsersClient({
     const result = await listAccessibleAdministratorsAction();
 
     if (result.status === "error") {
-      throw new Error(result.message || "Não foi possível atualizar a lista.");
+      throw new Error(result.message || "Nao foi possivel atualizar a lista.");
     }
 
     setAdministrators(result.administrators);
     setRoleDrafts(buildRoleDrafts(result.administrators));
+    setPermissionDrafts(
+      buildPermissionDrafts(result.administrators, manageableHotels, actorGlobalRole)
+    );
   };
 
   const runTask = (
@@ -183,7 +202,7 @@ export function AdminUsersClient({
         const result = await task();
 
         if (result.status === "error") {
-          throw new Error(result.message || "Não foi possível concluir a operação.");
+          throw new Error(result.message || "Nao foi possivel concluir a operacao.");
         }
 
         await refreshAdministrators();
@@ -192,23 +211,12 @@ export function AdminUsersClient({
       } catch (error) {
         setFeedbackType("error");
         setFeedback(
-          error instanceof Error ? error.message : "Não foi possível concluir a operação."
+          error instanceof Error ? error.message : "Nao foi possivel concluir a operacao."
         );
       } finally {
         setPendingKey(null);
       }
     });
-  };
-
-  const updateInviteHotel = (hotelId: string) => {
-    const hotel = manageableHotels.find((item) => item.id === hotelId);
-    const nextRoles = getManageableRoles(actorGlobalRole, hotel);
-
-    setInviteForm((current) => ({
-      ...current,
-      hotelId,
-      role: nextRoles.includes(current.role) ? current.role : (nextRoles[0] ?? "editor"),
-    }));
   };
 
   const submitInvite = () => {
@@ -220,34 +228,25 @@ export function AdminUsersClient({
       return;
     }
 
-    const payload = {
-      name: inviteForm.name,
-      email: inviteForm.email,
-      globalRole: isSuperAdmin ? inviteForm.globalRole : "hotel_admin",
-      hotelId: inviteForm.hotelId,
-      role: inviteForm.role,
-      isActive: inviteForm.isActive,
-    };
-
     setFeedback("");
     setPendingKey("invite:create");
 
     startTransition(async () => {
       try {
-        const result = await createAdministratorAction(inviteForm.hotelId, payload);
+        const result = await createAdministratorAction(inviteForm.hotelId, inviteForm);
 
         if (result.status === "error") {
-          throw new Error(result.message || "Não foi possível criar o administrador.");
+          throw new Error(result.message || "Nao foi possivel criar o administrador.");
         }
 
         await refreshAdministrators();
         setInviteForm(getDefaultInviteForm(actorGlobalRole, manageableHotels));
         setFeedbackType("success");
-        setFeedback(result.message || "Administrador criado com sucesso.");
+        setFeedback(result.message || "Hotel_admin criado com sucesso.");
       } catch (error) {
         setFeedbackType("error");
         setFeedback(
-          error instanceof Error ? error.message : "Não foi possível criar o administrador."
+          error instanceof Error ? error.message : "Nao foi possivel criar o administrador."
         );
       } finally {
         setPendingKey(null);
@@ -258,11 +257,9 @@ export function AdminUsersClient({
   return (
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
-        <span className="hotel-page-eyebrow">Admin</span>
         <h1>Administradores</h1>
         <p className="admin-rooms-copy">
-          Visualize os usuários administrativos acessíveis no seu escopo e ajuste os vínculos por
-          hotel.
+          Defina quais hoteis cada hotel_admin pode gerenciar e revise os vinculos existentes.
         </p>
       </div>
 
@@ -270,39 +267,34 @@ export function AdminUsersClient({
         <article className="hotel-content-card admin-overview-card">
           <span>Total de administradores</span>
           <strong>{administrators.length}</strong>
-          <p>Somente usuários visíveis dentro do seu escopo atual.</p>
+          <p>Apenas hotel_admins disponiveis para gestao por super_admin.</p>
         </article>
 
         <article className="hotel-content-card admin-overview-card">
-          <span>Vínculos por hotel</span>
+          <span>Vinculos por hotel</span>
           <strong>{totalPermissions}</strong>
-          <p>Papéis por hotel carregados conforme a sua permissão.</p>
+          <p>Cada vinculo libera acesso administrativo no hotel selecionado.</p>
         </article>
 
         <article className="hotel-content-card admin-overview-card">
           <span>Seu escopo</span>
           <strong>{isSuperAdmin ? "Global" : "Por hotel"}</strong>
-          <p>
-            {isSuperAdmin
-              ? "Pode criar usuários e revisar todos os vínculos."
-              : "Pode criar e ajustar vínculos permitidos."}
-          </p>
+          <p>Somente super_admin pode conceder, alterar ou remover acessos de hotel.</p>
         </article>
       </div>
 
       <section className="admin-form-section admin-admin-invite-section">
         <div className="admin-subsection-heading">
-          <h2>Criar administrador</h2>
+          <h2>Criar hotel_admin</h2>
           <p className="admin-rooms-copy">
-            O envio de convite por e-mail ainda não está implementado. Esta ação cria o usuário e o
-            vínculo administrativo para configuração posterior de acesso.
+            Esta acao cria o hotel_admin e ja adiciona o primeiro hotel autorizado.
           </p>
         </div>
 
         {manageableHotels.length === 0 ? (
           <div className="hotel-empty-state admin-history-empty">
-            <strong>Nenhum hotel disponível para vínculo.</strong>
-            <p>Você precisa ter permissão administrativa em pelo menos um hotel.</p>
+            <strong>Nenhum hotel disponivel para vinculo.</strong>
+            <p>Cadastre ao menos um hotel antes de liberar acesso administrativo.</p>
           </div>
         ) : (
           <div className="admin-form-grid admin-form-grid--three">
@@ -331,35 +323,18 @@ export function AdminUsersClient({
               />
             </label>
 
-            {isSuperAdmin ? (
-              <label className="admin-form-field">
-                <span>Papel global</span>
-                <select
-                  value={inviteForm.globalRole}
-                  onChange={(event) =>
-                    setInviteForm((current) => ({
-                      ...current,
-                      globalRole: event.target.value as "super_admin" | "hotel_admin",
-                    }))
-                  }
-                  disabled={isPending}
-                >
-                  <option value="hotel_admin">Admin de hotel</option>
-                  <option value="super_admin">Super admin</option>
-                </select>
-              </label>
-            ) : (
-              <div className="admin-form-field">
-                <span>Papel global</span>
-                <input value="Admin de hotel" disabled />
-              </div>
-            )}
+            <div className="admin-form-field">
+              <span>Papel global</span>
+              <input value="Admin de hotel" disabled />
+            </div>
 
             <label className="admin-form-field">
-              <span>Hotel</span>
+              <span>Primeiro hotel</span>
               <select
                 value={inviteForm.hotelId}
-                onChange={(event) => updateInviteHotel(event.target.value)}
+                onChange={(event) =>
+                  setInviteForm((current) => ({ ...current, hotelId: event.target.value }))
+                }
                 disabled={isPending}
               >
                 {manageableHotels.map((hotel) => (
@@ -412,7 +387,7 @@ export function AdminUsersClient({
                 disabled={isPending || manageableHotels.length === 0}
                 onClick={submitInvite}
               >
-                {pendingKey === "invite:create" ? "Criando..." : "Criar administrador"}
+                {pendingKey === "invite:create" ? "Criando..." : "Criar hotel_admin"}
               </button>
             </div>
           </div>
@@ -432,59 +407,72 @@ export function AdminUsersClient({
 
       {!hasAdministrators ? (
         <div className="hotel-empty-state admin-history-empty">
-          <strong>Nenhum administrador disponível.</strong>
-          <p>Quando houver usuários administrativos no seu escopo, eles aparecerão aqui.</p>
+          <strong>Nenhum hotel_admin disponivel.</strong>
+          <p>Quando houver hotel_admins cadastrados, eles aparecerao aqui.</p>
         </div>
       ) : (
         <div className="admin-hotels-grid admin-admins-grid">
-          {administrators.map((administrator) => (
-            <article
-              key={administrator.id}
-              className="hotel-content-card admin-hotel-card admin-admin-card"
-            >
-              <div className="admin-hotel-card-top">
-                <span>Administrador</span>
-                <strong>{administrator.name}</strong>
-                <p>{administrator.email}</p>
-              </div>
+          {administrators.map((administrator) => {
+            const linkedHotelIds = new Set(
+              administrator.permissions.map((permission) => permission.hotelId)
+            );
+            const availableHotels = manageableHotels.filter(
+              (hotel) => !linkedHotelIds.has(hotel.id)
+            );
+            const addDraft = permissionDrafts[administrator.id] ?? {
+              hotelId: availableHotels[0]?.id ?? "",
+              role: getDefaultRole(actorGlobalRole),
+            };
+            const selectedAddHotel =
+              availableHotels.find((hotel) => hotel.id === addDraft.hotelId) ?? availableHotels[0];
+            const addKey = `permission:${administrator.id}:add`;
 
-              <div className="admin-hotel-card-meta admin-admin-meta">
-                <p>
-                  <span>Papel global</span>
-                  <strong>{formatGlobalRole(administrator.globalRole)}</strong>
-                </p>
-                <p>
-                  <span>Status</span>
-                  <strong>{administrator.isActive ? "Ativo" : "Inativo"}</strong>
-                </p>
-                <p>
-                  <span>Criado em</span>
-                  <strong>{formatCreatedAt(administrator.createdAt)}</strong>
-                </p>
-              </div>
+            return (
+              <article
+                key={administrator.id}
+                className="hotel-content-card admin-hotel-card admin-admin-card"
+              >
+                <div className="admin-hotel-card-top">
+                  <span>Hotel_admin</span>
+                  <strong>{administrator.name}</strong>
+                  <p>{administrator.email}</p>
+                </div>
 
-              <div className="admin-admin-permissions">
-                <span>Hotéis vinculados</span>
-                {administrator.permissions.length === 0 ? (
-                  <p className="admin-rooms-copy">Sem vínculos visíveis no seu escopo.</p>
-                ) : (
-                  <div className="admin-admin-permissions-list">
-                    {administrator.permissions.map((permission) => {
-                      const currentDraft = roleDrafts[permission.id] ?? permission.role;
-                      const permissionKey = `permission:${permission.id}`;
-                      const hotel = manageableHotels.find((item) => item.id === permission.hotelId);
-                      const permissionRoleOptions = getManageableRoles(actorGlobalRole, hotel);
-                      const canEditPermission = permissionRoleOptions.includes(permission.role);
+                <div className="admin-hotel-card-meta admin-admin-meta">
+                  <p>
+                    <span>Papel global</span>
+                    <strong>{formatGlobalRole(administrator.globalRole)}</strong>
+                  </p>
+                  <p>
+                    <span>Status</span>
+                    <strong>{administrator.isActive ? "Ativo" : "Inativo"}</strong>
+                  </p>
+                  <p>
+                    <span>Criado em</span>
+                    <strong>{formatCreatedAt(administrator.createdAt)}</strong>
+                  </p>
+                </div>
 
-                      return (
-                        <div key={permission.id} className="admin-admin-permission-card">
-                          <div className="admin-admin-permission-head">
-                            <strong>{permission.hotelName}</strong>
-                            <span>{formatPermissionRole(permission.role)}</span>
-                          </div>
+                <div className="admin-admin-permissions">
+                  <span>Hoteis vinculados</span>
+                  {administrator.permissions.length === 0 ? (
+                    <p className="admin-rooms-copy">
+                      Este hotel_admin ainda nao possui hoteis vinculados.
+                    </p>
+                  ) : (
+                    <div className="admin-admin-permissions-list">
+                      {administrator.permissions.map((permission) => {
+                        const currentDraft = roleDrafts[permission.id] ?? permission.role;
+                        const permissionKey = `permission:${permission.id}`;
 
-                          <div className="admin-admin-permission-actions">
-                            {canEditPermission ? (
+                        return (
+                          <div key={permission.id} className="admin-admin-permission-card">
+                            <div className="admin-admin-permission-head">
+                              <strong>{permission.hotelName}</strong>
+                              <span>{formatPermissionRole(permission.role)}</span>
+                            </div>
+
+                            <div className="admin-admin-permission-actions">
                               <label className="admin-form-field">
                                 <span>Papel no hotel</span>
                                 <select
@@ -497,109 +485,185 @@ export function AdminUsersClient({
                                   }
                                   disabled={isPending}
                                 >
-                                  {permissionRoleOptions.map((role) => (
+                                  {inviteRoleOptions.map((role) => (
                                     <option key={role} value={role}>
                                       {formatPermissionRole(role)}
                                     </option>
                                   ))}
                                 </select>
                               </label>
-                            ) : (
-                              <div className="admin-form-field">
-                                <span>Papel no hotel</span>
-                                <input value={formatPermissionRole(permission.role)} disabled />
+
+                              <div className="admin-room-actions">
+                                <button
+                                  type="button"
+                                  className="admin-secondary-button"
+                                  disabled={isPending || currentDraft === permission.role}
+                                  onClick={() =>
+                                    runTask(
+                                      () =>
+                                        updateHotelPermissionAction(
+                                          permission.hotelId,
+                                          permission.id,
+                                          {
+                                            userId: administrator.id,
+                                            hotelId: permission.hotelId,
+                                            role: currentDraft,
+                                          }
+                                        ),
+                                      permissionKey,
+                                      "Permissao atualizada."
+                                    )
+                                  }
+                                >
+                                  {pendingKey === permissionKey ? "Salvando..." : "Salvar papel"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="admin-secondary-button"
+                                  disabled={isPending}
+                                  onClick={() =>
+                                    runTask(
+                                      () =>
+                                        removeUserHotelPermissionAction(
+                                          permission.hotelId,
+                                          permission.id
+                                        ),
+                                      `${permissionKey}:remove`,
+                                      "Vinculo removido."
+                                    )
+                                  }
+                                >
+                                  {pendingKey === `${permissionKey}:remove`
+                                    ? "Removendo..."
+                                    : "Remover vinculo"}
+                                </button>
                               </div>
-                            )}
-
-                            <div className="admin-room-actions">
-                              <button
-                                type="button"
-                                className="admin-secondary-button"
-                                disabled={
-                                  isPending ||
-                                  !canEditPermission ||
-                                  currentDraft === permission.role
-                                }
-                                onClick={() =>
-                                  runTask(
-                                    () =>
-                                      updateHotelPermissionAction(
-                                        permission.hotelId,
-                                        permission.id,
-                                        {
-                                          userId: administrator.id,
-                                          hotelId: permission.hotelId,
-                                          role: currentDraft,
-                                        }
-                                      ),
-                                    permissionKey,
-                                    "Permissão atualizada."
-                                  )
-                                }
-                              >
-                                {pendingKey === permissionKey ? "Salvando..." : "Salvar papel"}
-                              </button>
-
-                              <button
-                                type="button"
-                                className="admin-secondary-button"
-                                disabled={isPending || !canEditPermission}
-                                onClick={() =>
-                                  runTask(
-                                    () =>
-                                      removeUserHotelPermissionAction(
-                                        permission.hotelId,
-                                        permission.id
-                                      ),
-                                    `${permissionKey}:remove`,
-                                    "Vínculo removido."
-                                  )
-                                }
-                              >
-                                {pendingKey === `${permissionKey}:remove`
-                                  ? "Removendo..."
-                                  : "Remover vínculo"}
-                              </button>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {isSuperAdmin ? (
-                <div className="admin-room-actions">
-                  <button
-                    type="button"
-                    className="card-cta-button admin-edit-button"
-                    disabled={isPending || !activationScopeHotelId}
-                    onClick={() =>
-                      activationScopeHotelId
-                        ? runTask(
-                            () =>
-                              toggleAdministrativeUserActiveAction(
-                                activationScopeHotelId,
-                                administrator.id,
-                                !administrator.isActive
-                              ),
-                            `user:${administrator.id}:toggle`,
-                            "Status atualizado."
-                          )
-                        : undefined
-                    }
-                  >
-                    {pendingKey === `user:${administrator.id}:toggle`
-                      ? "Atualizando..."
-                      : administrator.isActive
-                        ? "Desativar"
-                        : "Ativar"}
-                  </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              ) : null}
-            </article>
-          ))}
+
+                <div className="admin-admin-permissions">
+                  <span>Adicionar hotel</span>
+                  {availableHotels.length === 0 ? (
+                    <p className="admin-rooms-copy">
+                      Todos os hoteis ja estao vinculados a este hotel_admin.
+                    </p>
+                  ) : (
+                    <div className="admin-admin-permission-card">
+                      <div className="admin-admin-permission-actions">
+                        <label className="admin-form-field">
+                          <span>Hotel</span>
+                          <select
+                            value={selectedAddHotel?.id ?? ""}
+                            onChange={(event) =>
+                              setPermissionDrafts((current) => ({
+                                ...current,
+                                [administrator.id]: {
+                                  hotelId: event.target.value,
+                                  role:
+                                    current[administrator.id]?.role ??
+                                    getDefaultRole(actorGlobalRole),
+                                },
+                              }))
+                            }
+                            disabled={isPending}
+                          >
+                            {availableHotels.map((hotel) => (
+                              <option key={hotel.id} value={hotel.id}>
+                                {hotel.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="admin-form-field">
+                          <span>Papel no hotel</span>
+                          <select
+                            value={addDraft.role}
+                            onChange={(event) =>
+                              setPermissionDrafts((current) => ({
+                                ...current,
+                                [administrator.id]: {
+                                  hotelId: selectedAddHotel?.id ?? "",
+                                  role: event.target.value as HotelRole,
+                                },
+                              }))
+                            }
+                            disabled={isPending}
+                          >
+                            {inviteRoleOptions.map((role) => (
+                              <option key={role} value={role}>
+                                {formatPermissionRole(role)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <div className="admin-room-actions">
+                          <button
+                            type="button"
+                            className="admin-secondary-button"
+                            disabled={isPending || !selectedAddHotel}
+                            onClick={() =>
+                              selectedAddHotel
+                                ? runTask(
+                                    () =>
+                                      addUserHotelPermissionAction(selectedAddHotel.id, {
+                                        userId: administrator.id,
+                                        hotelId: selectedAddHotel.id,
+                                        role: addDraft.role,
+                                      }),
+                                    addKey,
+                                    "Vinculo criado."
+                                  )
+                                : undefined
+                            }
+                          >
+                            {pendingKey === addKey ? "Salvando..." : "Adicionar hotel"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {isSuperAdmin ? (
+                  <div className="admin-room-actions">
+                    <button
+                      type="button"
+                      className="card-cta-button admin-edit-button"
+                      disabled={isPending || !activationScopeHotelId}
+                      onClick={() =>
+                        activationScopeHotelId
+                          ? runTask(
+                              () =>
+                                toggleAdministrativeUserActiveAction(
+                                  activationScopeHotelId,
+                                  administrator.id,
+                                  !administrator.isActive
+                                ),
+                              `user:${administrator.id}:toggle`,
+                              "Status atualizado."
+                            )
+                          : undefined
+                      }
+                    >
+                      {pendingKey === `user:${administrator.id}:toggle`
+                        ? "Atualizando..."
+                        : administrator.isActive
+                          ? "Desativar"
+                          : "Ativar"}
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
         </div>
       )}
     </section>
