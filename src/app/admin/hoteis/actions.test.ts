@@ -1,5 +1,7 @@
 ﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { Prisma } from "@prisma/client";
+
 import { requireAuthenticatedRequestUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { storeHotelImageFile } from "@/lib/uploads/hotel-images";
@@ -40,6 +42,7 @@ function buildFormData(
   options?: {
     amenities?: string[];
     policies?: Array<{ title: string; description: string }>;
+    coverImage?: File | null;
   }
 ) {
   const formData = new FormData();
@@ -76,7 +79,12 @@ function buildFormData(
   ).forEach((policy) => {
     formData.append("policies", JSON.stringify(policy));
   });
-  formData.set("coverImage", new File(["fake image"], "capa.webp", { type: "image/webp" }));
+  if (options?.coverImage !== null) {
+    formData.set(
+      "coverImage",
+      options?.coverImage ?? new File(["fake image"], "capa.webp", { type: "image/webp" })
+    );
+  }
   formData.set("coverAlt", "Fachada do hotel");
 
   return formData;
@@ -108,7 +116,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Apenas administradores podem criar hotéis.",
+      message: "Você não tem permissão para criar hotéis.",
     });
     expect(prisma.hotel.findUnique).not.toHaveBeenCalled();
   });
@@ -227,7 +235,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Este slug já está em uso por outro hotel.",
+      message: "Já existe um hotel com este slug.",
     });
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
@@ -346,5 +354,117 @@ describe("createHotelAction", () => {
       message: "Informe um e-mail de contato valido.",
     });
     expect(prisma.hotel.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("não cria hotel sem imagem de capa", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+
+    const result = await createHotelAction(
+      { status: "idle", message: "" },
+      buildFormData({}, { coverImage: null })
+    );
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Envie uma imagem de capa.",
+    });
+    expect(storeHotelImageFile).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("mostra erro específico e registra falha de upload/storage", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(null);
+    vi.mocked(storeHotelImageFile).mockRejectedValue(new Error("S3_ACCESS_KEY_ID missing"));
+
+    const result = await createHotelAction({ status: "idle", message: "" }, buildFormData());
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Falha ao enviar imagem. Verifique o storage.",
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[admin/hoteis/create] Failed to create hotel.",
+      expect.objectContaining({
+        step: "cover-upload",
+        cause: expect.objectContaining({
+          message: "S3_ACCESS_KEY_ID missing",
+        }),
+      })
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("converte erro Prisma de slug duplicado em mensagem específica", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.$transaction).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "test",
+        meta: { target: ["slug"] },
+      })
+    );
+
+    const result = await createHotelAction({ status: "idle", message: "" }, buildFormData());
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Já existe um hotel com este slug.",
+    });
+  });
+
+  it("mostra erro específico para falha ao criar relações do hotel", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.$transaction).mockRejectedValue(new Error("HotelPolicy table missing"));
+
+    const result = await createHotelAction({ status: "idle", message: "" }, buildFormData());
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Falha ao salvar hotel, galeria, comodidades ou políticas.",
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[admin/hoteis/create] Failed to create hotel.",
+      expect.objectContaining({
+        step: "database-transaction",
+        cause: expect.objectContaining({
+          message: "HotelPolicy table missing",
+        }),
+      })
+    );
+
+    consoleErrorSpy.mockRestore();
   });
 });

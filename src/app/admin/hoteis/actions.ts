@@ -26,6 +26,20 @@ export type CreateHotelState = {
   hotelId?: string;
 };
 
+class CreateHotelTechnicalError extends Error {
+  readonly userMessage: string;
+  readonly step: string;
+  readonly cause: unknown;
+
+  constructor(userMessage: string, step: string, cause: unknown) {
+    super(userMessage);
+    this.name = "CreateHotelTechnicalError";
+    this.userMessage = userMessage;
+    this.step = step;
+    this.cause = cause;
+  }
+}
+
 const galleryImageSchema = z.object({
   url: z.string().trim().url("Informe URLs válidas na galeria.").max(500),
   alt: z.string().trim().min(2, "Informe texto alternativo para a galeria.").max(140),
@@ -208,10 +222,113 @@ function getRequiredCoverImageFile(formData: FormData) {
   const file = formData.get("coverImage");
 
   if (!(file instanceof File) || file.size <= 0) {
-    throw new ValidationError("Selecione uma imagem de capa.");
+    throw new ValidationError("Envie uma imagem de capa.");
   }
 
   return file;
+}
+
+function redactSensitiveText(value: string) {
+  return value.replace(
+    /(password|secret|token|key|credential)(["'\s:=]+)([^"'\s,}]+)/gi,
+    "$1$2[redacted]"
+  );
+}
+
+function getSafeTechnicalError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return {
+      name: error.name,
+      code: error.code,
+      message: redactSensitiveText(error.message),
+      meta: error.meta,
+    };
+  }
+
+  if (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    error instanceof Prisma.PrismaClientUnknownRequestError ||
+    error instanceof Prisma.PrismaClientRustPanicError ||
+    error instanceof Prisma.PrismaClientValidationError
+  ) {
+    return {
+      name: error.name,
+      message: redactSensitiveText(error.message),
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: redactSensitiveText(error.message),
+    };
+  }
+
+  return {
+    name: "UnknownError",
+    message: redactSensitiveText(String(error)),
+  };
+}
+
+function logCreateHotelError(error: unknown) {
+  if (
+    error instanceof ValidationError ||
+    error instanceof AuthorizationError ||
+    error instanceof ConflictError
+  ) {
+    return;
+  }
+
+  if (error instanceof CreateHotelTechnicalError) {
+    console.error("[admin/hoteis/create] Failed to create hotel.", {
+      step: error.step,
+      cause: getSafeTechnicalError(error.cause),
+    });
+    return;
+  }
+
+  console.error("[admin/hoteis/create] Failed to create hotel.", getSafeTechnicalError(error));
+}
+
+function getCreateHotelPrismaErrorMessage(error: Prisma.PrismaClientKnownRequestError) {
+  if (error.code === "P2002") {
+    const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : "";
+
+    return target.includes("slug")
+      ? "Já existe um hotel com este slug."
+      : "Já existe um cadastro com dados únicos repetidos.";
+  }
+
+  if (error.code === "P2021" || error.code === "P2022") {
+    return "Falha de schema do banco. Verifique se as migrations foram aplicadas.";
+  }
+
+  if (error.code === "P2003") {
+    return "Falha ao vincular dados relacionados do hotel.";
+  }
+
+  return "Falha ao salvar hotel, galeria, comodidades ou políticas.";
+}
+
+function getCreateHotelErrorMessage(error: unknown) {
+  if (error instanceof CreateHotelTechnicalError) {
+    return error.userMessage;
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return getCreateHotelPrismaErrorMessage(error);
+  }
+
+  if (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    error instanceof Prisma.PrismaClientUnknownRequestError ||
+    error instanceof Prisma.PrismaClientRustPanicError ||
+    error instanceof Prisma.PrismaClientValidationError
+  ) {
+    return "Falha de banco de dados ao criar hotel. Verifique schema e migrations.";
+  }
+
+  return getErrorMessage(error, "Não foi possível criar o hotel.");
 }
 
 function buildCreatedHotelAuditValue(
@@ -252,7 +369,7 @@ export async function createHotelAction(
     const user = await requireAuthenticatedRequestUser();
 
     if (user.globalRole !== "super_admin" && user.globalRole !== "hotel_admin") {
-      throw new AuthorizationError("Apenas administradores podem criar hotéis.");
+      throw new AuthorizationError("Você não tem permissão para criar hotéis.");
     }
 
     const parsedPayload = parseCreateHotelFormData(formData);
@@ -274,11 +391,17 @@ export async function createHotelAction(
     });
 
     if (existingSlug) {
-      throw new ConflictError("Este slug já está em uso por outro hotel.");
+      throw new ConflictError("Já existe um hotel com este slug.");
     }
 
     const hotelId = randomUUID();
-    const storedCoverImage = await storeHotelImageFile(hotelId, coverImageFile);
+    const storedCoverImage = await storeHotelImageFile(hotelId, coverImageFile).catch((error) => {
+      throw new CreateHotelTechnicalError(
+        "Falha ao enviar imagem. Verifique o storage.",
+        "cover-upload",
+        error
+      );
+    });
     const parsedGalleryImages = galleryImagesSchema.safeParse(
       parseGalleryImages(formData, payload.name, storedCoverImage.url, coverAlt)
     );
@@ -297,98 +420,110 @@ export async function createHotelAction(
     const requestHeaders = await headers();
     const ipAddress = getRequestIpAddress(requestHeaders);
 
-    const hotel = await prisma.$transaction(async (tx) => {
-      const createdHotel = await tx.hotel.create({
-        data: {
-          id: hotelId,
-          name: payload.name,
-          slug: payload.slug,
-          shortDescription: payload.shortDescription,
-          fullDescription: payload.fullDescription,
-          city: payload.city,
-          state: payload.state,
-          address: payload.address,
-          phone: payload.phone,
-          email: payload.email,
-          whatsapp: payload.whatsapp,
-          coverImageUrl: storedCoverImage.url,
-          checkInTime: payload.checkInTime,
-          checkOutTime: payload.checkOutTime,
-          latitude: resolvedLocation ? new Prisma.Decimal(resolvedLocation.latitude) : null,
-          longitude: resolvedLocation ? new Prisma.Decimal(resolvedLocation.longitude) : null,
-          isPublished: false,
-          images: {
-            create: galleryImages,
+    const hotel = await prisma
+      .$transaction(async (tx) => {
+        const createdHotel = await tx.hotel.create({
+          data: {
+            id: hotelId,
+            name: payload.name,
+            slug: payload.slug,
+            shortDescription: payload.shortDescription,
+            fullDescription: payload.fullDescription,
+            city: payload.city,
+            state: payload.state,
+            address: payload.address,
+            phone: payload.phone,
+            email: payload.email,
+            whatsapp: payload.whatsapp,
+            coverImageUrl: storedCoverImage.url,
+            checkInTime: payload.checkInTime,
+            checkOutTime: payload.checkOutTime,
+            latitude: resolvedLocation ? new Prisma.Decimal(resolvedLocation.latitude) : null,
+            longitude: resolvedLocation ? new Prisma.Decimal(resolvedLocation.longitude) : null,
+            isPublished: false,
+            images: {
+              create: galleryImages,
+            },
+            amenities: {
+              create: payload.amenities.map((label, position) => ({ label, position })),
+            },
+            policies: {
+              create: payload.policies,
+            },
           },
-          amenities: {
-            create: payload.amenities.map((label, position) => ({ label, position })),
+          select: {
+            id: true,
           },
-          policies: {
-            create: payload.policies,
-          },
-        },
-        select: {
-          id: true,
-        },
-      });
+        });
 
-      await tx.hotelPermission.upsert({
-        where: {
-          userId_hotelId: {
+        await tx.hotelPermission.upsert({
+          where: {
+            userId_hotelId: {
+              userId: user.id,
+              hotelId: createdHotel.id,
+            },
+          },
+          update: {
+            role: HotelRole.owner,
+          },
+          create: {
             userId: user.id,
             hotelId: createdHotel.id,
+            role: HotelRole.owner,
           },
-        },
-        update: {
-          role: HotelRole.owner,
-        },
-        create: {
-          userId: user.id,
-          hotelId: createdHotel.id,
-          role: HotelRole.owner,
-        },
-      });
+        });
 
-      await tx.hotelAuditLog.create({
-        data: {
-          userId: user.id,
-          hotelId: createdHotel.id,
-          action: "hotel.profile.created",
-          changedFields: [
-            "name",
-            "slug",
-            "shortDescription",
-            "fullDescription",
-            "city",
-            "state",
-            "address",
-            "latitude",
-            "longitude",
-            "phone",
-            "email",
-            "whatsapp",
-            "coverImageUrl",
-            "checkInTime",
-            "checkOutTime",
-            "isPublished",
-            "images",
-            "amenities",
-            "policies",
-            "experiences",
-          ],
-          previousValue: Prisma.JsonNull,
-          newValue: buildCreatedHotelAuditValue(
-            payload,
-            storedCoverImage.url,
-            galleryImages,
-            resolvedLocation
-          ),
-          ipAddress,
-        },
-      });
+        await tx.hotelAuditLog.create({
+          data: {
+            userId: user.id,
+            hotelId: createdHotel.id,
+            action: "hotel.profile.created",
+            changedFields: [
+              "name",
+              "slug",
+              "shortDescription",
+              "fullDescription",
+              "city",
+              "state",
+              "address",
+              "latitude",
+              "longitude",
+              "phone",
+              "email",
+              "whatsapp",
+              "coverImageUrl",
+              "checkInTime",
+              "checkOutTime",
+              "isPublished",
+              "images",
+              "amenities",
+              "policies",
+              "experiences",
+            ],
+            previousValue: Prisma.JsonNull,
+            newValue: buildCreatedHotelAuditValue(
+              payload,
+              storedCoverImage.url,
+              galleryImages,
+              resolvedLocation
+            ),
+            ipAddress,
+          },
+        });
 
-      return createdHotel;
-    });
+        return createdHotel;
+      })
+      .catch((error) => {
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+          throw error;
+        }
+
+        throw new CreateHotelTechnicalError(
+          "Falha ao salvar hotel, galeria, comodidades ou políticas.",
+          "database-transaction",
+          error
+        );
+      });
 
     revalidatePath("/admin");
     revalidatePath("/admin/hoteis");
@@ -401,9 +536,11 @@ export async function createHotelAction(
       hotelId: hotel.id,
     };
   } catch (error) {
+    logCreateHotelError(error);
+
     return {
       status: "error",
-      message: getErrorMessage(error, "Não foi possível criar o hotel."),
+      message: getCreateHotelErrorMessage(error),
     };
   }
 }
