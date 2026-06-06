@@ -5,7 +5,6 @@ import { HotelRole } from "@prisma/client";
 import { requireAuthenticatedRequestUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { searchPublishedHotels } from "@/lib/hotel-search";
-import { getPublishedHotels } from "@/lib/hotel-data";
 import { getPublishedMapHotels } from "@/lib/hotel-map";
 import { storeHotelImageFile } from "@/lib/uploads/hotel-images";
 
@@ -348,7 +347,6 @@ describe("fluxo de criação de hotel", () => {
     ]);
 
     await expect(searchPublishedHotels("Fluxo")).resolves.toEqual([]);
-    await expect(getPublishedHotels()).resolves.toEqual([]);
     await expect(getPublishedMapHotels()).resolves.toEqual([]);
 
     expect(prisma.hotel.findMany).toHaveBeenCalledWith(
@@ -358,6 +356,43 @@ describe("fluxo de criação de hotel", () => {
         }),
       })
     );
+  });
+
+  it("hotel publicado aparece nas consultas públicas", async () => {
+    db.hotels.push({
+      id: "hotel-publicado",
+      name: "LPH Publicado",
+      slug: "lph-publicado",
+      shortDescription: "Hotel publicado para teste.",
+      fullDescription: "Hotel publicado para teste público.",
+      city: "São Paulo",
+      state: "SP",
+      address: "Rua Pública, 10",
+      phone: "(11) 3000-0000",
+      email: "publico@example.com",
+      whatsapp: "(11) 99999-0000",
+      coverImageUrl: "https://cdn.example.test/publicado.webp",
+      checkInTime: "14:00",
+      checkOutTime: "12:00",
+      latitude: null,
+      longitude: null,
+      isPublished: true,
+      images: [],
+      amenities: [],
+      policies: [],
+      rooms: [],
+    });
+
+    await expect(searchPublishedHotels("Publicado")).resolves.toEqual([
+      expect.objectContaining({
+        slug: "lph-publicado",
+      }),
+    ]);
+    await expect(getPublishedMapHotels()).resolves.toEqual([
+      expect.objectContaining({
+        slug: "lph-publicado",
+      }),
+    ]);
   });
 
   it("permite super_admin criar rascunho e bloqueia usuário comum", async () => {

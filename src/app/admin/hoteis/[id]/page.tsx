@@ -13,7 +13,11 @@ import { HotelApprovalReview } from "./HotelApprovalReview";
 import { HotelAvailabilitySection } from "./HotelAvailabilitySection";
 import { HotelRatesSection } from "./HotelRatesSection";
 import { HotelRoomsSection } from "./HotelRoomsSection";
-import { submitHotelForApprovalAction, updateHotelProfileAction } from "./actions";
+import {
+  approveHotelAction,
+  submitHotelForApprovalAction,
+  updateHotelProfileAction,
+} from "./actions";
 
 type AdminHotelDetailPageProps = {
   params: Promise<{
@@ -260,6 +264,8 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
 
   const saveAction = updateHotelProfileAction.bind(null, hotel.id);
   const approvalAction = submitHotelForApprovalAction.bind(null, hotel.id);
+  const publishAction =
+    user.globalRole === "super_admin" ? approveHotelAction.bind(null, hotel.id) : undefined;
 
   return (
     <HotelManagementWorkspace
@@ -269,6 +275,8 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
       topSlot={
         <HotelApprovalReview
           action={approvalAction}
+          publishAction={publishAction}
+          canPublish={user.globalRole === "super_admin"}
           summary={{
             hotelName: hotel.name,
             coverImageUrl: hotel.coverImageUrl,
@@ -292,6 +300,7 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
             })),
             pending: pendingApprovalItems,
             submittedForApproval,
+            isPublished: hotel.isPublished,
             hasMapLocation: Boolean(
               resolveHotelMapLocation({
                 city: hotel.city,

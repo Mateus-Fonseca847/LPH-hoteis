@@ -10,4 +10,14 @@ describe("AdminHomePage markup", () => {
     expect(source).toContain("admin-identity-card");
     expect(source).not.toContain("admin-identity-card__icon");
   });
+
+  it("mostra o card de auditoria de tarifas sem texto acidental", () => {
+    const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain('title: "Auditoria"');
+    expect(source).toContain("Consulte altera");
+    expect(source).toContain("tarifas dos hot");
+    expect(source).toContain('action: "Abrir auditoria"');
+    expect(source).not.toContain("npm cache clean --force");
+  });
 });

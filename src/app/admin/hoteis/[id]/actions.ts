@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 
 import { createHotelAuditLog, type HotelAuditSnapshot } from "@/lib/audit/hotel-audit";
+import { requireAuthenticatedRequestUser } from "@/lib/auth";
 import {
   AuthorizationError,
   ConflictError,
@@ -22,6 +23,11 @@ import { prisma } from "@/lib/prisma";
 import { isValidHotelContactEmail, parseHotelFormData } from "@/lib/validations/hotel";
 
 export type HotelEditorState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+export type HotelPublishState = {
   status: "idle" | "success" | "error";
   message: string;
 };
@@ -109,6 +115,7 @@ async function getHotelApprovalReadiness(hotelId: string) {
     select: {
       id: true,
       slug: true,
+      isPublished: true,
       name: true,
       shortDescription: true,
       fullDescription: true,
@@ -260,6 +267,22 @@ function getApprovalErrorMessage(missing: string[]) {
   }
 
   return `Complete antes de enviar para aprovação: ${missing.map((item) => labels[item] ?? item).join(", ")}.`;
+}
+
+function getPublishErrorMessage(missing: string[]) {
+  if (missing.includes("rooms")) {
+    return "Cadastre pelo menos um quarto ativo antes de publicar.";
+  }
+
+  if (missing.includes("rates")) {
+    return "Cadastre pelo menos uma tarifa ativa antes de publicar.";
+  }
+
+  if (missing.includes("availability")) {
+    return "Defina disponibilidade antes de publicar.";
+  }
+
+  return getApprovalErrorMessage(missing);
 }
 
 export async function updateHotelProfileAction(
@@ -579,6 +602,109 @@ export async function submitHotelForApprovalAction(
     return {
       status: "error",
       message: getErrorMessage(error, "Não foi possível enviar o hotel para aprovação."),
+    };
+  }
+}
+
+export async function approveHotelAction(
+  hotelId: string,
+  _previousState: HotelPublishState,
+  _formData: FormData
+): Promise<HotelPublishState> {
+  void _previousState;
+  void _formData;
+
+  try {
+    const parsedParams = parseHotelRouteParams({ hotelId });
+
+    if (!parsedParams.success) {
+      throw new ValidationError(parsedParams.error.issues[0]?.message || "Identificador inválido.");
+    }
+
+    const user = await requireAuthenticatedRequestUser();
+
+    if (user.globalRole !== "super_admin") {
+      throw new AuthorizationError("Apenas super_admin pode aprovar e publicar hotéis.");
+    }
+
+    const safeHotelId = parsedParams.data.hotelId;
+    const readiness = await getHotelApprovalReadiness(safeHotelId);
+
+    if (readiness.hotel.isPublished) {
+      throw new ValidationError("Hotel já está publicado.");
+    }
+
+    const submission = await prisma.hotelAuditLog.findFirst({
+      where: {
+        hotelId: safeHotelId,
+        action: "hotel.approval.submitted",
+      },
+      select: {
+        id: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    if (!submission) {
+      throw new ValidationError("Hotel ainda não foi enviado para aprovação.");
+    }
+
+    if (!readiness.isReady) {
+      throw new ValidationError(getPublishErrorMessage(readiness.missing));
+    }
+
+    const requestHeaders = await headers();
+    const ipAddress = getRequestIpAddress(requestHeaders);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.hotel.update({
+        where: {
+          id: safeHotelId,
+        },
+        data: {
+          isPublished: true,
+        },
+      });
+
+      await tx.hotelAuditLog.create({
+        data: {
+          userId: user.id,
+          hotelId: safeHotelId,
+          action: "hotel.approval.published",
+          changedFields: ["isPublished", "approval"],
+          previousValue: {
+            isPublished: false,
+            status: "submitted_for_approval",
+          },
+          newValue: {
+            isPublished: true,
+            status: "published",
+            approvedAt: new Date().toISOString(),
+            approvedById: user.id,
+          },
+          ipAddress,
+        },
+      });
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/hoteis");
+    revalidatePath(`/admin/hoteis/${safeHotelId}`);
+    revalidatePath("/");
+    revalidatePath("/mapa");
+    revalidatePath("/buscar");
+    revalidatePath(`/hoteis/${readiness.hotel.slug}`);
+
+    return {
+      status: "success",
+      message: "Hotel aprovado e publicado.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: getErrorMessage(error, "Não foi possível aprovar e publicar o hotel."),
     };
   }
 }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AdminAccessDenied } from "@/app/admin/AdminAccessDenied";
 import { IconBackLink } from "@/components/IconBackLink";
 import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
+import { HOTEL_RATE_AUDIT_ACTIONS } from "@/lib/audit/rate-audit-actions";
 import { prisma } from "@/lib/prisma";
 
 type AdminAuditDetailPageProps = {
@@ -14,27 +15,11 @@ type AdminAuditDetailPageProps = {
 const sensitiveKeyPattern = /password|senha|token|secret|segredo|twoFactor|2fa|hash/i;
 
 const auditActionLabels: Record<string, string> = {
-  "hotel.profile.updated": "Perfil do hotel atualizado",
-  "hotel.image.removed": "Imagem removida",
-  "hotel.cover.uploaded": "Imagem de capa enviada",
-  "hotel.gallery.uploaded": "Imagem de galeria enviada",
-  "hotel.room.created": "Quarto criado",
-  "hotel.room.updated": "Quarto atualizado",
-  "hotel.room.activated": "Quarto ativado",
-  "hotel.room.deactivated": "Quarto desativado",
-  "hotel.room_image.uploaded": "Imagem de quarto enviada",
   "hotel.room_rate.created": "Tarifa criada",
   "hotel.room_rate.updated": "Tarifa atualizada",
   "hotel.room_rate.activated": "Tarifa ativada",
   "hotel.room_rate.deactivated": "Tarifa desativada",
-  "hotel.room_availability.updated": "Disponibilidade atualizada",
-  "hotel.room_availability.bulk_upserted": "Disponibilidade atualizada em lote",
-  "hotel.admin_user.created": "Administrador criado",
-  "hotel.admin_user.activated": "Administrador ativado",
-  "hotel.admin_user.deactivated": "Administrador desativado",
-  "hotel.admin_permission.created": "Permissão criada",
-  "hotel.admin_permission.updated": "Permissão atualizada",
-  "hotel.admin_permission.removed": "Permissão removida",
+  "hotel.room_rate.removed": "Tarifa removida",
 };
 
 function formatAuditAction(action: string) {
@@ -46,38 +31,6 @@ function formatAuditDate(value: Date) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(value);
-}
-
-function getAuditEntity(action: string) {
-  if (action.includes("room_availability")) {
-    return "Disponibilidade";
-  }
-
-  if (action.includes("room_rate")) {
-    return "Tarifa";
-  }
-
-  if (action.includes("room")) {
-    return "Quarto";
-  }
-
-  if (action.includes("image") || action.includes("cover") || action.includes("gallery")) {
-    return "Imagem";
-  }
-
-  if (action.includes("admin_user")) {
-    return "Usuário administrativo";
-  }
-
-  if (action.includes("admin_permission")) {
-    return "Permissão";
-  }
-
-  if (action.includes("profile")) {
-    return "Hotel";
-  }
-
-  return "Registro administrativo";
 }
 
 function getChangedFields(value: unknown) {
@@ -140,6 +93,9 @@ export default async function AdminAuditDetailPage({ params }: AdminAuditDetailP
   const log = await prisma.hotelAuditLog.findFirst({
     where: {
       id,
+      action: {
+        in: [...HOTEL_RATE_AUDIT_ACTIONS],
+      },
       ...(scopedHotelIds === null
         ? {}
         : {
@@ -173,7 +129,7 @@ export default async function AdminAuditDetailPage({ params }: AdminAuditDetailP
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
         <h1>{formatAuditAction(log.action)}</h1>
-        <p className="admin-rooms-copy">Detalhe seguro do registro administrativo selecionado.</p>
+        <p className="admin-rooms-copy">Detalhe seguro da alteração de tarifa selecionada.</p>
       </div>
 
       <div className="admin-overview-grid">
@@ -186,7 +142,7 @@ export default async function AdminAuditDetailPage({ params }: AdminAuditDetailP
         <article className="hotel-content-card admin-overview-card">
           <span>Hotel</span>
           <strong>{log.hotel.name}</strong>
-          <p>{getAuditEntity(log.action)}</p>
+          <p>Tarifa</p>
         </article>
 
         <article className="hotel-content-card admin-overview-card">
@@ -204,7 +160,7 @@ export default async function AdminAuditDetailPage({ params }: AdminAuditDetailP
           </p>
           <p>
             <span>Entidade</span>
-            <strong>{getAuditEntity(log.action)}</strong>
+            <strong>Tarifa</strong>
           </p>
           <p>
             <span>Campos</span>

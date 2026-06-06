@@ -11,6 +11,9 @@ describe("AdminHotelDetailPage markup", () => {
 
     expect(source).toContain("HotelManagementWorkspace");
     expect(source).toContain("HotelApprovalReview");
+    expect(source).toContain("approveHotelAction");
+    expect(source).toContain('user.globalRole === "super_admin" ? approveHotelAction.bind');
+    expect(source).toContain('canPublish={user.globalRole === "super_admin"}');
     expect(source).not.toContain("HotelPaymentSettingsForm");
     expect(source).not.toContain("Pagamentos");
     expect(workspaceSource).toContain("IconBackLink");

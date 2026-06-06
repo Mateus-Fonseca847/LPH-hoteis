@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
+import { requireAuthenticatedRequestUser } from "@/lib/auth";
 import { parseHotelRouteParams, requireAuthorizedHotelWrite } from "@/lib/hotel-write";
 
-import { submitHotelForApprovalAction } from "./actions";
+import { approveHotelAction, submitHotelForApprovalAction } from "./actions";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -22,6 +23,10 @@ vi.mock("@/lib/hotel-write", () => ({
   requireAuthorizedHotelWrite: vi.fn(),
 }));
 
+vi.mock("@/lib/auth", () => ({
+  requireAuthenticatedRequestUser: vi.fn(),
+}));
+
 vi.mock("@/lib/validations/hotel", () => ({
   parseHotelFormData: vi.fn(),
   isValidHotelContactEmail: vi.fn((value: string | null | undefined) =>
@@ -35,14 +40,17 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
     },
     hotelAuditLog: {
+      findFirst: vi.fn(),
       create: vi.fn(),
     },
+    $transaction: vi.fn(),
   },
 }));
 
 const completeHotel = {
   id: "hotel-1",
   slug: "hotel-1",
+  isPublished: false,
   name: "LPH Centro",
   shortDescription: "Hotel urbano.",
   fullDescription: "Hotel urbano completo para reservas.",
@@ -80,7 +88,10 @@ describe("submitHotelForApprovalAction", () => {
       isActive: true,
     });
     vi.mocked(prisma.hotel.findUnique).mockReset();
+    vi.mocked(prisma.hotelAuditLog.findFirst).mockReset();
     vi.mocked(prisma.hotelAuditLog.create).mockReset();
+    vi.mocked(prisma.$transaction).mockReset();
+    vi.mocked(requireAuthenticatedRequestUser).mockReset();
   });
 
   it("bloqueia envio sem quartos", async () => {
@@ -200,5 +211,133 @@ describe("submitHotelForApprovalAction", () => {
       message: "Este hotel precisa de um e-mail de contato valido antes de ser aprovado.",
     });
     expect(prisma.hotelAuditLog.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("approveHotelAction", () => {
+  beforeEach(() => {
+    vi.mocked(parseHotelRouteParams).mockClear();
+    vi.mocked(requireAuthenticatedRequestUser).mockReset().mockResolvedValue({
+      id: "super-1",
+      name: "Super",
+      email: "super@example.com",
+      globalRole: "super_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockReset().mockResolvedValue(completeHotel);
+    vi.mocked(prisma.hotelAuditLog.findFirst).mockReset().mockResolvedValue({ id: "submission-1" });
+    vi.mocked(prisma.hotelAuditLog.create).mockReset();
+    vi.mocked(prisma.$transaction)
+      .mockReset()
+      .mockImplementation(async (callback) =>
+        callback({
+          hotel: {
+            update: vi.fn(),
+          },
+          hotelAuditLog: {
+            create: vi.fn(),
+          },
+        })
+      );
+  });
+
+  it("bloqueia aprovação por hotel_admin", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+
+    const result = await approveHotelAction(
+      "hotel-1",
+      { status: "idle", message: "" },
+      new FormData()
+    );
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Apenas super_admin pode aprovar e publicar hotéis.",
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("bloqueia aprovação antes do envio para aprovação", async () => {
+    vi.mocked(prisma.hotelAuditLog.findFirst).mockResolvedValue(null);
+
+    const result = await approveHotelAction(
+      "hotel-1",
+      { status: "idle", message: "" },
+      new FormData()
+    );
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Hotel ainda não foi enviado para aprovação.",
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("retorna mensagem específica se faltar tarifa ativa", async () => {
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue({
+      ...completeHotel,
+      rooms: [{ id: "room-1", rates: [], availability: [{ id: "availability-1" }] }],
+    });
+
+    const result = await approveHotelAction(
+      "hotel-1",
+      { status: "idle", message: "" },
+      new FormData()
+    );
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Cadastre pelo menos uma tarifa ativa antes de publicar.",
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("super_admin aprova e publica hotel pendente", async () => {
+    const update = vi.fn();
+    const create = vi.fn();
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) =>
+      callback({
+        hotel: {
+          update,
+        },
+        hotelAuditLog: {
+          create,
+        },
+      })
+    );
+
+    const result = await approveHotelAction(
+      "hotel-1",
+      { status: "idle", message: "" },
+      new FormData()
+    );
+
+    expect(result).toEqual({
+      status: "success",
+      message: "Hotel aprovado e publicado.",
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: {
+        id: "hotel-1",
+      },
+      data: {
+        isPublished: true,
+      },
+    });
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "hotel.approval.published",
+          hotelId: "hotel-1",
+          userId: "super-1",
+        }),
+      })
+    );
   });
 });

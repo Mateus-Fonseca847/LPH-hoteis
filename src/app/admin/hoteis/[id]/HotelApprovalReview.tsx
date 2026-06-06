@@ -4,9 +4,14 @@ import { useActionState } from "react";
 
 import { ImageWithFallback } from "@/components/ImageWithFallback";
 
-import type { HotelApprovalState } from "./actions";
+import type { HotelApprovalState, HotelPublishState } from "./actions";
 
 const initialState: HotelApprovalState = {
+  status: "idle",
+  message: "",
+};
+
+const initialPublishState: HotelPublishState = {
   status: "idle",
   message: "",
 };
@@ -20,6 +25,8 @@ type FlowStep = {
 
 type HotelApprovalReviewProps = {
   action: (state: HotelApprovalState, formData: FormData) => Promise<HotelApprovalState>;
+  publishAction?: (state: HotelPublishState, formData: FormData) => Promise<HotelPublishState>;
+  canPublish: boolean;
   summary: {
     hotelName: string;
     coverImageUrl: string;
@@ -39,14 +46,26 @@ type HotelApprovalReviewProps = {
     }>;
     pending: string[];
     submittedForApproval: boolean;
+    isPublished: boolean;
     hasMapLocation: boolean;
     steps: FlowStep[];
   };
 };
 
-export function HotelApprovalReview({ action, summary }: HotelApprovalReviewProps) {
+export function HotelApprovalReview({
+  action,
+  publishAction,
+  canPublish,
+  summary,
+}: HotelApprovalReviewProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
+  const [publishState, publishFormAction, isPublishing] = useActionState(
+    publishAction ?? (async () => initialPublishState),
+    initialPublishState
+  );
   const canSubmit = summary.pending.length === 0 && !summary.submittedForApproval;
+  const canApproveAndPublish =
+    canPublish && Boolean(publishAction) && summary.submittedForApproval && !summary.isPublished;
 
   return (
     <section id="hotel-review" className="hotel-content-card admin-approval-card">
@@ -156,6 +175,14 @@ export function HotelApprovalReview({ action, summary }: HotelApprovalReviewProp
         </p>
       ) : null}
 
+      {publishState.message ? (
+        <p
+          className={`admin-editor-feedback ${publishState.status === "success" ? "is-success" : "is-error"}`}
+        >
+          {publishState.message}
+        </p>
+      ) : null}
+
       <form action={formAction} className="admin-approval-actions">
         <button type="submit" className="card-cta-button" disabled={!canSubmit || isPending}>
           {summary.submittedForApproval
@@ -164,7 +191,26 @@ export function HotelApprovalReview({ action, summary }: HotelApprovalReviewProp
               ? "Enviando..."
               : "Enviar para aprovação"}
         </button>
+        {summary.isPublished ? <p>Status: Publicado.</p> : null}
+        {!summary.isPublished && !summary.submittedForApproval ? (
+          <p>Aguardando envio para aprovação.</p>
+        ) : null}
       </form>
+
+      {canApproveAndPublish ? (
+        <form action={publishFormAction} className="admin-approval-actions">
+          <button type="submit" className="card-cta-button" disabled={isPublishing}>
+            {isPublishing ? "Publicando..." : "Aprovar e publicar"}
+          </button>
+        </form>
+      ) : null}
+
+      {!canPublish && summary.submittedForApproval && !summary.isPublished ? (
+        <div className="admin-editor-banner">
+          <strong>Aprovação pendente</strong>
+          <p>Somente super_admin pode aprovar e publicar este hotel.</p>
+        </div>
+      ) : null}
     </section>
   );
 }

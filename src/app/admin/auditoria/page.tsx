@@ -2,7 +2,10 @@ import Link from "next/link";
 
 import { AdminAccessDenied } from "@/app/admin/AdminAccessDenied";
 import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
+import { HOTEL_RATE_AUDIT_ACTIONS } from "@/lib/audit/rate-audit-actions";
 import { prisma } from "@/lib/prisma";
+
+import { buildRateAuditScopeWhere, buildRateAuditWhere } from "./rate-audit-query";
 
 type AdminAuditPageProps = {
   searchParams: Promise<{
@@ -19,29 +22,11 @@ type AdminAuditPageProps = {
 const pageSize = 25;
 
 const auditActionLabels: Record<string, string> = {
-  "hotel.profile.updated": "Perfil do hotel atualizado",
-  "hotel.image.removed": "Imagem removida",
-  "hotel.cover.uploaded": "Imagem de capa enviada",
-  "hotel.gallery.uploaded": "Imagem de galeria enviada",
-  "hotel.room.created": "Quarto criado",
-  "hotel.room.updated": "Quarto atualizado",
-  "hotel.room.activated": "Quarto ativado",
-  "hotel.room.deactivated": "Quarto desativado",
-  "hotel.room_image.uploaded": "Imagem de quarto enviada",
   "hotel.room_rate.created": "Tarifa criada",
   "hotel.room_rate.updated": "Tarifa atualizada",
   "hotel.room_rate.activated": "Tarifa ativada",
   "hotel.room_rate.deactivated": "Tarifa desativada",
-  "hotel.room_availability.updated": "Disponibilidade atualizada",
-  "hotel.room_availability.bulk_upserted": "Disponibilidade atualizada em lote",
-  "account.email_2fa.enabled": "2FA por e-mail ativado",
-  "account.email_2fa.disabled": "2FA por e-mail desativado",
-  "hotel.admin_user.created": "Administrador criado",
-  "hotel.admin_user.activated": "Administrador ativado",
-  "hotel.admin_user.deactivated": "Administrador desativado",
-  "hotel.admin_permission.created": "Permissão criada",
-  "hotel.admin_permission.updated": "Permissão atualizada",
-  "hotel.admin_permission.removed": "Permissão removida",
+  "hotel.room_rate.removed": "Tarifa removida",
 };
 
 function formatAuditAction(action: string) {
@@ -55,44 +40,59 @@ function formatAuditDate(value: Date) {
   }).format(value);
 }
 
-function getAuditEntity(action: string) {
-  if (action.includes("room_availability")) {
-    return "Disponibilidade";
-  }
-
-  if (action.includes("room_rate")) {
-    return "Tarifa";
-  }
-
-  if (action.includes("room")) {
-    return "Quarto";
-  }
-
-  if (action.includes("image") || action.includes("cover") || action.includes("gallery")) {
-    return "Imagem";
-  }
-
-  if (action.includes("admin_user")) {
-    return "Usuário administrativo";
-  }
-
-  if (action.includes("admin_permission")) {
-    return "Permissão";
-  }
-
-  if (action.includes("email_2fa")) {
-    return "Segurança da conta";
-  }
-
-  if (action.includes("profile")) {
-    return "Hotel";
-  }
-
-  return "Registro administrativo";
-}
-
 function getChangedFields(value: unknown) {
   return Array.isArray(value) ? value.map(String) : [];
+}
+
+function getAuditValueObject(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function getFirstText(...values: unknown[]) {
+  const value = values.find((item) => typeof item === "string" && item.trim());
+  return typeof value === "string" ? value : "";
+}
+
+function formatBooleanValue(value: unknown) {
+  if (typeof value !== "boolean") {
+    return "";
+  }
+
+  return value ? "Ativa" : "Inativa";
+}
+
+function formatCurrencyValue(cents: unknown, currency: unknown) {
+  if (typeof cents !== "number") {
+    return "";
+  }
+
+  return new Intl.NumberFormat("pt-BR", {
+    currency: typeof currency === "string" ? currency : "BRL",
+    style: "currency",
+  }).format(cents / 100);
+}
+
+function getRateAuditSummary(previousValue: unknown, newValue: unknown) {
+  const previous = getAuditValueObject(previousValue);
+  const next = getAuditValueObject(newValue);
+  const previousPrice = formatCurrencyValue(
+    previous.priceCents,
+    previous.currency ?? next.currency
+  );
+  const nextPrice = formatCurrencyValue(next.priceCents, next.currency ?? previous.currency);
+
+  return {
+    previousValue:
+      previousPrice ||
+      getFirstText(previous.name, previous.description) ||
+      formatBooleanValue(previous.isActive),
+    newValue:
+      nextPrice || getFirstText(next.name, next.description) || formatBooleanValue(next.isActive),
+    rateName: getFirstText(next.name, previous.name) || "Tarifa não identificada",
+    roomId: getFirstText(next.roomId, previous.roomId) || "Quarto não identificado",
+  };
 }
 
 function parsePage(value: string | undefined) {
@@ -179,14 +179,7 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
           })
         ).map((permission) => permission.hotelId);
 
-  const scopeWhere =
-    scopedHotelIds === null
-      ? {}
-      : {
-          hotelId: {
-            in: scopedHotelIds,
-          },
-        };
+  const scopeWhere = buildRateAuditScopeWhere(scopedHotelIds);
 
   const hotelOptions = await prisma.hotel.findMany({
     where:
@@ -212,32 +205,20 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
   const startDate = parseDateFilter(filters.startDate);
   const endDate = parseDateFilter(filters.endDate, true);
 
-  const where = {
+  const rateAuditScopeWhere = {
     ...scopeWhere,
-    ...(hasInvalidHotelFilter ? { hotelId: "__hotel_outside_scope__" } : {}),
-    ...(selectedHotelId ? { hotelId: selectedHotelId } : {}),
-    ...(filters.userId ? { userId: filters.userId } : {}),
-    ...(filters.action ? { action: filters.action } : {}),
-    ...(startDate || endDate
-      ? {
-          createdAt: {
-            ...(startDate ? { gte: startDate } : {}),
-            ...(endDate ? { lte: endDate } : {}),
-          },
-        }
-      : {}),
-    ...(filters.q
-      ? {
-          OR: [
-            { action: { contains: filters.q, mode: "insensitive" as const } },
-            { ipAddress: { contains: filters.q, mode: "insensitive" as const } },
-            { hotel: { name: { contains: filters.q, mode: "insensitive" as const } } },
-            { user: { name: { contains: filters.q, mode: "insensitive" as const } } },
-            { user: { email: { contains: filters.q, mode: "insensitive" as const } } },
-          ],
-        }
-      : {}),
+    action: {
+      in: [...HOTEL_RATE_AUDIT_ACTIONS],
+    },
   };
+  const where = buildRateAuditWhere({
+    endDate,
+    filters,
+    hasInvalidHotelFilter,
+    scopedHotelIds,
+    selectedHotelId,
+    startDate,
+  });
 
   const [logs, totalLogs, userOptionsRows, actionOptionsRows] = await prisma.$transaction([
     prisma.hotelAuditLog.findMany({
@@ -263,7 +244,7 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
     }),
     prisma.hotelAuditLog.count({ where }),
     prisma.hotelAuditLog.findMany({
-      where: scopeWhere,
+      where: rateAuditScopeWhere,
       distinct: ["userId"],
       select: {
         userId: true,
@@ -279,7 +260,7 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
       },
     }),
     prisma.hotelAuditLog.findMany({
-      where: scopeWhere,
+      where: rateAuditScopeWhere,
       distinct: ["action"],
       select: {
         action: true,
@@ -296,16 +277,14 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
     <section className="section admin-section">
       <div className="section-heading admin-section-heading">
         <h1>Auditoria</h1>
-        <p className="admin-rooms-copy">
-          Consulte alterações administrativas registradas dentro do seu escopo.
-        </p>
+        <p className="admin-rooms-copy">Consulte alterações feitas nas tarifas dos hotéis.</p>
       </div>
 
       <div className="admin-overview-grid">
         <article className="hotel-content-card admin-overview-card">
           <span>Registros</span>
           <strong>{totalLogs}</strong>
-          <p>Eventos administrativos visíveis para o seu usuário.</p>
+          <p>Eventos de tarifa visíveis para o seu usuário.</p>
         </article>
 
         <article className="hotel-content-card admin-overview-card">
@@ -313,7 +292,7 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
           <strong>{user.globalRole === "super_admin" ? "Rede" : "Hotéis vinculados"}</strong>
           <p>
             {user.globalRole === "super_admin"
-              ? "Exibindo logs de todos os hotéis."
+              ? "Exibindo logs de tarifas de todos os hotéis."
               : `${scopedHotelIds?.length ?? 0} hotel(is) no seu escopo.`}
           </p>
         </article>
@@ -381,7 +360,7 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
               name="q"
               type="search"
               defaultValue={filters.q}
-              placeholder="Ação, usuário, hotel ou IP"
+              placeholder="Tarifa, usuário, hotel ou IP"
             />
           </label>
         </div>
@@ -398,13 +377,14 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
 
       {logs.length === 0 ? (
         <div className="hotel-empty-state admin-history-empty">
-          <strong>Nenhum log encontrado.</strong>
-          <p>Quando houver alterações administrativas no seu escopo, elas aparecerão aqui.</p>
+          <strong>Nenhuma alteração de tarifa registrada.</strong>
+          <p>Quando houver alterações de tarifas no seu escopo, elas aparecerão aqui.</p>
         </div>
       ) : (
         <div className="admin-history-list admin-audit-list">
           {logs.map((log) => {
             const changedFields = getChangedFields(log.changedFields);
+            const auditSummary = getRateAuditSummary(log.previousValue, log.newValue);
 
             return (
               <article key={log.id} className="admin-history-item admin-audit-item">
@@ -422,8 +402,20 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
                     <strong>{log.hotel.name}</strong>
                   </p>
                   <p>
-                    <span>Entidade</span>
-                    <strong>{getAuditEntity(log.action)}</strong>
+                    <span>Quarto</span>
+                    <strong>{auditSummary.roomId}</strong>
+                  </p>
+                  <p>
+                    <span>Tarifa</span>
+                    <strong>{auditSummary.rateName}</strong>
+                  </p>
+                  <p>
+                    <span>Valor anterior</span>
+                    <strong>{auditSummary.previousValue || "Não informado"}</strong>
+                  </p>
+                  <p>
+                    <span>Novo valor</span>
+                    <strong>{auditSummary.newValue || "Não informado"}</strong>
                   </p>
                   <p>
                     <span>IP</span>
