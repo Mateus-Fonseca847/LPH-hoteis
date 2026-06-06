@@ -1,98 +1,354 @@
-﻿# LPH Hotéis
+# LPH Hotéis
 
-[![CI](https://github.com/Mateus-Fonseca847/PH-hot-is/actions/workflows/ci.yml/badge.svg)](https://github.com/Mateus-Fonseca847/PH-hot-is/actions/workflows/ci.yml)
+Plataforma web da LPH Hotéis para divulgação pública de hotéis, consulta de disponibilidade, reserva online e operação administrativa.
 
-Plataforma web da rede LPH para catálogo público de hotéis e operação administrativa interna.
+Produção: `https://lazerpousadahoteis.com.br`  
+Repositório: `https://github.com/Mateus-Fonseca847/LPH-hoteis`
+
+## Visão Geral
+
+O projeto usa Next.js App Router com PostgreSQL via Prisma. O site público mostra hotéis publicados, mapa, busca, páginas de hotel e fluxo de reserva. O painel administrativo permite criar e operar hotéis, quartos, tarifas, disponibilidade, experiências próximas, imagens, comodidades, políticas, reservas, auditoria, financeiro e permissões.
+
+O deploy principal é Vercel + Neon PostgreSQL + Resend + Vercel Blob.
 
 ## Stack
 
-- Next.js 15.5.18+ com App Router
-- React 19.2.6+
+- Next.js 15
+- React 19
 - TypeScript
 - Prisma ORM
-- PostgreSQL
-- Zod
-- `bcryptjs` para hash de senha
-- `jose` para sessão em cookie assinado
-- `otpauth` para 2FA
+- PostgreSQL, atualmente Neon em produção
+- Vercel
+- Vercel Blob para uploads em produção
+- Resend para e-mails
+- Mercado Pago para checkout online
+- Stripe apenas como webhook legado
+- Vitest
+- ESLint
+- Prettier
 
-## Status do projeto
+## Funcionalidades Públicas
 
-### Implementado
+- Home com hotéis publicados.
+- Busca pública em `/buscar`.
+- Mapa público em `/mapa`.
+- Página pública de hotel em `/hoteis/[slug]`.
+- Fluxo de reserva em `/hoteis/[slug]/reservar`.
+- Redirecionamento legado de `/hoteis/[slug]/disponibilidade`.
+- Sugestões de hotel via `/api/hoteis/sugestoes`.
+- Recomendações de viagem via `/api/viagem/recomendacoes`.
+- Cadastro público em `/cadastro`.
+- Login em `/login`.
 
-- Catálogo público de hotéis publicados, páginas de hotel, busca e favoritos locais.
-- Consulta pública de disponibilidade por datas, viajantes e quarto.
-- Fluxo público real de reserva: criação de reserva, retenção de disponibilidade, checkout externo, webhooks de pagamento e e-mails após confirmação.
-- Pagamento online ativo via Mercado Pago, com Pix, cartão de crédito, cartão de débito e boleto conforme disponibilidade do provedor.
-- Painel administrativo com hotéis, quartos, tarifas, disponibilidade, imagens, configurações de pagamento, reservas, administradores, auditoria, segurança e financeiro.
-- Autenticação com sessão em cookie, cadastro público e 2FA administrativo por e-mail.
-- Testes automatizados com Vitest para regras críticas de reserva, pagamento, disponibilidade, autorização e 2FA.
+Hotéis com `isPublished=false` não aparecem na home, busca, mapa ou página pública.
 
-### Parcialmente implementado
+## Funcionalidades Administrativas
 
-- Motor de reserva: existe fluxo transacional público com pagamento e controle de disponibilidade; o admin possui acompanhamento, cancelamento manual, confirmação manual, falha de pagamento, reenvio de e-mail, observações internas e histórico de operações.
-- Financeiro: exibe reservas pagas, métodos, receita e comissão, mas não executa repasses bancários.
-- E-mails transacionais: envio existe para 2FA e confirmação de reserva paga, condicionado à configuração do provedor de e-mail.
-- Pagamentos por hotel: configuração administrativa existe; o checkout público exige provedor habilitado e credenciais válidas.
+Rotas principais:
 
-### Pendente
+- `/admin`: painel operacional.
+- `/admin/hoteis`: listagem administrativa.
+- `/admin/hoteis/novo`: criação de hotel como rascunho.
+- `/admin/hoteis/[id]`: edição completa do hotel.
+- `/admin/administradores`: usuários e vínculos administrativos.
+- `/admin/auditoria`: auditoria de alterações de tarifas.
+- `/admin/auditoria/[id]`: detalhe de auditoria.
+- `/admin/reservas`: reservas.
+- `/admin/reservas/[id]`: operação de reserva.
+- `/admin/financeiro`: dashboard financeiro.
+- `/admin/seguranca`: 2FA por e-mail opcional.
 
-- Convite por e-mail para novos administradores.
-- Calendário visual avançado de disponibilidade.
+## Papéis de Usuário
 
-### Legado/compatibilidade
+- `user`: usuário comum; não acessa o painel administrativo.
+- `hotel_admin`: acessa apenas hotéis vinculados em `HotelPermission`.
+- `super_admin`: acessa todos os hotéis e pode publicar/aprovar.
 
-- Webhook Stripe legado permanece disponível para compatibilidade com reservas antigas/campos legados.
-- Campos `stripeCheckoutSessionId`, `stripePaymentIntentId`, `twoFactorEnabled` e `twoFactorSecret` são mantidos por compatibilidade.
-- `manual` existe em `PaymentProvider` para configuração/desativação administrativa, mas não é checkout público online.
-- Dados locais em `src/data` são apoio de desenvolvimento e não devem ser fonte de staging/produção.
+Papéis por hotel:
 
-## Requisitos
+- `owner`
+- `admin`
+- `editor`
 
-- Node.js 20+
-- npm
-- PostgreSQL
+As permissões são validadas no backend. A UI não é fonte de segurança.
 
-Versoes minimas recomendadas para produção: `next >= 15.5.18`, `react >= 19.2.6`,
-`react-dom >= 19.2.6` e `eslint-config-next >= 15.5.18`. Não publique builds abaixo
-dessas versoes por causa de correcoes recentes em Next.js/React Server Components.
+## Login e 2FA
 
-## Variáveis de ambiente
+Administradores podem entrar com e-mail e senha. O 2FA por e-mail existe como funcionalidade opcional:
 
-Crie `.env` com base em `.env.example`. Nunca commite `.env`, chaves reais ou credenciais.
+- se `emailTwoFactorEnabled=true`, o login administrativo exige código por e-mail;
+- se `emailTwoFactorEnabled=false`, o admin entra apenas com e-mail e senha;
+- `twoFactorEnabled` e `twoFactorSecret` são campos legados de TOTP.
+
+## Criação, Aprovação e Publicação de Hotel
+
+O fluxo atual separa rascunho de publicação:
+
+1. `hotel_admin` ou `super_admin` cria um hotel em `/admin/hoteis/novo`.
+2. O hotel é salvo com `isPublished=false`.
+3. Após o primeiro save, ficam disponíveis quartos, tarifas, disponibilidade, experiências e uploads adicionais.
+4. O hotel pode ser enviado para aprovação quando estiver completo.
+5. `super_admin` aprova e publica.
+6. Após aprovação, o hotel passa a `isPublished=true`.
+
+Requisitos de publicação validados no código:
+
+- dados básicos completos;
+- e-mail de contato;
+- imagem de capa;
+- pelo menos 1 quarto ativo;
+- pelo menos 1 tarifa ativa;
+- disponibilidade futura cadastrada;
+- coordenadas válidas quando exigidas para mapa/publicação.
+
+## Quartos, Tarifas e Disponibilidade
+
+Quartos ficam vinculados ao hotel e incluem nome, descrição, imagem, capacidade, camas, tamanho, comodidades e status ativo.
+
+Tarifas exigem um quarto já criado. Campos principais:
+
+- nome;
+- descrição;
+- preço em reais na UI, salvo em centavos em `priceCents`;
+- moeda, normalmente `BRL`;
+- data inicial;
+- data final;
+- mínimo de noites;
+- hóspedes máximos;
+- reembolsável;
+- café incluso;
+- ativa/inativa.
+
+Uma tarifa ativa é necessária para o hotel ficar publicável.
+
+Disponibilidade é cadastrada por quarto e data:
+
+- unidades totais;
+- unidades disponíveis;
+- período fechado ou aberto;
+- observação interna.
+
+## Experiências Próximas
+
+Experiências próximas ficam em `HotelExperience` e são vinculadas ao hotel. Incluem título, cidade, estado, descrição, imagem, categorias, preferências, distância e status ativo.
+
+Na criação inicial do hotel, experiências não são obrigatórias. A seção depende do hotel já salvo com `id`.
+
+## Reservas
+
+O fluxo público cria reservas em `/api/reservas`.
+
+Modelos principais:
+
+- `Reservation`
+- `PaymentTransaction`
+- `PaymentReconciliationLog`
+- `ReservationOperationLog`
+
+Status de reserva:
+
+- `pending`
+- `awaiting_payment`
+- `confirmed`
+- `paid`
+- `payment_failed`
+- `cancelled`
+- `expired`
+
+Status de pagamento:
+
+- `pending`
+- `awaiting_payment`
+- `paid`
+- `payment_failed`
+- `cancelled`
+
+Reservas aguardando pagamento recebem `expiresAt` e podem ser expiradas pela rotina interna.
+
+## Pagamentos
+
+Provedor online ativo: Mercado Pago.
+
+Variáveis aceitas:
+
+- `PAYMENT_PROVIDER=mercado_pago`
+- `PAYMENT_ACCESS_TOKEN`
+- `PAYMENT_WEBHOOK_URL`
+- `PAYMENT_WEBHOOK_SECRET`
+- `MERCADO_PAGO_ACCESS_TOKEN`
+- `MERCADO_PAGO_SANDBOX`
+- `MERCADO_PAGO_WEBHOOK_URL`
+- `MERCADO_PAGO_WEBHOOK_SECRET`
+
+`PaymentProvider.manual` existe para compatibilidade e operação administrativa, mas o checkout online real usa Mercado Pago.
+
+Stripe permanece apenas como legado em `/api/stripe/webhook`.
+
+## E-mails com Resend
+
+O envio de e-mails usa Resend quando:
+
+- `EMAIL_PROVIDER=resend`
+- `EMAIL_FROM` está configurado;
+- `RESEND_API_KEY` está configurado;
+- o domínio de envio está verificado no Resend.
+
+`onboarding@resend.dev` serve apenas para testes limitados e normalmente só envia para o e-mail dono da conta Resend.
+
+## Uploads com Vercel Blob
+
+Produção usa Vercel Blob:
+
+```env
+STORAGE_PROVIDER="vercel_blob"
+BLOB_READ_WRITE_TOKEN=""
+```
+
+Regras atuais:
+
+- formatos aceitos: JPG/JPEG, PNG e WEBP;
+- SVG é rejeitado;
+- arquivos suspeitos ou com dupla extensão são rejeitados;
+- limite padrão: `UPLOAD_MAX_IMAGE_SIZE_BYTES=5242880`, ou 5 MB;
+- URLs públicas retornadas pelo Blob são salvas no banco;
+- Vercel Blob deve permitir acesso público às imagens públicas.
+
+O código ainda possui provider S3-compatible. Use S3 apenas se configurar as variáveis `S3_*`; o deploy atual deve usar Vercel Blob.
+
+## Banco Neon/PostgreSQL
+
+O Prisma usa PostgreSQL:
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?schema=public"
+```
+
+Produção usa Neon. Aplique migrations com:
+
+```bash
+npm run prisma:migrate:deploy
+```
+
+Não use `prisma db push` em staging ou produção.
+
+## Deploy na Vercel
+
+Fluxo recomendado:
+
+1. Importe o repositório GitHub na Vercel.
+2. Selecione a branch correta, como `staging` para homologação.
+3. Configure `DATABASE_URL` apontando para Neon.
+4. Configure todas as variáveis de ambiente necessárias.
+5. Configure Vercel Blob e `BLOB_READ_WRITE_TOKEN`.
+6. Configure Resend e domínio de e-mail.
+7. Aplique migrations com `npm run prisma:migrate:deploy`.
+8. Faça deploy.
+9. Ao mudar variáveis, faça redeploy sem cache se necessário.
+
+Não defina `NODE_ENV=production` manualmente na Vercel se isso impedir instalação de `devDependencies` necessárias ao build. A Vercel já define o ambiente de build/runtime.
+
+## Domínio e DNS
+
+Domínio de produção:
+
+- raiz: `lazerpousadahoteis.com.br`;
+- `www`: opcional, recomendado como CNAME para Vercel.
+
+DNS do site e DNS do Resend são coisas diferentes:
+
+- Vercel exige registros para apontar o domínio do site;
+- Resend exige registros próprios para validar o domínio remetente;
+- o site abrir no navegador não significa que o domínio de e-mail esteja verificado.
+
+## Cron e Manutenção
+
+Rotas internas:
+
+- `POST /api/internal/reservas/expirar`
+- `POST /api/internal/pagamentos/reconciliar`
+
+Proteção:
+
+- `INTERNAL_API_TOKEN`
+- `CRON_SECRET`, como alias quando a plataforma de cron usa esse nome.
+
+Configure um cron externo ou Vercel Cron para chamar a rotina de expiração periodicamente, por exemplo a cada 5 ou 10 minutos.
+
+## Variáveis de Ambiente
+
+Nunca versionar segredos reais.
+
+### Banco
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?schema=public"
+```
+
+### Autenticação
+
+```env
 AUTH_SECRET=""
 TWO_FACTOR_ENCRYPTION_KEY=""
-NODE_ENV="production"
+```
+
+### App
+
+```env
+NEXT_PUBLIC_APP_URL="https://lazerpousadahoteis.com.br"
+APP_INTERNAL_BASE_URL="https://lazerpousadahoteis.com.br"
+ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"
+BOOKING_PAYMENT_TTL_MINUTES="30"
+```
+
+### E-mail
+
+```env
+EMAIL_PROVIDER="resend"
+EMAIL_FROM="LPH Hotéis <noreply@seudominio.com.br>"
+RESEND_API_KEY=""
+```
+
+### Upload/storage
+
+```env
 UPLOAD_MAX_IMAGE_SIZE_BYTES="5242880"
-STORAGE_PROVIDER="s3"
+STORAGE_PROVIDER="vercel_blob"
+BLOB_READ_WRITE_TOKEN=""
 S3_ENDPOINT=""
 S3_BUCKET=""
 S3_ACCESS_KEY_ID=""
 S3_SECRET_ACCESS_KEY=""
 S3_PUBLIC_BASE_URL=""
-EMAIL_PROVIDER="resend"
-EMAIL_FROM="LPH Testes <onboarding@resend.dev>"
-RESEND_API_KEY=""
-NEXT_PUBLIC_APP_URL="https://staging.seu-dominio.com"
-BOOKING_PAYMENT_TTL_MINUTES="30"
-APP_INTERNAL_BASE_URL="https://staging.seu-dominio.com"
+```
+
+### Cron
+
+```env
 INTERNAL_API_TOKEN=""
 CRON_SECRET=""
-PAYMENT_SECRETS_ENCRYPTION_KEY=""
+```
+
+### Pagamentos
+
+```env
 PAYMENT_PROVIDER="mercado_pago"
 PAYMENT_ACCESS_TOKEN=""
 PAYMENT_WEBHOOK_URL=""
 PAYMENT_WEBHOOK_SECRET=""
+PAYMENT_SECRETS_ENCRYPTION_KEY=""
 MERCADO_PAGO_ACCESS_TOKEN=""
-MERCADO_PAGO_SANDBOX="true"
+MERCADO_PAGO_SANDBOX="false"
 MERCADO_PAGO_WEBHOOK_URL=""
 MERCADO_PAGO_WEBHOOK_SECRET=""
 STRIPE_SECRET_KEY=""
 STRIPE_WEBHOOK_SECRET=""
-ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"
+```
+
+Stripe é legado. Configure apenas se precisar manter compatibilidade com webhook antigo.
+
+### Seeds
+
+```env
 SEED_STAGING_SUPER_ADMIN_EMAIL="super.admin.staging@lphhoteis.local"
 SEED_STAGING_SUPER_ADMIN_PASSWORD=""
 SEED_STAGING_HOTEL_ADMIN_EMAIL="hotel.admin.staging@lphhoteis.local"
@@ -102,522 +358,182 @@ SEED_ADMIN_EMAIL=""
 SEED_ADMIN_PASSWORD=""
 ```
 
-## Staging / Homologação
+## Desenvolvimento Local
 
-Configure as variáveis na plataforma, não no repositório. Para homologação, use banco, e-mails e credenciais de pagamento separados de produção.
+Requisitos:
 
-Variáveis obrigatórias para staging:
+- Node.js `>=20 <25`;
+- npm;
+- PostgreSQL.
 
-- `DATABASE_URL`: PostgreSQL de homologação, separado do ambiente local e de produção.
-- `AUTH_SECRET`: segredo longo e aleatório para assinar sessões/cookies.
-- `TWO_FACTOR_ENCRYPTION_KEY`: chave base64 de 32 bytes. Gere com `openssl rand -base64 32`.
-- `NODE_ENV`: em deploy de staging, use `production`.
-- `UPLOAD_MAX_IMAGE_SIZE_BYTES`: limite de upload em bytes. Exemplo: `5242880` para 5 MB.
-- `STORAGE_PROVIDER`: use `s3` em staging/produção. Use `local` somente em desenvolvimento.
-- `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL`: obrigatorias quando `STORAGE_PROVIDER=s3`.
-- `ALLOW_LOCAL_HOTEL_DATA_FALLBACK`: manter `false` em staging. O app não deve usar dados locais quando o banco falhar.
-
-Variáveis recomendadas conforme recursos ativos:
-
-- `PAYMENT_SECRETS_ENCRYPTION_KEY`: obrigatória quando houver pagamentos por hotel com credencial criptografada; chave base64 de 32 bytes.
-- `EMAIL_PROVIDER`, `EMAIL_FROM`, `RESEND_API_KEY`: envio real de e-mails transacionais.
-- `NEXT_PUBLIC_APP_URL`: obrigatória para checkout quando a origem da requisição não estiver disponível; use a URL pública de homologação.
-- `BOOKING_PAYMENT_TTL_MINUTES`: tempo para reserva `awaiting_payment` expirar e liberar disponibilidade. Padrão seguro: `30`.
-- `APP_INTERNAL_BASE_URL`: URL pública HTTPS usada por cron externo/GitHub Actions para chamar rotas internas; não é exposta ao client.
-- `INTERNAL_API_TOKEN`: token Bearer para `POST /api/internal/reservas/expirar`, rotina idempotente de expiração e reconciliação.
-- `CRON_SECRET`: alias opcional aceito pelas rotas internas quando a plataforma de cron usa esse nome.
-- `PAYMENT_PROVIDER`: provedor online ativo. Hoje use `mercado_pago`.
-- `PAYMENT_ACCESS_TOKEN`, `PAYMENT_WEBHOOK_URL`, `PAYMENT_WEBHOOK_SECRET`: aliases genéricos aceitos pelo código de pagamento.
-- `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_SANDBOX`, `MERCADO_PAGO_WEBHOOK_URL`, `MERCADO_PAGO_WEBHOOK_SECRET`: obrigatórias para checkout/webhook Mercado Pago em sandbox quando os aliases genéricos não forem usados.
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`: ainda são lidas apenas pelo webhook legado de Stripe.
-- `SEED_STAGING_*`: opcionais para criar usuários administrativos de teste via seed.
-- `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`: aliases legados ainda aceitos pelo seed.
-
-Passos recomendados:
+Instalação:
 
 ```bash
 npm ci
 npm run prisma:generate
-npm run prisma:migrate:deploy
-npm run prisma:seed
-npm run build
-npm start
-```
-
-Antes de liberar para o cliente:
-
-- O banco de staging deve ter as migrations aplicadas.
-- O banco deve conter hotéis publicados para a página inicial e páginas públicas.
-- Deve existir ao menos um usuário `super_admin` ativo para acessar `/admin`.
-- Para testar reserva pública completa, o hotel deve ter quartos ativos, tarifas ativas, disponibilidade futura com unidades disponíveis e pagamento Mercado Pago habilitado nas configurações do hotel.
-- O webhook Mercado Pago precisa apontar para a URL pública de staging. Sem webhook público, o checkout pode iniciar, mas a confirmação automática não será validada no ambiente.
-- Se usar as variáveis `SEED_STAGING_*`, rode `npm run prisma:seed` após as migrations e provisione `emailTwoFactorEnabled=true` para administradores antes do primeiro login.
-- Credenciais `SEED_STAGING_*` são apenas para homologação/testes do cliente. Não use esses usuários nem essas senhas em produção.
-- `NODE_ENV` deve ser `production` no runtime de staging.
-- Não use `.env` local, SQLite, seed ou mocks como fonte de dados do staging.
-- Com `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"`, a aplicação falha de forma explícita se `DATABASE_URL` estiver ausente.
-- A autenticação falha de forma explícita se `AUTH_SECRET` estiver ausente.
-- A ativação/validação de 2FA falha de forma explícita se `TWO_FACTOR_ENCRYPTION_KEY` estiver ausente ou não for base64 de 32 bytes.
-- O checkout falha de forma explícita se `NEXT_PUBLIC_APP_URL` não estiver configurada e a requisição não enviar origem.
-- Pagamentos Mercado Pago falham de forma explícita se `PAYMENT_PROVIDER`, credenciais, webhook ou credenciais criptografadas do hotel estiverem ausentes/incompatíveis.
-- Credenciais de pagamento por hotel falham de forma explícita se `PAYMENT_SECRETS_ENCRYPTION_KEY` estiver ausente ou não for base64 de 32 bytes.
-- Uploads de staging/produção devem usar `STORAGE_PROVIDER="s3"` com storage S3-compatible. O provider `local` e bloqueado quando `NODE_ENV="production"`.
-
-## Produção
-
-Produção deve usar banco, domínio, e-mail, pagamento e storage separados de staging. Não use seed, mocks, credenciais sandbox ou dados locais como fonte de produção.
-
-Requisitos mínimos:
-
-- `NEXT_PUBLIC_APP_URL` com o domínio público final, usando HTTPS.
-- `DATABASE_URL` apontando para PostgreSQL de produção.
-- `AUTH_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` e `PAYMENT_SECRETS_ENCRYPTION_KEY` fortes e exclusivos do ambiente.
-- `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"`.
-- Migrations aplicadas com `npm run prisma:migrate:deploy`.
-- Cron de manutenção configurado para chamar `POST /api/internal/reservas/expirar` a cada 10 minutos, com `Authorization: Bearer $INTERNAL_API_TOKEN`.
-- Pelo menos um `super_admin` ativo, com senha forte e 2FA por e-mail habilitado.
-- Mercado Pago em modo produção apenas quando o hotel for operar reservas pagas online.
-- `STORAGE_PROVIDER="s3"` com `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` e `S3_PUBLIC_BASE_URL` configurados.
-- Webhook Mercado Pago configurado para `https://seu-dominio.com/api/mercado-pago/webhook`.
-- E-mail transacional configurado para 2FA e confirmação de reserva.
-- Storage externo S3-compatible configurado para uploads administrativos.
-- `npm run quality` passando antes do deploy.
-
-## Deploy na Railway
-
-1. Conecte o repositório GitHub no Railway e crie o serviço da aplicação.
-2. Adicione um serviço PostgreSQL no mesmo projeto Railway.
-3. No serviço da aplicação, configure `DATABASE_URL` usando a URL interna do PostgreSQL da Railway.
-4. Configure as demais variáveis de ambiente listadas em `.env.example`.
-5. Defina `ALLOW_LOCAL_HOTEL_DATA_FALLBACK="false"` em homologação.
-6. Para testar upload em staging/produção, configure `STORAGE_PROVIDER="s3"` e as variáveis `S3_*`; não use `public/uploads` em runtime de produção.
-7. Configure o Pre-deploy Command como:
-
-```bash
-npm run prisma:migrate:deploy
-```
-
-8. Use o Build Command padrão do projeto:
-
-```bash
-npm run build
-```
-
-9. Use o Start Command:
-
-```bash
-npm start
-```
-
-Scripts de produção:
-
-- `npm run build`: gera o Prisma Client e compila o Next.js.
-- `npm start`: inicia o Next.js em produção.
-- `npm run prisma:generate`: gera o Prisma Client manualmente, se necessário.
-- `npm run prisma:migrate:deploy`: aplica migrations em ambientes de deploy.
-
-Não use banco local em homologação.
-
-## Cron de manutenção
-
-A rotina `POST /api/internal/reservas/expirar` reconcilia pagamentos Mercado Pago recentes em `awaiting_payment` e depois expira reservas vencidas, liberando disponibilidade de forma idempotente.
-
-Frequência recomendada: a cada 5 ou 10 minutos. O endpoint exige token interno e aceita uma destas formas:
-
-- Header `Authorization: Bearer $INTERNAL_API_TOKEN`.
-- Header `x-internal-token: $INTERNAL_API_TOKEN`.
-- `CRON_SECRET` pode substituir `INTERNAL_API_TOKEN` no ambiente da aplicação quando a plataforma de cron usar esse nome.
-
-### Railway Cron
-
-Recomendação principal: use Railway Cron no ambiente de deploy. Crie um Cron Job separado no mesmo projeto, configure o schedule `*/10 * * * *` e use as mesmas variáveis do serviço web:
-
-- `APP_INTERNAL_BASE_URL`: URL pública HTTPS da aplicação, sem barra final.
-- `INTERNAL_API_TOKEN`: valor forte e exclusivo do ambiente, igual ao configurado no serviço web.
-
-Comando do Cron Job:
-
-```bash
-curl --fail --show-error --silent \
-  --request POST \
-  --header "Authorization: Bearer $INTERNAL_API_TOKEN" \
-  "$APP_INTERNAL_BASE_URL/api/internal/reservas/expirar"
-```
-
-O Cron Job deve falhar se `APP_INTERNAL_BASE_URL` ou `INTERNAL_API_TOKEN` não estiverem configurados. Não coloque o token no comando versionado; use variáveis/secrets da Railway.
-
-Para validar, execute o job manualmente e confira se a resposta JSON retorna `status: "ok"` com os contadores `expired`, `scanned` e `reconciliation`. Os logs da aplicação devem conter `[reservation-maintenance] Rotina executada.` sem imprimir tokens.
-
-### GitHub Actions schedule
-
-O repositório inclui o workflow `.github/workflows/reservation-maintenance.yml`, executado a cada 10 minutos e manualmente por `workflow_dispatch`. Configure estes secrets no GitHub Actions do ambiente:
-
-- `APP_INTERNAL_BASE_URL`: URL pública HTTPS da aplicação, sem barra final.
-- `INTERNAL_API_TOKEN`: mesmo valor configurado no ambiente da aplicação.
-
-Esse workflow é a alternativa reproduzível quando a plataforma de deploy não tiver scheduler configurado. Exemplo da chamada:
-
-```bash
-curl --fail --show-error --silent --request POST \
-  --header "Authorization: Bearer $INTERNAL_API_TOKEN" \
-  "$APP_INTERNAL_BASE_URL/api/internal/reservas/expirar"
-```
-
-O workflow valida secrets obrigatórios antes da chamada, tem timeout de 5 minutos e tenta a requisição até 3 vezes antes de falhar.
-
-Checklist de secrets do cron:
-
-- `APP_INTERNAL_BASE_URL`: URL HTTPS pública da aplicação, sem barra final.
-- `INTERNAL_API_TOKEN`: token forte e igual ao configurado na aplicação.
-- Não versionar valores reais em `.env.example`, README, workflows ou comandos salvos.
-
-## Prisma e migrations
-
-Use estes comandos conforme o ambiente:
-
-- Desenvolvimento local: `npm run prisma:migrate` (`prisma migrate dev`) cria e aplica novas migrations durante o desenvolvimento.
-- Staging/produção: `npm run prisma:generate` e depois `npm run prisma:migrate:deploy` (`prisma migrate deploy`) aplicam somente migrations já versionadas.
-- Não use `prisma db push` em staging ou produção. Ele altera o schema direto no banco e não preserva o histórico auditável de migrations.
-
-Comando recomendado para staging:
-
-```bash
-npm run prisma:generate
-npm run prisma:migrate:deploy
-```
-
-## Seed de homologação
-
-Após aplicar as migrations em staging, rode o seed apenas quando quiser preparar ou restaurar dados de demonstração:
-
-```bash
-npm run prisma:seed
-```
-
-Antes de rodar, configure pelo menos:
-
-- `SEED_STAGING_SUPER_ADMIN_PASSWORD`: senha forte para o super admin.
-- `SEED_STAGING_HOTEL_ADMIN_PASSWORD`: senha forte para o admin do hotel.
-- `SEED_STAGING_SUPER_ADMIN_EMAIL`: opcional; define o e-mail do super admin.
-- `SEED_STAGING_HOTEL_ADMIN_EMAIL`: opcional; define o e-mail do admin do hotel.
-- `SEED_STAGING_HOTEL_ADMIN_HOTEL_SLUG`: opcional; define o hotel vinculado ao admin.
-
-O seed popula:
-
-- hotéis publicados com textos, imagens, comodidades e políticas;
-- quartos ativos com capacidade, camas, tamanho, imagens e comodidades;
-- tarifas ativas em reais, salvas em centavos;
-- disponibilidade futura para teste de consulta;
-- um `super_admin`, quando a senha de seed estiver configurada;
-- um `hotel_admin` vinculado a um hotel, quando a senha de seed estiver configurada.
-
-Use o seed somente em homologação/desenvolvimento. Não use para popular produção.
-
-## Instalação e uso
-
-```bash
-npm install
-npm run prisma:generate
 npm run prisma:migrate
 npm run prisma:seed
 npm run dev
 ```
 
-Aplicação local: [http://localhost:3000](http://localhost:3000)
+Aplicação local:
 
-Para validar localmente sem serviços externos reais:
-
-```bash
-npm run test
-npm run quality
+```text
+http://localhost:3000
 ```
 
-`npm run test` executa rapidamente as regras unitárias e integrações isoladas com mocks, sem banco ou credenciais reais. `npm run quality` é o gate completo antes de merge/deploy: formatação, lint, Prisma, testes e build.
+Para upload local, use:
 
-O fluxo público de checkout exige credenciais Mercado Pago e URL de webhook acessível pelo provedor. Em ambiente puramente local, teste a criação/validação com mocks automatizados ou use uma URL pública de túnel apenas em sandbox.
+```env
+STORAGE_PROVIDER="local"
+```
 
-## Comandos úteis
+## Scripts Úteis
+
+Scripts reais do `package.json`:
 
 ```bash
+npm ci
 npm run dev
 npm run build
 npm run start
-npm run lint
-npm run test
-npm run test:watch
-npm run test:coverage
-npm run format
-npm run format:check
+npm test
 npm run quality
 npm run prisma:generate
+npm run prisma:migrate:deploy
 npm run prisma:migrate
 npm run prisma:studio
 npm run prisma:seed
 npm run prisma:validate
+npm run format
+npm run format:check
+npm run lint
+npm run test:watch
+npm run test:coverage
+npm run finance:test-data
+npm run finance:clear-test-data
 ```
 
-O quality gate executa formatação, lint, validação do Prisma, testes automatizados e build:
+Observação: o script de teste é `npm test`. Não existe `npm run test` no `package.json`.
+
+## Produção
+
+Checklist mínimo:
+
+- `DATABASE_URL` de produção no Neon.
+- Migrations aplicadas.
+- `NEXT_PUBLIC_APP_URL` com domínio final HTTPS.
+- `APP_INTERNAL_BASE_URL` com domínio final HTTPS.
+- `AUTH_SECRET` forte.
+- `TWO_FACTOR_ENCRYPTION_KEY` base64 de 32 bytes.
+- `PAYMENT_SECRETS_ENCRYPTION_KEY` base64 de 32 bytes se houver credenciais por hotel.
+- `EMAIL_PROVIDER=resend`.
+- `RESEND_API_KEY` configurada.
+- domínio de e-mail verificado no Resend.
+- `STORAGE_PROVIDER=vercel_blob`.
+- `BLOB_READ_WRITE_TOKEN` configurado.
+- Mercado Pago configurado, se reservas online estiverem ativas.
+- Cron de manutenção configurado.
+- Pelo menos um `super_admin` ativo.
+- `npm run quality` passando antes do deploy.
+
+## Rotas de API
+
+Públicas:
+
+- `POST /api/reservas`
+- `GET /api/hoteis/sugestoes`
+- `POST /api/marketing/subscribers`
+- `POST /api/viagem/recomendacoes`
+
+Autenticação:
+
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `POST /api/auth/register`
+- `POST /api/auth/2fa/email/request`
+- `POST /api/auth/2fa/verify`
+- `POST /api/auth/2fa/setup`
+- `POST /api/auth/2fa/activate`
+
+Admin/upload:
+
+- `POST /api/admin/hoteis/[id]/upload`
+- `POST /api/admin/hoteis/[id]/quartos/upload`
+- `DELETE /api/admin/hoteis/[id]/images/[imageId]`
+
+Webhooks e internas:
+
+- `POST /api/mercado-pago/webhook`
+- `POST /api/stripe/webhook`, legado
+- `POST /api/internal/reservas/expirar`
+- `POST /api/internal/pagamentos/reconciliar`
+
+## Troubleshooting
+
+### `npm ci` com EPERM no Windows/OneDrive
+
+Feche editores e terminais usando `node_modules`, pare processos Node e tente novamente. Se persistir, mover o repositório para uma pasta fora do OneDrive costuma evitar locks de arquivo.
+
+### Vercel build falha por devDependencies ausentes
+
+Não force `NODE_ENV=production` manualmente nas variáveis da Vercel se isso impedir instalação de dependências de build, como Prisma, TypeScript, ESLint ou Vitest.
+
+### Resend envia só para o dono da conta
+
+Isso acontece ao usar `onboarding@resend.dev`. Configure domínio próprio verificado no Resend e use um `EMAIL_FROM` desse domínio.
+
+### Site funciona, mas e-mail não
+
+DNS da Vercel e DNS do Resend são separados. Verifique os registros exigidos pelo Resend.
+
+### Upload falha em produção
+
+Confirme:
+
+- `STORAGE_PROVIDER=vercel_blob`;
+- `BLOB_READ_WRITE_TOKEN` existe na Vercel;
+- o Blob está configurado para URLs públicas;
+- o arquivo é JPG/JPEG, PNG ou WEBP;
+- o arquivo respeita `UPLOAD_MAX_IMAGE_SIZE_BYTES`.
+
+### Correção aparece em Preview, mas não em produção
+
+Verifique se o deploy correto foi promovido para Production. Branch `staging` normalmente gera Preview se o projeto Vercel estiver configurado para produção em outra branch.
+
+### Banco Neon sem migrations
+
+Rode:
+
+```bash
+npm run prisma:migrate:deploy
+```
+
+Depois faça redeploy se o schema gerado no build estava desatualizado.
+
+### Produção usando deploy antigo
+
+Confirme o commit do deployment na Vercel, faça redeploy sem cache e verifique se as variáveis foram alteradas no ambiente correto.
+
+## CI e Qualidade
+
+O gate principal é:
 
 ```bash
 npm run quality
 ```
 
-Durante desenvolvimento, os testes podem ser rodados isoladamente:
+Ele executa:
+
+- `npm run format:check`;
+- `npm run lint`;
+- `npm run prisma:validate`;
+- `npm test`;
+- `npm run build`.
+
+Antes de mudanças de produção, rode pelo menos:
 
 ```bash
-npm run test
+npm run format:check
+npm run build
 ```
-
-`npm run test` executa somente a suíte Vitest em ambiente Node, com mocks de Prisma, Mercado Pago, Resend e Stripe legado onde há integração externa. Ele não usa banco real, internet, credenciais reais ou serviços de terceiros.
-
-`npm run quality` é o gate completo antes de publicar: valida formatação, lint, schema Prisma, testes automatizados e build de produção.
-
-## CI
-
-O repositório possui GitHub Actions em `.github/workflows/ci.yml`. O pipeline roda em `push` para `main`/`staging` e em `pull_request`, usando Node.js 20.
-
-Ele sobe PostgreSQL real, executa `npm ci` com cache de npm, gera o Prisma Client, valida o schema, aplica migrations com `prisma migrate deploy`, roda testes com `RUN_DATABASE_TESTS=true` e executa o build. As variáveis de Mercado Pago/e-mail no workflow são valores fake seguros apenas para CI; credenciais reais devem ficar somente nos ambientes de staging/produção. O CI não faz deploy automático.
-
-## Arquitetura
-
-- A entrada da aplicação é o App Router em `src/app`; não há HTML/CSS/JS estático legado na raiz.
-- `src/app`: rotas públicas, rotas administrativas e APIs.
-- `src/components`: componentes reutilizáveis da página inicial e páginas públicas.
-- `src/lib`: autenticação, autorização, validações, auditoria, upload, erros e Prisma.
-- `src/data`: dados locais de apoio para desenvolvimento.
-- `prisma`: schema, migrations e seed.
-
-## Uploads e imagens
-
-- Hoteis, capas, galeria e quartos usam URLs salvas no banco. URLs antigas continuam validas enquanto o arquivo local ou a URL externa existir.
-- A abstracao `StorageProvider` fica em `src/lib/storage`. Uploads administrativos chamam essa camada e nunca expoem credenciais no client.
-- Para desenvolvimento local, use `STORAGE_PROVIDER="local"`; ele grava em `public/uploads/hotels/[hotelId]` e retorna URLs `/uploads/hotels/...`.
-- Para staging/produção, use `STORAGE_PROVIDER="s3"` com storage S3-compatible. O app assina `PUT`/`DELETE` no servidor e retorna URLs baseadas em `S3_PUBLIC_BASE_URL`.
-- `S3_PUBLIC_BASE_URL` tambem e usado pelo `next.config.ts` para permitir otimizacao de imagens remotas do storage.
-- O seed usa URLs baseadas em `S3_PUBLIC_BASE_URL` quando essa variavel esta configurada; caso contrario, mantem as URLs externas demonstrativas.
-- URLs externas manuais continuam aceitas nos campos de capa, galeria e quarto quando o arquivo ja estiver hospedado fora da aplicacao.
-- A validação de upload rejeita arquivos sem conteúdo, arquivos acima de `UPLOAD_MAX_IMAGE_SIZE_BYTES`, MIME types fora de JPG/PNG/WEBP, extensões inseguras, dupla extensão suspeita e conteúdo cujo magic number não corresponda ao MIME declarado.
-- O nome salvo e sanitizado e recebe prefixo aleatorio para evitar colisao e preservar uma extensao segura.
-- A interface pública e o admin mantém fallback visual para capa, galeria e quartos quando uma URL antiga estiver ausente ou a imagem não carregar.
-- A remocao de arquivos preserva URLs externas fora do provider configurado e evita limpeza fora do prefixo de storage esperado.
-
-## Fluxo publico
-
-- A página inicial lista hotéis publicados.
-- Cards da seção `Conheça nossos hotéis` navegam para `/hoteis/[slug]`.
-- A página pública do hotel usa dados do banco.
-- Hotéis inexistentes ou despublicados retornam 404.
-- Quartos ativos aparecem publicamente com preço inicial baseado em tarifas ativas.
-- O botão `Consultar disponibilidade` navega para `/hoteis/[slug]/reservar`, uma página pública em etapas: datas/viajantes, escolha do quarto, dados do hóspede, pagamento e confirmação. A URL anterior `/hoteis/[slug]/disponibilidade` apenas redireciona para preservar links existentes.
-- A etapa de quartos usa disponibilidade configurada, capacidade e tarifas ativas. Quartos com disponibilidade desconhecida ou indisponível não seguem para reserva.
-- A API `/api/reservas` cria a reserva inicialmente como `awaiting_payment`/`pending`, retém uma unidade de disponibilidade por noite e inicia checkout externo.
-- Reservas `awaiting_payment` recebem `expiresAt`, expiram após `BOOKING_PAYMENT_TTL_MINUTES` e liberam a disponibilidade pela rotina interna `POST /api/internal/reservas/expirar`.
-- O pagamento aprovado por webhook confirma a reserva, marca `paymentStatus` como `paid`, registra transação financeira e dispara e-mails.
-- Pagamento recusado, cancelado, expirado, estornado ou com chargeback marca a reserva como falha/cancelada e libera a disponibilidade retida.
-- Webhooks duplicados são tratados de forma idempotente para não duplicar reserva, disponibilidade ou e-mails.
-- O motor atual é um fluxo transacional público de reserva e pagamento com gestão administrativa básica de reservas, incluindo cancelamento, remarcação, confirmação manual, falha de pagamento, notas internas e histórico operacional. Ainda não possui calendário operacional avançado.
-
-## Pagamentos
-
-- Provedor online ativo: Mercado Pago.
-- Métodos expostos no fluxo público: Pix, cartão de crédito, cartão de débito e boleto.
-- Cada hotel precisa ter configuração de pagamento habilitada para permitir reserva pública.
-- `PaymentProvider.manual` existe para estado/configuração administrativa e compatibilidade, mas não inicia checkout online público.
-- Stripe é legado: o webhook `/api/stripe/webhook` continua disponível para compatibilidade com campos e eventos antigos, mas o checkout público atual usa Mercado Pago.
-- Nunca use credenciais reais em desenvolvimento local ou homologação. Use sandbox e banco separado.
-
-## Admin Fase 2
-
-### Dashboard operacional
-
-Rota: `/admin`
-
-- `super_admin` vê visão da rede.
-- `hotel_admin` vê apenas hotéis vinculados.
-- Exibe métricas de hotéis, quartos ativos, tarifas ativas, disponibilidade futura e admins ativos.
-- Exibe últimos logs dentro do escopo.
-- Exibe alertas acionáveis com links para corrigir pendências.
-- Exibe completude dos hotéis com percentual e pendências.
-
-### Hotéis
-
-Rota: `/admin/hoteis`
-
-- `super_admin` lista todos os hotéis.
-- `hotel_admin` lista apenas hotéis vinculados.
-- Cada card mostra status, permissão e completude do perfil.
-
-### Edição de hotel
-
-Rota: `/admin/hoteis/[id]`
-
-Permite editar:
-
-- dados principais;
-- localização;
-- contato;
-- descrições;
-- imagem de capa;
-- galeria;
-- comodidades;
-- políticas;
-- horários;
-- visibilidade/publicação.
-
-Toda escrita valida sessão, 2FA administrativo, permissão por hotel, payload e auditoria.
-
-### CRUD de quartos
-
-Na edição do hotel:
-
-- listar quartos;
-- criar quarto;
-- editar quarto;
-- ativar/desativar quarto.
-- enviar imagem do quarto por upload validado.
-
-Campos principais:
-
-- nome;
-- descrição;
-- imagem por URL;
-- capacidade de adultos e crianças;
-- camas;
-- tamanho em m²;
-- comodidades;
-- status ativo.
-
-### CRUD de tarifas
-
-Na edição do hotel:
-
-- selecionar quarto;
-- listar tarifas do quarto;
-- criar tarifa;
-- editar tarifa;
-- ativar/desativar tarifa.
-
-Na UI, o preço é digitado em reais. No banco, é salvo em centavos (`priceCents`).
-
-### Gestão de disponibilidade
-
-Na edição do hotel:
-
-- selecionar quarto;
-- escolher data inicial e final;
-- definir unidades totais;
-- definir unidades disponíveis;
-- marcar período como fechado;
-- adicionar observação interna;
-- salvar em lote.
-
-O intervalo de edição em lote é limitado pelos validadores do backend.
-
-### Configuração de pagamento
-
-Na edição do hotel:
-
-- configurar provedor `manual` ou `mercado_pago`;
-- ativar/desativar pagamento online do hotel;
-- salvar credencial sensível criptografada;
-- preservar credencial existente sem exibi-la novamente;
-- registrar auditoria da alteração.
-
-O checkout público só inicia quando a configuração do hotel está habilitada e compatível com o provedor ativo do ambiente.
-
-### Administradores e permissões
-
-Rota: `/admin/administradores`
-
-- lista administradores acessíveis dentro do escopo;
-- cria administrador com vínculo inicial a hotel;
-- edita papel por hotel quando permitido;
-- remove vínculo permitido;
-- `super_admin` pode ativar/desativar usuários;
-- protege contra desativar o último `super_admin`;
-- impede escalada de privilégio.
-
-Convite por e-mail ainda não está implementado. A criação gera usuário e vínculo administrativo para configuração posterior de acesso.
-
-### Auditoria navegável
-
-Rotas:
-
-- `/admin/auditoria`
-- `/admin/auditoria/[id]`
-
-Inclui:
-
-- listagem paginada;
-- filtros por hotel, usuário, ação, período e texto livre;
-- detalhe do log;
-- escopo por perfil;
-- redaction de dados sensíveis.
-
-Logs cobrem alterações relevantes em hotéis, quartos, tarifas, disponibilidade, imagens e permissões.
-
-## Papéis e escopos
-
-### Papéis globais
-
-- `super_admin`: acessa a rede inteira.
-- `hotel_admin`: acessa hotéis vinculados via `HotelPermission`.
-- `user`: não acessa área administrativa.
-
-### Papéis por hotel
-
-- `owner`: pode gerenciar o hotel e atribuir papéis permitidos.
-- `admin`: pode gerenciar o hotel e atribuir papéis inferiores.
-- `editor`: pode editar dados do hotel, quartos, tarifas e disponibilidade.
-
-As regras efetivas são aplicadas no backend. A UI não é fonte de segurança.
-
-## Segurança
-
-- Senhas são armazenadas com hash.
-- Sessão usa cookie `HttpOnly`.
-- Cookie usa `Secure` em produção.
-- `SameSite` configurado.
-- O fluxo atual de login administrativo usa 2FA por e-mail.
-- `emailTwoFactorEnabled` controla a exigência de código por e-mail no login.
-- `twoFactorEnabled` e `twoFactorSecret` são campos legados de app autenticador/TOTP e não controlam o login atual.
-- Usuários comuns entram apenas com e-mail e senha.
-- Administradores com `emailTwoFactorEnabled=false` são bloqueados no login administrativo.
-- Administradores com `emailTwoFactorEnabled=true` recebem um código de 6 dígitos por e-mail antes de acessar o painel.
-- Usuário desativado não autentica como usuário válido.
-- Escritas administrativas exigem autenticação e autorização no backend.
-- Escritas ligadas a hotel validam permissão por hotel.
-- Payloads são validados com Zod e rejeitam campos inesperados.
-- Upload aceita apenas imagens validadas por MIME, extensão, tamanho e conteúdo.
-- Remoção de imagem exige permissão e registra auditoria.
-- Erros usam padrão comum e não devem expor stack trace em produção.
-- Auditoria não deve registrar senhas, tokens, segredos de 2FA ou dados sensíveis.
-- `npm audit` revisado em 2026-06-01: sem vulnerabilidades reportadas em dependências de produção ou desenvolvimento.
-
-## Pendências reais
-
-- Convite por e-mail ainda não existe.
-- Há tela administrativa de acompanhamento e operação básica de reservas/pagamentos em `/admin/reservas`.
-- Não há calendário visual avançado de disponibilidade.
-- Dados locais de apoio continuam existindo para desenvolvimento e não devem contaminar produção.
-
-## Checklist para ir ao ar
-
-- Domínio final configurado com HTTPS.
-- `NEXT_PUBLIC_APP_URL` aponta para o domínio final.
-- `DATABASE_URL` de produção configurado.
-- Migrations aplicadas com `npm run prisma:migrate:deploy`.
-- Seed não usado para popular produção.
-- `super_admin` criado com senha forte.
-- 2FA por e-mail ativado para administradores.
-- Mercado Pago em modo produção, se reservas online forem usadas.
-- `STORAGE_PROVIDER="s3"` com `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` e `S3_PUBLIC_BASE_URL` configurados.
-- Webhook Mercado Pago configurado no provedor.
-- Cron de manutenção configurado e testado com `INTERNAL_API_TOKEN`.
-- E-mail transacional configurado e testado.
-- Uploads/storage decidido antes de liberar uso real.
-- Testes manuais de homologação concluídos.
-- `npm run quality` passando.
-- Backup do banco planejado.
-- Nenhum segredo real commitado no repositório.
-- `npm audit` sem vulnerabilidades no gate final.
