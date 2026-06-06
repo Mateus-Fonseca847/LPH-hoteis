@@ -104,7 +104,7 @@ describe("hotel image upload validation", () => {
 
     await expect(storeHotelImageFile("hotel_12345", makeFile())).resolves.toMatchObject({
       url: expect.stringMatching(/^\/uploads\/hotels\/hotel_12345\//),
-      storageKey: expect.stringMatching(/^hotels\/hotel_12345\//),
+      storageKey: expect.stringMatching(/^hotels\/hotel_12345\/\d+-hotel\.png$/),
       contentType: "image/png",
       size: pngBytes.length,
     });
@@ -115,6 +115,14 @@ describe("hotel image upload validation", () => {
 
     await expect(storeHotelImageFile("hotel_12345", makeFile())).rejects.toThrow(
       "S3_ENDPOINT não configurado"
+    );
+  });
+
+  it("retorna erro claro quando Vercel Blob não está configurado", async () => {
+    process.env.STORAGE_PROVIDER = "vercel_blob";
+
+    await expect(storeHotelImageFile("hotel_12345", makeFile())).rejects.toThrow(
+      "Storage de imagens não configurado."
     );
   });
 

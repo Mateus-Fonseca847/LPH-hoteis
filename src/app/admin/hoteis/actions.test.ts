@@ -618,6 +618,29 @@ describe("createHotelAction", () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it("mostra erro claro quando o storage de imagens não está configurado", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(null);
+    vi.mocked(storeHotelImageFile).mockRejectedValue(
+      new Error("Storage de imagens não configurado.")
+    );
+
+    const result = await createHotelAction({ status: "idle", message: "" }, buildFormData());
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Storage de imagens não configurado.",
+      errorCode: "IMAGE_STORAGE_NOT_CONFIGURED",
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it("converte erro Prisma de slug duplicado em mensagem específica", async () => {
     vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
       id: "admin-1",

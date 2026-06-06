@@ -1,5 +1,4 @@
-﻿import { randomUUID } from "node:crypto";
-import path from "node:path";
+﻿import path from "node:path";
 
 import { getStorageProvider } from "@/lib/storage";
 
@@ -221,7 +220,7 @@ export async function storeHotelImageFile(hotelId: string, file: File) {
   const safeHotelId = sanitizeStorageSegment(hotelId, "Hotel");
   const safeExtension = sanitizeStorageSegment(extension, "Extensao");
   const safeBaseName = sanitizeStorageSegment(sanitizedBaseName, "Nome do arquivo");
-  const fileName = `${randomUUID()}-${safeBaseName}.${safeExtension}`;
+  const fileName = `${Date.now()}-${safeBaseName}.${safeExtension}`;
   const storedObject = await getStorageProvider().putObject({
     key: path.posix.join("hotels", safeHotelId, fileName),
     body: buffer,

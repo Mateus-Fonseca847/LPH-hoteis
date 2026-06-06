@@ -1,4 +1,4 @@
-export type StorageProviderName = "local" | "s3" | "r2" | "supabase";
+export type StorageProviderName = "local" | "s3" | "r2" | "supabase" | "vercel_blob";
 
 export type StoragePutObjectInput = {
   key: string;

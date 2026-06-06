@@ -1,5 +1,6 @@
 import { LocalStorageProvider } from "./local";
 import { S3StorageProvider } from "./s3";
+import { VercelBlobStorageProvider } from "./vercel-blob";
 import type { StorageProvider, StorageProviderName } from "./types";
 
 export type {
@@ -12,6 +13,7 @@ export type {
 } from "./types";
 export { LocalStorageProvider } from "./local";
 export { S3StorageProvider } from "./s3";
+export { VercelBlobStorageProvider } from "./vercel-blob";
 
 const DEFAULT_STORAGE_PROVIDER: StorageProviderName = "local";
 
@@ -20,7 +22,12 @@ function getStorageProviderName(): StorageProviderName {
     .trim()
     .toLowerCase();
 
-  if (rawProvider === "local" || rawProvider === "s3" || rawProvider === "r2") {
+  if (
+    rawProvider === "local" ||
+    rawProvider === "s3" ||
+    rawProvider === "r2" ||
+    rawProvider === "vercel_blob"
+  ) {
     return rawProvider;
   }
 
@@ -28,7 +35,7 @@ function getStorageProviderName(): StorageProviderName {
     return "supabase";
   }
 
-  throw new Error("STORAGE_PROVIDER inválido. Use local, s3, r2 ou supabase.");
+  throw new Error("STORAGE_PROVIDER inválido. Use local, s3, r2, vercel_blob ou supabase.");
 }
 
 export function createStorageProvider(name: StorageProviderName = getStorageProviderName()) {
@@ -42,6 +49,10 @@ export function createStorageProvider(name: StorageProviderName = getStorageProv
 
   if (name === "s3" || name === "r2") {
     return new S3StorageProvider();
+  }
+
+  if (name === "vercel_blob") {
+    return new VercelBlobStorageProvider();
   }
 
   throw new Error("Supabase Storage não está implementado. Use STORAGE_PROVIDER=s3.");

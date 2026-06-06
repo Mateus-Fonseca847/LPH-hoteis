@@ -34,6 +34,7 @@ type CreateHotelErrorCode =
   | "DUPLICATE_SLUG"
   | "COVER_IMAGE_REQUIRED"
   | "COVER_UPLOAD_FAILED"
+  | "IMAGE_STORAGE_NOT_CONFIGURED"
   | "FORBIDDEN"
   | "DATABASE_UNAVAILABLE"
   | "DATABASE_SCHEMA_MISMATCH"
@@ -467,6 +468,14 @@ function getCreateHotelErrorCode(error: unknown): CreateHotelErrorCode {
   }
 
   if (error instanceof CreateHotelTechnicalError) {
+    if (
+      error.step === "cover-upload" &&
+      error.cause instanceof Error &&
+      error.cause.message === "Storage de imagens não configurado."
+    ) {
+      return "IMAGE_STORAGE_NOT_CONFIGURED";
+    }
+
     return error.step === "cover-upload" ? "COVER_UPLOAD_FAILED" : "DATABASE_RELATION_FAILED";
   }
 
@@ -511,6 +520,8 @@ function getCreateHotelErrorMessage(error: unknown) {
       return "Envie uma imagem de capa ou informe a URL da capa.";
     case "COVER_UPLOAD_FAILED":
       return "Falha ao enviar imagem de capa.";
+    case "IMAGE_STORAGE_NOT_CONFIGURED":
+      return "Storage de imagens não configurado.";
     case "FORBIDDEN":
       return "Você não tem permissão para criar hotéis.";
     case "DATABASE_UNAVAILABLE":
