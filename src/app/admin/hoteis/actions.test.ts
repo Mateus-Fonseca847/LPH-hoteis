@@ -43,6 +43,7 @@ function buildFormData(
     amenities?: string[];
     policies?: Array<{ title: string; description: string }>;
     coverImage?: File | null;
+    coverImageUrl?: string;
   }
 ) {
   const formData = new FormData();
@@ -85,6 +86,9 @@ function buildFormData(
       options?.coverImage ?? new File(["fake image"], "capa.webp", { type: "image/webp" })
     );
   }
+  if (options?.coverImageUrl) {
+    formData.set("coverImageUrl", options.coverImageUrl);
+  }
   formData.set("coverAlt", "Fachada do hotel");
 
   return formData;
@@ -92,6 +96,8 @@ function buildFormData(
 
 describe("createHotelAction", () => {
   beforeEach(() => {
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.mocked(requireAuthenticatedRequestUser).mockReset();
     vi.mocked(prisma.hotel.findUnique).mockReset();
     vi.mocked(prisma.$transaction).mockReset();
@@ -117,6 +123,7 @@ describe("createHotelAction", () => {
     expect(result).toEqual({
       status: "error",
       message: "Você não tem permissão para criar hotéis.",
+      errorCode: "FORBIDDEN",
     });
     expect(prisma.hotel.findUnique).not.toHaveBeenCalled();
   });
@@ -151,6 +158,7 @@ describe("createHotelAction", () => {
 
     expect(result).toMatchObject({
       status: "success",
+      message: "Hotel salvo como rascunho.",
       hotelId: "hotel-1",
     });
     expect(tx.hotel.create).toHaveBeenCalledWith(
@@ -236,6 +244,7 @@ describe("createHotelAction", () => {
     expect(result).toEqual({
       status: "error",
       message: "Já existe um hotel com este slug.",
+      errorCode: "DUPLICATE_SLUG",
     });
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
@@ -314,6 +323,174 @@ describe("createHotelAction", () => {
       })
     );
   });
+
+  it("cria rascunho sem quartos, tarifas, disponibilidade, experiências, comodidades ou políticas", async () => {
+    const tx = {
+      hotel: {
+        create: vi.fn(async () => ({ id: "hotel-minimo" })),
+      },
+      hotelPermission: {
+        upsert: vi.fn(),
+      },
+      hotelAuditLog: {
+        create: vi.fn(),
+      },
+    };
+
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx));
+
+    const result = await createHotelAction(
+      { status: "idle", message: "" },
+      buildFormData(
+        {},
+        {
+          amenities: [],
+          policies: [],
+        }
+      )
+    );
+
+    expect(result).toMatchObject({
+      status: "success",
+      message: "Hotel salvo como rascunho.",
+      hotelId: "hotel-minimo",
+    });
+    expect(tx.hotel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({
+          rooms: expect.anything(),
+          rates: expect.anything(),
+          availability: expect.anything(),
+          experiences: expect.anything(),
+          amenities: expect.anything(),
+          policies: expect.anything(),
+        }),
+      })
+    );
+  });
+
+  it("cria rascunho usando URL de capa sem depender de upload", async () => {
+    const tx = {
+      hotel: {
+        create: vi.fn(async () => ({ id: "hotel-url" })),
+      },
+      hotelPermission: {
+        upsert: vi.fn(),
+      },
+      hotelAuditLog: {
+        create: vi.fn(),
+      },
+    };
+
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx));
+
+    const result = await createHotelAction(
+      { status: "idle", message: "" },
+      buildFormData(
+        {},
+        {
+          coverImage: null,
+          coverImageUrl: "https://cdn.example.test/capa.webp",
+        }
+      )
+    );
+
+    expect(result).toMatchObject({
+      status: "success",
+      hotelId: "hotel-url",
+    });
+    expect(storeHotelImageFile).not.toHaveBeenCalled();
+    expect(tx.hotel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          coverImageUrl: "https://cdn.example.test/capa.webp",
+          images: {
+            create: [
+              {
+                url: "https://cdn.example.test/capa.webp",
+                alt: "Fachada do hotel",
+                position: 0,
+              },
+            ],
+          },
+        }),
+      })
+    );
+  });
+
+  it("usa URL de capa como fallback quando upload falha", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const tx = {
+      hotel: {
+        create: vi.fn(async () => ({ id: "hotel-fallback-url" })),
+      },
+      hotelPermission: {
+        upsert: vi.fn(),
+      },
+      hotelAuditLog: {
+        create: vi.fn(),
+      },
+    };
+
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx));
+    vi.mocked(storeHotelImageFile).mockRejectedValue(new Error("S3_BUCKET não configurado"));
+
+    const result = await createHotelAction(
+      { status: "idle", message: "" },
+      buildFormData(
+        {},
+        {
+          coverImageUrl: "https://cdn.example.test/capa.webp",
+        }
+      )
+    );
+
+    expect(result).toMatchObject({
+      status: "success",
+      hotelId: "hotel-fallback-url",
+    });
+    expect(tx.hotel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          coverImageUrl: "https://cdn.example.test/capa.webp",
+        }),
+      })
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[admin/hoteis/create] Cover upload failed.",
+      expect.objectContaining({
+        error: expect.objectContaining({
+          message: "S3_BUCKET não configurado",
+        }),
+      })
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
   it("não cria hotel sem e-mail de contato", async () => {
     vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
       id: "admin-1",
@@ -331,6 +508,29 @@ describe("createHotelAction", () => {
     expect(result).toEqual({
       status: "error",
       message: "Informe o e-mail de contato do hotel.",
+      errorCode: "CONTACT_EMAIL_REQUIRED",
+    });
+    expect(prisma.hotel.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("não cria hotel sem nome", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+
+    const result = await createHotelAction(
+      { status: "idle", message: "" },
+      buildFormData({ name: "" })
+    );
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Informe o nome do hotel.",
+      errorCode: "NAME_REQUIRED",
     });
     expect(prisma.hotel.findUnique).not.toHaveBeenCalled();
   });
@@ -351,7 +551,8 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Informe um e-mail de contato valido.",
+      message: "Informe um e-mail de contato válido.",
+      errorCode: "CONTACT_EMAIL_INVALID",
     });
     expect(prisma.hotel.findUnique).not.toHaveBeenCalled();
   });
@@ -372,7 +573,8 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Envie uma imagem de capa.",
+      message: "Envie uma imagem de capa ou informe a URL da capa.",
+      errorCode: "COVER_IMAGE_REQUIRED",
     });
     expect(storeHotelImageFile).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -395,7 +597,8 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Falha ao enviar imagem. Verifique o storage.",
+      message: "Falha ao enviar imagem de capa.",
+      errorCode: "COVER_UPLOAD_FAILED",
     });
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "[admin/hoteis/create] Failed to create hotel.",
@@ -433,6 +636,53 @@ describe("createHotelAction", () => {
     expect(result).toEqual({
       status: "error",
       message: "Já existe um hotel com este slug.",
+      errorCode: "DUPLICATE_SLUG",
+    });
+  });
+
+  it("mostra erro específico para banco indisponível", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockRejectedValue(
+      new Prisma.PrismaClientInitializationError("Can't reach database server", "test")
+    );
+
+    const result = await createHotelAction({ status: "idle", message: "" }, buildFormData());
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Banco de dados indisponível. Tente novamente em instantes.",
+      errorCode: "DATABASE_UNAVAILABLE",
+    });
+  });
+
+  it("mostra erro específico para schema ou migration incompatível", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.$transaction).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Column does not exist", {
+        code: "P2022",
+        clientVersion: "test",
+      })
+    );
+
+    const result = await createHotelAction({ status: "idle", message: "" }, buildFormData());
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Falha de schema do banco. Verifique se as migrations foram aplicadas.",
+      errorCode: "DATABASE_SCHEMA_MISMATCH",
     });
   });
 
@@ -454,6 +704,7 @@ describe("createHotelAction", () => {
     expect(result).toEqual({
       status: "error",
       message: "Falha ao salvar hotel, galeria, comodidades ou políticas.",
+      errorCode: "DATABASE_RELATION_FAILED",
     });
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "[admin/hoteis/create] Failed to create hotel.",
@@ -462,6 +713,28 @@ describe("createHotelAction", () => {
         cause: expect.objectContaining({
           message: "HotelPolicy table missing",
         }),
+      })
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("mantém mensagem genérica apenas para erro inesperado", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.mocked(requireAuthenticatedRequestUser).mockRejectedValue("falha desconhecida");
+
+    const result = await createHotelAction({ status: "idle", message: "" }, buildFormData());
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Não foi possível criar o hotel.",
+      errorCode: "UNEXPECTED_ERROR",
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[admin/hoteis/create] Failed to create hotel.",
+      expect.objectContaining({
+        name: "UnknownError",
       })
     );
 

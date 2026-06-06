@@ -58,6 +58,8 @@ const completeHotel = {
   checkInTime: "14:00",
   checkOutTime: "12:00",
   images: [{ id: "image-1" }],
+  amenities: [{ id: "amenity-1" }],
+  policies: [{ id: "policy-1" }],
   rooms: [
     {
       id: "room-1",
@@ -94,7 +96,9 @@ describe("submitHotelForApprovalAction", () => {
     );
 
     expect(result.status).toBe("error");
-    expect(result.message).toContain("quarto");
+    expect(result.message).toBe(
+      "Complete quartos, tarifas e disponibilidade antes de enviar para aprovação."
+    );
     expect(prisma.hotelAuditLog.create).not.toHaveBeenCalled();
   });
 
@@ -111,7 +115,9 @@ describe("submitHotelForApprovalAction", () => {
     );
 
     expect(result.status).toBe("error");
-    expect(result.message).toContain("tarifa");
+    expect(result.message).toBe(
+      "Complete quartos, tarifas e disponibilidade antes de enviar para aprovação."
+    );
     expect(prisma.hotelAuditLog.create).not.toHaveBeenCalled();
   });
 
@@ -128,7 +134,9 @@ describe("submitHotelForApprovalAction", () => {
     );
 
     expect(result.status).toBe("error");
-    expect(result.message).toContain("disponibilidade futura");
+    expect(result.message).toBe(
+      "Complete quartos, tarifas e disponibilidade antes de enviar para aprovação."
+    );
     expect(prisma.hotelAuditLog.create).not.toHaveBeenCalled();
   });
 

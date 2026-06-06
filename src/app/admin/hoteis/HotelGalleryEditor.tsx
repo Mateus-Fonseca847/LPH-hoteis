@@ -64,15 +64,19 @@ export function HotelGalleryEditor({
 
   return (
     <div className="admin-form-grid">
-      {!isCreateMode ? (
+      {onCoverImageUrlChange ? (
         <label className="admin-form-field">
-          <span>Imagem de capa</span>
+          <span>{isCreateMode ? "URL da imagem de capa" : "Imagem de capa"}</span>
           <input
             name="coverImageUrl"
             value={coverImageUrl}
             onChange={(event) => onCoverImageUrlChange?.(event.target.value)}
-            required
+            required={!isCreateMode}
+            placeholder={isCreateMode ? "https://..." : undefined}
           />
+          {isCreateMode ? (
+            <small>Use uma URL se o storage de upload ainda não estiver configurado.</small>
+          ) : null}
         </label>
       ) : null}
 
@@ -106,7 +110,7 @@ export function HotelGalleryEditor({
           <HotelFileUploadField
             id={isCreateMode ? "cover-create-upload-input" : "cover-upload-input"}
             inputName={isCreateMode ? "coverImage" : undefined}
-            required={isCreateMode}
+            required={false}
             title="Selecionar imagem de capa"
             auxiliaryText="PNG, JPG ou WebP até o limite permitido."
             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"

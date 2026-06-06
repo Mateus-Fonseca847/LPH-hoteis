@@ -20,6 +20,8 @@ describe("NewHotelPage markup", () => {
     expect(formSource).toContain("Políticas");
     expect(formSource).toContain("Experiências próximas");
     expect(formSource).toContain("HotelGalleryEditor");
+    expect(formSource).toContain("coverImageUrl={coverImageUrl}");
+    expect(formSource).toContain("router.push(`/admin/hoteis/${state.hotelId}`)");
     expect(formSource).toContain("HotelAmenitiesSelector");
     expect(formSource).toContain("HotelPoliciesEditor");
     expect(formSource).not.toContain('name="galleryImages"');

@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 
 import { createHotelAuditLog, type HotelAuditSnapshot } from "@/lib/audit/hotel-audit";
 import {
+  AuthorizationError,
   ConflictError,
   NotFoundError,
   ValidationError,
@@ -128,6 +129,18 @@ async function getHotelApprovalReadiness(hotelId: string) {
         },
         take: 1,
       },
+      amenities: {
+        select: {
+          id: true,
+        },
+        take: 1,
+      },
+      policies: {
+        select: {
+          id: true,
+        },
+        take: 1,
+      },
       rooms: {
         where: {
           isActive: true,
@@ -179,6 +192,14 @@ async function getHotelApprovalReadiness(hotelId: string) {
     missing.push("images");
   }
 
+  if (hotel.amenities.length === 0) {
+    missing.push("amenities");
+  }
+
+  if (hotel.policies.length === 0) {
+    missing.push("policies");
+  }
+
   if (hotel.rooms.length === 0) {
     missing.push("rooms");
   }
@@ -222,6 +243,8 @@ function getApprovalErrorMessage(missing: string[]) {
     checkInTime: "check-in",
     checkOutTime: "check-out",
     images: "galeria",
+    amenities: "comodidades",
+    policies: "politicas",
     rooms: "quarto",
     rates: "tarifa",
     availability: "disponibilidade futura",
@@ -230,6 +253,10 @@ function getApprovalErrorMessage(missing: string[]) {
 
   if (missing.includes("contactEmail")) {
     return "Este hotel precisa de um e-mail de contato valido antes de ser aprovado.";
+  }
+
+  if (missing.some((item) => ["rooms", "rates", "availability"].includes(item))) {
+    return "Complete quartos, tarifas e disponibilidade antes de enviar para aprovação.";
   }
 
   return `Complete antes de enviar para aprovação: ${missing.map((item) => labels[item] ?? item).join(", ")}.`;
@@ -258,6 +285,10 @@ export async function updateHotelProfileAction(
 
     const payload = parsedPayload.data;
     const hasManualCoordinates = payload.latitude !== null || payload.longitude !== null;
+
+    if (payload.isPublished && user.globalRole !== "super_admin") {
+      throw new AuthorizationError("Apenas super_admin pode aprovar ou publicar hoteis.");
+    }
 
     const currentHotel = await prisma.hotel.findUnique({
       where: {

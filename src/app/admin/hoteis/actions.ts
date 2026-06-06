@@ -24,7 +24,21 @@ export type CreateHotelState = {
   status: "idle" | "success" | "error";
   message: string;
   hotelId?: string;
+  errorCode?: CreateHotelErrorCode;
 };
+
+type CreateHotelErrorCode =
+  | "CONTACT_EMAIL_REQUIRED"
+  | "CONTACT_EMAIL_INVALID"
+  | "NAME_REQUIRED"
+  | "DUPLICATE_SLUG"
+  | "COVER_IMAGE_REQUIRED"
+  | "COVER_UPLOAD_FAILED"
+  | "FORBIDDEN"
+  | "DATABASE_UNAVAILABLE"
+  | "DATABASE_SCHEMA_MISMATCH"
+  | "DATABASE_RELATION_FAILED"
+  | "UNEXPECTED_ERROR";
 
 class CreateHotelTechnicalError extends Error {
   readonly userMessage: string;
@@ -50,6 +64,24 @@ const galleryImagesSchema = z
   .array(galleryImageSchema)
   .min(1, "Informe pelo menos uma imagem de galeria.")
   .max(20, "Informe no máximo 20 imagens.");
+
+const requiredCreateHotelFields = [
+  "name",
+  "slug",
+  "city",
+  "state",
+  "shortDescription",
+  "fullDescription",
+  "address",
+  "phone",
+  "email",
+  "whatsapp",
+  "checkInTime",
+  "checkOutTime",
+] as const;
+
+const localUploadImagePathRegex =
+  /^\/uploads\/hotels\/[a-zA-Z0-9_-]{1,191}\/[a-zA-Z0-9][a-zA-Z0-9._-]{0,220}\.(?:jpg|jpeg|png|webp)$/i;
 
 const createHotelSchema = z
   .object({
@@ -90,7 +122,6 @@ const createHotelSchema = z
     galleryImages: z.array(galleryImageSchema).max(20, "Informe no máximo 20 imagens."),
     amenities: z
       .array(z.string().trim().min(2, "Informe comodidades válidas.").max(80))
-      .min(1, "Informe pelo menos uma comodidade.")
       .max(30, "Informe no máximo 30 comodidades."),
     policies: z
       .array(
@@ -100,7 +131,6 @@ const createHotelSchema = z
           position: z.number().int().min(0),
         })
       )
-      .min(1, "Informe pelo menos uma política.")
       .max(20, "Informe no máximo 20 políticas."),
     checkInTime: z
       .string()
@@ -218,14 +248,38 @@ function parseCreateHotelFormData(formData: FormData) {
   });
 }
 
-function getRequiredCoverImageFile(formData: FormData) {
+function getCoverImageFile(formData: FormData) {
   const file = formData.get("coverImage");
 
-  if (!(file instanceof File) || file.size <= 0) {
-    throw new ValidationError("Envie uma imagem de capa.");
+  return file instanceof File && file.size > 0 ? file : null;
+}
+
+function isAllowedCreateCoverImageUrl(value: string) {
+  if (localUploadImagePathRegex.test(value)) {
+    return true;
   }
 
-  return file;
+  try {
+    const url = new URL(value);
+
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function getCreateCoverImageUrl(formData: FormData) {
+  const coverImageUrl = String(formData.get("coverImageUrl") ?? "").trim();
+
+  if (!coverImageUrl) {
+    return "";
+  }
+
+  if (!isAllowedCreateCoverImageUrl(coverImageUrl)) {
+    throw new ValidationError("Informe uma URL válida para a imagem de capa.");
+  }
+
+  return coverImageUrl;
 }
 
 function redactSensitiveText(value: string) {
@@ -235,6 +289,50 @@ function redactSensitiveText(value: string) {
   );
 }
 
+function getFormDataDiagnostics(formData: FormData) {
+  const keys = Array.from(new Set(Array.from(formData.keys()))).sort();
+  const file = formData.get("coverImage");
+  const coverImageUrl = String(formData.get("coverImageUrl") ?? "").trim();
+  const coverImage =
+    file instanceof File
+      ? {
+          present: file.size > 0,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        }
+      : {
+          present: false,
+        };
+  const missingFields = requiredCreateHotelFields.filter(
+    (field) => !String(formData.get(field) ?? "").trim()
+  );
+
+  return {
+    keys,
+    missingFields:
+      coverImage.present || coverImageUrl ? missingFields : [...missingFields, "coverImage"],
+    values: {
+      name: String(formData.get("name") ?? "").trim(),
+      slug: String(formData.get("slug") ?? "").trim(),
+      city: String(formData.get("city") ?? "").trim(),
+      state: String(formData.get("state") ?? "").trim(),
+      hasShortDescription: Boolean(String(formData.get("shortDescription") ?? "").trim()),
+      hasFullDescription: Boolean(String(formData.get("fullDescription") ?? "").trim()),
+      hasAddress: Boolean(String(formData.get("address") ?? "").trim()),
+      hasPhone: Boolean(String(formData.get("phone") ?? "").trim()),
+      hasEmail: Boolean(String(formData.get("email") ?? "").trim()),
+      hasWhatsapp: Boolean(String(formData.get("whatsapp") ?? "").trim()),
+      amenitiesCount: formData.getAll("amenities").filter((value) => String(value).trim()).length,
+      policiesCount: formData.getAll("policies").filter((value) => String(value).trim()).length,
+      checkInTime: String(formData.get("checkInTime") ?? "").trim(),
+      checkOutTime: String(formData.get("checkOutTime") ?? "").trim(),
+      coverImage,
+      hasCoverImageUrl: Boolean(coverImageUrl),
+    },
+  };
+}
+
 function getSafeTechnicalError(error: unknown) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     return {
@@ -242,6 +340,7 @@ function getSafeTechnicalError(error: unknown) {
       code: error.code,
       message: redactSensitiveText(error.message),
       meta: error.meta,
+      stack: error.stack ? redactSensitiveText(error.stack) : undefined,
     };
   }
 
@@ -254,6 +353,7 @@ function getSafeTechnicalError(error: unknown) {
     return {
       name: error.name,
       message: redactSensitiveText(error.message),
+      stack: error.stack ? redactSensitiveText(error.stack) : undefined,
     };
   }
 
@@ -261,6 +361,7 @@ function getSafeTechnicalError(error: unknown) {
     return {
       name: error.name,
       message: redactSensitiveText(error.message),
+      stack: error.stack ? redactSensitiveText(error.stack) : undefined,
     };
   }
 
@@ -276,6 +377,10 @@ function logCreateHotelError(error: unknown) {
     error instanceof AuthorizationError ||
     error instanceof ConflictError
   ) {
+    console.warn("[admin/hoteis/create] Controlled create hotel failure.", {
+      name: error.name,
+      message: error.message,
+    });
     return;
   }
 
@@ -310,25 +415,91 @@ function getCreateHotelPrismaErrorMessage(error: Prisma.PrismaClientKnownRequest
   return "Falha ao salvar hotel, galeria, comodidades ou políticas.";
 }
 
-function getCreateHotelErrorMessage(error: unknown) {
+function getCreateHotelErrorCode(error: unknown): CreateHotelErrorCode {
+  if (error instanceof AuthorizationError) {
+    return "FORBIDDEN";
+  }
+
+  if (error instanceof ConflictError) {
+    return "DUPLICATE_SLUG";
+  }
+
+  if (error instanceof ValidationError) {
+    if (error.message === "Informe o e-mail de contato do hotel.") {
+      return "CONTACT_EMAIL_REQUIRED";
+    }
+
+    if (error.message === "Informe um e-mail de contato valido.") {
+      return "CONTACT_EMAIL_INVALID";
+    }
+
+    if (error.message === "Informe o nome do hotel.") {
+      return "NAME_REQUIRED";
+    }
+
+    if (error.message === "Envie uma imagem de capa ou informe a URL da capa.") {
+      return "COVER_IMAGE_REQUIRED";
+    }
+  }
+
   if (error instanceof CreateHotelTechnicalError) {
-    return error.userMessage;
+    return error.step === "cover-upload" ? "COVER_UPLOAD_FAILED" : "DATABASE_RELATION_FAILED";
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    return getCreateHotelPrismaErrorMessage(error);
+    if (error.code === "P2002") {
+      return "DUPLICATE_SLUG";
+    }
+
+    if (error.code === "P2021" || error.code === "P2022") {
+      return "DATABASE_SCHEMA_MISMATCH";
+    }
+
+    return "DATABASE_RELATION_FAILED";
   }
 
   if (
     error instanceof Prisma.PrismaClientInitializationError ||
     error instanceof Prisma.PrismaClientUnknownRequestError ||
-    error instanceof Prisma.PrismaClientRustPanicError ||
-    error instanceof Prisma.PrismaClientValidationError
+    error instanceof Prisma.PrismaClientRustPanicError
   ) {
-    return "Falha de banco de dados ao criar hotel. Verifique schema e migrations.";
+    return "DATABASE_UNAVAILABLE";
   }
 
-  return getErrorMessage(error, "Não foi possível criar o hotel.");
+  if (error instanceof Prisma.PrismaClientValidationError) {
+    return "DATABASE_SCHEMA_MISMATCH";
+  }
+
+  return "UNEXPECTED_ERROR";
+}
+
+function getCreateHotelErrorMessage(error: unknown) {
+  switch (getCreateHotelErrorCode(error)) {
+    case "CONTACT_EMAIL_REQUIRED":
+      return "Informe o e-mail de contato do hotel.";
+    case "CONTACT_EMAIL_INVALID":
+      return "Informe um e-mail de contato válido.";
+    case "NAME_REQUIRED":
+      return "Informe o nome do hotel.";
+    case "DUPLICATE_SLUG":
+      return "Já existe um hotel com este slug.";
+    case "COVER_IMAGE_REQUIRED":
+      return "Envie uma imagem de capa ou informe a URL da capa.";
+    case "COVER_UPLOAD_FAILED":
+      return "Falha ao enviar imagem de capa.";
+    case "FORBIDDEN":
+      return "Você não tem permissão para criar hotéis.";
+    case "DATABASE_UNAVAILABLE":
+      return "Banco de dados indisponível. Tente novamente em instantes.";
+    case "DATABASE_SCHEMA_MISMATCH":
+      return "Falha de schema do banco. Verifique se as migrations foram aplicadas.";
+    case "DATABASE_RELATION_FAILED":
+      return error instanceof Prisma.PrismaClientKnownRequestError
+        ? getCreateHotelPrismaErrorMessage(error)
+        : "Falha ao salvar hotel, galeria, comodidades ou políticas.";
+    case "UNEXPECTED_ERROR":
+      return getErrorMessage(error, "Não foi possível criar o hotel.");
+  }
 }
 
 function buildCreatedHotelAuditValue(
@@ -365,21 +536,41 @@ export async function createHotelAction(
   _previousState: CreateHotelState,
   formData: FormData
 ): Promise<CreateHotelState> {
+  const formDiagnostics = getFormDataDiagnostics(formData);
+
   try {
+    console.info("[admin/hoteis/create] Starting hotel creation.", formDiagnostics);
+
     const user = await requireAuthenticatedRequestUser();
+    console.info("[admin/hoteis/create] Authenticated user.", {
+      userId: user.id,
+      email: user.email,
+      globalRole: user.globalRole,
+      isActive: user.isActive,
+    });
 
     if (user.globalRole !== "super_admin" && user.globalRole !== "hotel_admin") {
+      console.warn("[admin/hoteis/create] Permission denied.", {
+        userId: user.id,
+        globalRole: user.globalRole,
+      });
       throw new AuthorizationError("Você não tem permissão para criar hotéis.");
     }
 
     const parsedPayload = parseCreateHotelFormData(formData);
 
     if (!parsedPayload.success) {
+      console.warn("[admin/hoteis/create] Validation failed.", {
+        issues: parsedPayload.error.issues,
+        missingFields: formDiagnostics.missingFields,
+        received: formDiagnostics.values,
+      });
       throw new ValidationError(parsedPayload.error.issues[0]?.message || "Dados inválidos.");
     }
 
     const payload = parsedPayload.data;
-    const coverImageFile = getRequiredCoverImageFile(formData);
+    const coverImageFile = getCoverImageFile(formData);
+    const submittedCoverImageUrl = getCreateCoverImageUrl(formData);
     const coverAlt = String(formData.get("coverAlt") ?? "");
     const existingSlug = await prisma.hotel.findUnique({
       where: {
@@ -391,22 +582,67 @@ export async function createHotelAction(
     });
 
     if (existingSlug) {
+      console.warn("[admin/hoteis/create] Duplicate slug.", {
+        slug: payload.slug,
+        existingHotelId: existingSlug.id,
+      });
       throw new ConflictError("Já existe um hotel com este slug.");
     }
 
     const hotelId = randomUUID();
-    const storedCoverImage = await storeHotelImageFile(hotelId, coverImageFile).catch((error) => {
-      throw new CreateHotelTechnicalError(
-        "Falha ao enviar imagem. Verifique o storage.",
-        "cover-upload",
-        error
-      );
-    });
+    const storedCoverImageUrl = coverImageFile
+      ? await storeHotelImageFile(hotelId, coverImageFile)
+          .then((storedCoverImage) => {
+            console.info("[admin/hoteis/create] Cover image uploaded.", {
+              hotelId,
+              storageKey: storedCoverImage.storageKey,
+              contentType: storedCoverImage.contentType,
+              size: storedCoverImage.size,
+            });
+
+            return storedCoverImage.url;
+          })
+          .catch((error) => {
+            console.error("[admin/hoteis/create] Cover upload failed.", {
+              hotelId,
+              error: getSafeTechnicalError(error),
+            });
+
+            if (submittedCoverImageUrl) {
+              console.warn(
+                "[admin/hoteis/create] Using submitted cover URL after upload failure.",
+                {
+                  hotelId,
+                  hasSubmittedCoverImageUrl: true,
+                }
+              );
+
+              return submittedCoverImageUrl;
+            }
+
+            throw new CreateHotelTechnicalError(
+              "Falha ao enviar imagem de capa.",
+              "cover-upload",
+              error
+            );
+          })
+      : submittedCoverImageUrl;
+
+    if (!storedCoverImageUrl) {
+      console.warn("[admin/hoteis/create] Missing cover image.", {
+        missingFields: formDiagnostics.missingFields,
+      });
+      throw new ValidationError("Envie uma imagem de capa ou informe a URL da capa.");
+    }
+
     const parsedGalleryImages = galleryImagesSchema.safeParse(
-      parseGalleryImages(formData, payload.name, storedCoverImage.url, coverAlt)
+      parseGalleryImages(formData, payload.name, storedCoverImageUrl, coverAlt)
     );
 
     if (!parsedGalleryImages.success) {
+      console.warn("[admin/hoteis/create] Gallery validation failed.", {
+        issues: parsedGalleryImages.error.issues,
+      });
       throw new ValidationError(
         parsedGalleryImages.error.issues[0]?.message || "Galeria inválida."
       );
@@ -419,6 +655,15 @@ export async function createHotelAction(
     });
     const requestHeaders = await headers();
     const ipAddress = getRequestIpAddress(requestHeaders);
+    console.info("[admin/hoteis/create] Persisting hotel draft.", {
+      hotelId,
+      slug: payload.slug,
+      globalRole: user.globalRole,
+      galleryImagesCount: galleryImages.length,
+      amenitiesCount: payload.amenities.length,
+      policiesCount: payload.policies.length,
+      hasResolvedLocation: Boolean(resolvedLocation),
+    });
 
     const hotel = await prisma
       .$transaction(async (tx) => {
@@ -435,7 +680,7 @@ export async function createHotelAction(
             phone: payload.phone,
             email: payload.email,
             whatsapp: payload.whatsapp,
-            coverImageUrl: storedCoverImage.url,
+            coverImageUrl: storedCoverImageUrl,
             checkInTime: payload.checkInTime,
             checkOutTime: payload.checkOutTime,
             latitude: resolvedLocation ? new Prisma.Decimal(resolvedLocation.latitude) : null,
@@ -444,12 +689,20 @@ export async function createHotelAction(
             images: {
               create: galleryImages,
             },
-            amenities: {
-              create: payload.amenities.map((label, position) => ({ label, position })),
-            },
-            policies: {
-              create: payload.policies,
-            },
+            ...(payload.amenities.length > 0
+              ? {
+                  amenities: {
+                    create: payload.amenities.map((label, position) => ({ label, position })),
+                  },
+                }
+              : {}),
+            ...(payload.policies.length > 0
+              ? {
+                  policies: {
+                    create: payload.policies,
+                  },
+                }
+              : {}),
           },
           select: {
             id: true,
@@ -503,7 +756,7 @@ export async function createHotelAction(
             previousValue: Prisma.JsonNull,
             newValue: buildCreatedHotelAuditValue(
               payload,
-              storedCoverImage.url,
+              storedCoverImageUrl,
               galleryImages,
               resolvedLocation
             ),
@@ -514,6 +767,11 @@ export async function createHotelAction(
         return createdHotel;
       })
       .catch((error) => {
+        console.error("[admin/hoteis/create] Prisma transaction failed.", {
+          hotelId,
+          error: getSafeTechnicalError(error),
+        });
+
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
           throw error;
         }
@@ -525,6 +783,11 @@ export async function createHotelAction(
         );
       });
 
+    console.info("[admin/hoteis/create] Hotel draft created.", {
+      hotelId: hotel.id,
+      slug: payload.slug,
+    });
+
     revalidatePath("/admin");
     revalidatePath("/admin/hoteis");
     revalidatePath(`/admin/hoteis/${hotel.id}`);
@@ -532,15 +795,17 @@ export async function createHotelAction(
 
     return {
       status: "success",
-      message: "Hotel criado com sucesso. Abrindo a gestão da unidade.",
+      message: "Hotel salvo como rascunho.",
       hotelId: hotel.id,
     };
   } catch (error) {
     logCreateHotelError(error);
+    const message = getCreateHotelErrorMessage(error);
 
     return {
       status: "error",
-      message: getCreateHotelErrorMessage(error),
+      message,
+      errorCode: getCreateHotelErrorCode(error),
     };
   }
 }

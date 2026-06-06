@@ -189,6 +189,8 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
     hotel.whatsapp.trim() ? null : "WhatsApp",
     hotel.coverImageUrl.trim() ? null : "imagem de capa",
     hotel.images.length > 0 ? null : "galeria",
+    hotel.amenities.length > 0 ? null : "comodidades",
+    hotel.policies.length > 0 ? null : "politicas",
     hotel.checkInTime.trim() ? null : "check-in",
     hotel.checkOutTime.trim() ? null : "check-out",
     resolveHotelMapLocation({
@@ -221,6 +223,8 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
           "WhatsApp",
           "imagem de capa",
           "galeria",
+          "comodidades",
+          "politicas",
           "check-in",
           "check-out",
         ].includes(item)

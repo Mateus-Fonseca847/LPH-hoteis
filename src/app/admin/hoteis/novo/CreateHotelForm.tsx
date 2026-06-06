@@ -58,6 +58,7 @@ export function CreateHotelForm() {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(createHotelAction, initialState);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
+  const [coverImageUrl, setCoverImageUrl] = useState("");
   const [coverFileName, setCoverFileName] = useState("");
   const [uploadAlt, setUploadAlt] = useState("");
   const [amenityFormError, setAmenityFormError] = useState("");
@@ -94,7 +95,7 @@ export function CreateHotelForm() {
     event.currentTarget.setCustomValidity(
       event.currentTarget.validity.valueMissing
         ? "Informe o e-mail de contato do hotel."
-        : "Informe um e-mail de contato valido."
+        : "Informe um e-mail de contato válido."
     );
   }
 
@@ -174,26 +175,12 @@ export function CreateHotelForm() {
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    const formData = new FormData(event.currentTarget);
-    const selectedAmenities = formData.getAll("amenities").filter((value) => String(value).trim());
     const nextPolicyErrors = validatePolicies(policies);
+    const hasIncompletePolicies = hasPolicyEntries && Object.keys(nextPolicyErrors).length > 0;
 
-    let hasError = false;
-
-    if (selectedAmenities.length === 0) {
-      setAmenityFormError("Selecione ao menos uma comodidade.");
-      hasError = true;
-    }
-
-    if (!hasPolicyEntries) {
-      setPolicyFormError("Adicione ao menos uma política.");
-      hasError = true;
-    } else if (Object.keys(nextPolicyErrors).length > 0) {
+    if (hasIncompletePolicies) {
       setPolicyErrors(nextPolicyErrors);
-      hasError = true;
-    }
-
-    if (hasError) {
+      setPolicyFormError("Revise os campos destacados antes de salvar.");
       event.preventDefault();
       return;
     }
@@ -339,12 +326,13 @@ export function CreateHotelForm() {
         <HotelGalleryEditor
           mode="create"
           hotelName=""
-          coverImageUrl=""
+          coverImageUrl={coverImageUrl}
           coverPreviewUrl={coverPreviewUrl}
           galleryImages={[]}
           coverUploadFileName={coverFileName}
           galleryUploadFileNames={[]}
           uploadAlt={uploadAlt}
+          onCoverImageUrlChange={setCoverImageUrl}
           onCoverFileChange={handleCoverImageChange}
           onUploadAltChange={setUploadAlt}
         />
@@ -430,6 +418,7 @@ export function CreateHotelForm() {
         <p
           className={`admin-editor-feedback ${state.status === "success" ? "is-success" : "is-error"}`}
           aria-live="polite"
+          role={state.status === "error" ? "alert" : undefined}
         >
           {state.message}
         </p>
