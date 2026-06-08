@@ -6,6 +6,11 @@ describe("AdminReservationDetailPage markup", () => {
     const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
 
     expect(source).toContain("Acoes operacionais");
+    expect(source).toContain("prisma.hotelPermission.findMany");
+    expect(source).toContain("userId: user.id");
+    expect(source).toContain("prisma.reservation.findFirst");
+    expect(source).toContain("hotelId: {\n              in: scopedHotelIds");
+    expect(source).toContain("notFound()");
     expect(source).toContain("Status atual");
     expect(source).toContain("Novo status do pagamento");
     expect(source).toContain("Motivo da alteração");

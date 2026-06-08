@@ -5,6 +5,7 @@ describe("AdminHomePage markup", () => {
   it("inclui o CTA Adicionar hotel e identidade visual dos cards", () => {
     const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
 
+    expect(source).toContain('requireAdminRouteSession("/admin")');
     expect(source).toContain("Adicionar hotel");
     expect(source).toContain("/admin/hoteis/novo");
     expect(source).toContain("/admin/solicitacoes-acesso");
@@ -17,10 +18,20 @@ describe("AdminHomePage markup", () => {
   it("mostra o card de auditoria de tarifas sem texto acidental", () => {
     const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
 
+    expect(source).toContain("superAdminOnly: true");
+    expect(source).toContain('href: "/admin/financeiro"');
+    expect(source).toContain('heading: "Painel financeiro"');
     expect(source).toContain('title: "Auditoria"');
     expect(source).toContain("Consulte altera");
     expect(source).toContain("tarifas dos hot");
     expect(source).toContain('action: "Abrir auditoria"');
     expect(source).not.toContain("npm cache clean --force");
+  });
+
+  it("filtra financeiro e auditoria para hotel_admin", () => {
+    const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain('user.globalRole === "super_admin"');
+    expect(source).toContain("overviewCards.filter((card) => !card.superAdminOnly)");
   });
 });

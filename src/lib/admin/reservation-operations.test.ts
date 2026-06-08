@@ -163,6 +163,19 @@ describe("reservation admin operations", () => {
     expect(closeUnpaidReservation).not.toHaveBeenCalled();
   });
 
+  it("valida permissao no hotel da reserva antes de operar", async () => {
+    mockReservation({ hotelId: "hotel-permitido" });
+    vi.mocked(closeUnpaidReservation).mockResolvedValue(true);
+
+    await cancelReservationManually({
+      reservationId: "reservation-1",
+      userId: "hotel-admin-1",
+      reason: "Solicitado pelo hotel",
+    });
+
+    expect(requireHotelAdminAccess).toHaveBeenCalledWith("hotel-admin-1", "hotel-permitido");
+  });
+
   it("cancela reserva pendente e registra auditoria", async () => {
     mockReservation();
     vi.mocked(closeUnpaidReservation).mockResolvedValue(true);

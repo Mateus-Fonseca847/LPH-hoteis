@@ -19,6 +19,7 @@ const overviewCards = [
   },
   {
     href: "/admin/auditoria",
+    superAdminOnly: true,
     label: "Auditoria",
     title: "Auditoria",
     description: "Consulte alterações feitas nas tarifas dos hotéis.",
@@ -26,6 +27,8 @@ const overviewCards = [
   },
   {
     href: "/admin/financeiro",
+    superAdminOnly: true,
+    heading: "Painel financeiro",
     label: "Financeiro",
     title: "Movimentações",
     description: "Acompanhe reservas pagas, receita da plataforma e repasses por hotel.",
@@ -95,7 +98,7 @@ export default async function AdminHomePage() {
           action: "Ver solicitações",
         },
       ]
-    : overviewCards;
+    : overviewCards.filter((card) => !card.superAdminOnly);
   const scopedAdminHotelIds = scopedHotelIds ?? [];
   const activeAdmins = isSuperAdmin
     ? await prisma.user.count({
@@ -161,7 +164,7 @@ export default async function AdminHomePage() {
               <span>{card.label}</span>
             </div>
             <div className="admin-identity-card__body">
-              <strong>{card.title}</strong>
+              <strong>{card.heading ?? card.title}</strong>
               <p>{card.description}</p>
             </div>
             <small>{card.action}</small>
