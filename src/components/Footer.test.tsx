@@ -8,7 +8,7 @@ describe("Footer navigation", () => {
     expect(source).toContain('href="#top"');
     expect(source).toContain('href="#journey"');
     expect(source).toContain('href="#destinations"');
-    expect(source).toContain('href="https://wa.me/5524998828663"');
+    expect(source).toContain('href="https://wa.me/5524981128252"');
     expect(source).toContain('target="_blank"');
     expect(source).toContain('rel="noopener noreferrer"');
   });

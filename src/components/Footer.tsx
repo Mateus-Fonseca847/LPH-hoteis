@@ -76,7 +76,7 @@ export function Footer() {
           <a href="#top">Início</a>
           <a href="#journey">Sobre</a>
           <a href="#destinations">Destinos</a>
-          <a href="https://wa.me/5524998828663" target="_blank" rel="noopener noreferrer">
+          <a href="https://wa.me/5524981128252" target="_blank" rel="noopener noreferrer">
             Contato
           </a>
         </nav>
