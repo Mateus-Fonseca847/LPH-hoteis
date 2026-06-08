@@ -76,7 +76,9 @@ export function Footer() {
           <a href="#top">Início</a>
           <a href="#journey">Sobre</a>
           <a href="#destinations">Destinos</a>
-          <a href="#footer">Contato</a>
+          <a href="https://wa.me/5524998828663" target="_blank" rel="noopener noreferrer">
+            Contato
+          </a>
         </nav>
 
         <form className="footer-form" onSubmit={handleSubmit} noValidate>
