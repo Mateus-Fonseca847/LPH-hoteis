@@ -12,6 +12,9 @@ describe("AdminSignupRequestsPage markup", () => {
     expect(pageSource).toContain("Nenhuma solicitação pendente.");
     expect(pageSource).toContain("Nenhuma solicitação aprovada.");
     expect(pageSource).toContain("Nenhuma solicitação rejeitada.");
+    expect(pageSource).toContain("CNPJ do hotel");
+    expect(pageSource).toContain("formatCnpj(request.hotelDocument)");
+    expect(pageSource).not.toContain("passwordHash: true");
     expect(formSource).toContain("Aprovar e criar hotel_admin");
     expect(formSource).toContain("Rejeitar solicitação");
   });

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isValidCnpj, normalizeCnpj } from "@/lib/cnpj";
+
 const BRAZILIAN_STATES = new Set([
   "AC",
   "AL",
@@ -46,6 +48,10 @@ function sanitizeOptionalText(value: unknown) {
   return sanitized.length > 0 ? sanitized : undefined;
 }
 
+function normalizeRequiredCnpj(value: unknown) {
+  return typeof value === "string" ? normalizeCnpj(value) : "";
+}
+
 const requiredTextSchema = (field: string, min = 1, max = 160) =>
   z
     .string()
@@ -56,6 +62,14 @@ const requiredTextSchema = (field: string, min = 1, max = 160) =>
         .min(min, `${field} obrigatório.`)
         .max(max, `${field} deve ter no máximo ${max} caracteres.`)
     );
+
+const passwordSchema = z
+  .string()
+  .min(1, "Informe a senha.")
+  .min(8, "A senha deve ter pelo menos 8 caracteres.")
+  .max(200, "Senha muito longa.")
+  .regex(/[A-Za-z]/, "A senha deve conter pelo menos uma letra.")
+  .regex(/\d/, "A senha deve conter pelo menos um número.");
 
 export const hotelOwnerSignupPayloadSchema = z
   .object({
@@ -74,10 +88,22 @@ export const hotelOwnerSignupPayloadSchema = z
       .trim()
       .toUpperCase()
       .refine((value) => BRAZILIAN_STATES.has(value), "UF inválida."),
-    hotelDocument: z.preprocess(sanitizeOptionalText, z.string().max(40).optional()),
+    hotelDocument: z.preprocess(
+      normalizeRequiredCnpj,
+      z
+        .string()
+        .length(14, "Informe um CNPJ válido no formato 00.000.000/0000-00.")
+        .refine(isValidCnpj, "Informe um CNPJ válido no formato 00.000.000/0000-00.")
+    ),
     message: z.preprocess(sanitizeOptionalText, z.string().max(1000).optional()),
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, "Confirme a senha.").max(200, "Senha muito longa."),
   })
-  .strict();
+  .strict()
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "A confirmação de senha não confere.",
+  });
 
 export type HotelOwnerSignupPayload = z.infer<typeof hotelOwnerSignupPayloadSchema>;
 

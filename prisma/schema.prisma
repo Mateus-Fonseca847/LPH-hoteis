@@ -248,6 +248,7 @@ model HotelOwnerSignupRequest {
   hotelState      String
   hotelDocument   String?
   message         String?                @db.Text
+  passwordHash    String?
   status          HotelOwnerSignupStatus @default(pending)
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt

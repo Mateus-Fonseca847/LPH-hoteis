@@ -1,5 +1,6 @@
 import { AdminAccessDenied } from "@/app/admin/AdminAccessDenied";
 import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
+import { formatCnpj } from "@/lib/cnpj";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -91,7 +92,7 @@ function RequestCard({ request }: { request: SignupRequest }) {
       </div>
 
       {request.hotelDocument ? (
-        <p className="admin-rooms-copy">Documento: {request.hotelDocument}</p>
+        <p className="admin-rooms-copy">CNPJ do hotel: {formatCnpj(request.hotelDocument)}</p>
       ) : null}
 
       {request.message ? (

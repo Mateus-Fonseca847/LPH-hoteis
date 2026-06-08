@@ -91,9 +91,10 @@ O cadastro público de donos de hotéis não cria usuário automaticamente:
 3. `super_admin` revisa em `/admin/solicitacoes-acesso`.
 4. Ao aprovar, o sistema cria `User` com `globalRole="hotel_admin"` e `isActive=true`.
 5. A aprovação não cria `super_admin`, não cria sessão e não cria `HotelPermission` sem hotel concreto.
-6. Como não há fluxo completo de definição de senha, a aprovação envia senha temporária forte por e-mail e recomenda troca no primeiro acesso.
-7. O `hotel_admin` aprovado pode criar seu primeiro hotel em `/admin/hoteis/novo`; nesse fluxo o sistema cria `HotelPermission owner` para o hotel criado.
-8. Ao rejeitar, o sistema marca a solicitação como `rejected` e não cria `User`.
+6. A senha é criada pelo solicitante no cadastro público e salva apenas como hash em `HotelOwnerSignupRequest.passwordHash`.
+7. Ao aprovar, o `User` usa esse `passwordHash`; nenhuma senha é enviada por e-mail.
+8. O `hotel_admin` aprovado pode criar seu primeiro hotel em `/admin/hoteis/novo`; nesse fluxo o sistema cria `HotelPermission owner` para o hotel criado.
+9. Ao rejeitar, o sistema marca a solicitação como `rejected` e não cria `User`.
 
 ## Criação, Aprovação e Publicação de Hotel
 

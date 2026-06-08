@@ -14,8 +14,13 @@ describe("Cadastro hotel owner signup markup", () => {
     expect(formSource).toContain("/api/hotel-owner-signup");
     expect(formSource).toContain("Solicitação enviada com sucesso");
     expect(formSource).toContain("O acesso administrativo será liberado somente após aprovação");
+    expect(formSource).toContain("Crie uma senha para acessar o painel");
+    expect(formSource).toContain("Pelo menos uma letra");
+    expect(formSource).toContain("Pelo menos um número");
+    expect(formSource).toContain("CNPJ do hotel");
+    expect(formSource).toContain("00.000.000/0000-00");
+    expect(formSource).toContain("formatCnpj(event.target.value)");
     expect(formSource).not.toContain("/api/auth/register");
-    expect(formSource).not.toContain("password");
     expect(routeSource).not.toContain("setAuthSessionCookie");
   });
 });

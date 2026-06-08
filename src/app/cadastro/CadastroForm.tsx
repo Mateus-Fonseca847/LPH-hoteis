@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from "react";
 
+import { formatCnpj, isValidCnpj } from "@/lib/cnpj";
+
 type CadastroFormValues = {
   responsibleName: string;
   email: string;
@@ -11,6 +13,8 @@ type CadastroFormValues = {
   hotelState: string;
   hotelDocument: string;
   message: string;
+  password: string;
+  confirmPassword: string;
 };
 
 type CadastroFormErrors = Partial<Record<keyof CadastroFormValues, string>> & {
@@ -62,6 +66,8 @@ const initialValues: CadastroFormValues = {
   hotelState: "",
   hotelDocument: "",
   message: "",
+  password: "",
+  confirmPassword: "",
 };
 
 const SUCCESS_MESSAGE = "Solicitação enviada com sucesso. A equipe LPH analisará seu cadastro.";
@@ -70,8 +76,18 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function getPasswordChecks(password: string) {
+  return {
+    minLength: password.length >= 8,
+    hasLetter: /[A-Za-z]/.test(password),
+    hasNumber: /\d/.test(password),
+  };
+}
+
 function validateForm(values: CadastroFormValues) {
   const errors: CadastroFormErrors = {};
+  const passwordChecks = getPasswordChecks(values.password);
+  const isValidPassword = Object.values(passwordChecks).every(Boolean);
 
   if (values.responsibleName.trim().length < 3) {
     errors.responsibleName = "Informe o nome do responsável.";
@@ -97,8 +113,22 @@ function validateForm(values: CadastroFormValues) {
     errors.hotelState = "Informe uma UF válida.";
   }
 
+  if (!isValidCnpj(values.hotelDocument)) {
+    errors.hotelDocument = "Informe um CNPJ válido no formato 00.000.000/0000-00.";
+  }
+
   if (values.message.length > 1000) {
     errors.message = "Mensagem deve ter no máximo 1000 caracteres.";
+  }
+
+  if (!isValidPassword) {
+    errors.password = "A senha ainda não atende aos requisitos mínimos.";
+  }
+
+  if (!values.confirmPassword) {
+    errors.confirmPassword = "Confirme sua senha.";
+  } else if (values.password !== values.confirmPassword) {
+    errors.confirmPassword = "A confirmação de senha não confere.";
   }
 
   return errors;
@@ -112,8 +142,10 @@ function buildPayload(values: CadastroFormValues) {
     hotelName: values.hotelName,
     hotelCity: values.hotelCity,
     hotelState: values.hotelState,
-    hotelDocument: values.hotelDocument || undefined,
+    hotelDocument: values.hotelDocument,
     message: values.message || undefined,
+    password: values.password,
+    confirmPassword: values.confirmPassword,
   };
 }
 
@@ -122,6 +154,7 @@ export function CadastroForm() {
   const [errors, setErrors] = useState<CadastroFormErrors>({});
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const passwordChecks = getPasswordChecks(values.password);
 
   function updateField(field: keyof CadastroFormValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -187,6 +220,9 @@ export function CadastroForm() {
     <form className="auth-form" noValidate onSubmit={handleSubmit}>
       <p className="auth-help">
         O acesso administrativo será liberado somente após aprovação da equipe LPH.
+      </p>
+      <p className="auth-help">
+        Crie uma senha para acessar o painel caso sua solicitação seja aprovada.
       </p>
 
       <div className="auth-field">
@@ -304,13 +340,63 @@ export function CadastroForm() {
       </div>
 
       <div className="auth-field">
-        <label htmlFor="hotelDocument">Documento do hotel</label>
+        <label htmlFor="hotelDocument">CNPJ do hotel</label>
         <input
           id="hotelDocument"
           type="text"
+          inputMode="numeric"
+          maxLength={18}
+          placeholder="00.000.000/0000-00"
           value={values.hotelDocument}
-          onChange={(event) => updateField("hotelDocument", event.target.value)}
+          aria-invalid={Boolean(errors.hotelDocument)}
+          aria-describedby={errors.hotelDocument ? "hotel-document-error" : undefined}
+          onChange={(event) => updateField("hotelDocument", formatCnpj(event.target.value))}
+          required
         />
+        {errors.hotelDocument ? (
+          <small id="hotel-document-error" className="auth-error">
+            {errors.hotelDocument}
+          </small>
+        ) : null}
+      </div>
+
+      <div className="auth-field">
+        <label htmlFor="password">Senha</label>
+        <input
+          id="password"
+          type="password"
+          autoComplete="new-password"
+          value={values.password}
+          aria-invalid={Boolean(errors.password)}
+          aria-describedby="password-rules"
+          onChange={(event) => updateField("password", event.target.value)}
+          required
+        />
+        <ul id="password-rules" className="auth-requirements">
+          <li className={passwordChecks.minLength ? "is-met" : ""}>Mínimo de 8 caracteres</li>
+          <li className={passwordChecks.hasLetter ? "is-met" : ""}>Pelo menos uma letra</li>
+          <li className={passwordChecks.hasNumber ? "is-met" : ""}>Pelo menos um número</li>
+        </ul>
+        {errors.password ? <small className="auth-error">{errors.password}</small> : null}
+      </div>
+
+      <div className="auth-field">
+        <label htmlFor="confirmPassword">Confirmar senha</label>
+        <input
+          id="confirmPassword"
+          type="password"
+          autoComplete="new-password"
+          value={values.confirmPassword}
+          aria-invalid={Boolean(errors.confirmPassword)}
+          aria-describedby={errors.confirmPassword ? "confirm-password-error" : undefined}
+          onChange={(event) => updateField("confirmPassword", event.target.value)}
+          required
+        />
+        {errors.confirmPassword ? (
+          <small id="confirm-password-error" className="auth-error">
+            {errors.confirmPassword}
+          </small>
+        ) : null}
       </div>
 
       <div className="auth-field">

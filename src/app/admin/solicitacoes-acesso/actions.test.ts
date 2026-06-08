@@ -5,7 +5,6 @@ import {
   rejectHotelOwnerSignupRequestAction,
 } from "./actions";
 import { requireAuthenticatedRequestUser } from "@/lib/auth";
-import { hashPassword } from "@/lib/auth/password";
 import { sendHotelOwnerSignupApprovedEmail, sendHotelOwnerSignupRejectedEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
@@ -15,10 +14,6 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/lib/auth", () => ({
   requireAuthenticatedRequestUser: vi.fn(),
-}));
-
-vi.mock("@/lib/auth/password", () => ({
-  hashPassword: vi.fn(),
 }));
 
 vi.mock("@/lib/email", () => ({
@@ -40,6 +35,7 @@ const pendingRequest = {
   responsibleName: "Maria Oliveira",
   email: "maria@hotel.com",
   hotelName: "Hotel Central",
+  passwordHash: "stored-signup-password-hash",
   status: "pending",
 };
 
@@ -68,7 +64,6 @@ function mockHotelAdmin() {
 describe("hotel owner signup review actions", () => {
   beforeEach(() => {
     vi.mocked(requireAuthenticatedRequestUser).mockReset();
-    vi.mocked(hashPassword).mockReset().mockResolvedValue("hashed-temp-password");
     vi.mocked(sendHotelOwnerSignupApprovedEmail).mockReset().mockResolvedValue(undefined);
     vi.mocked(sendHotelOwnerSignupRejectedEmail).mockReset().mockResolvedValue(undefined);
     vi.mocked(prisma.$transaction).mockReset();
@@ -159,7 +154,7 @@ describe("hotel owner signup review actions", () => {
           globalRole: "hotel_admin",
           isActive: true,
           emailTwoFactorEnabled: false,
-          passwordHash: "hashed-temp-password",
+          passwordHash: "stored-signup-password-hash",
         }),
       })
     );
@@ -183,9 +178,49 @@ describe("hotel owner signup review actions", () => {
     expect(sendHotelOwnerSignupApprovedEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: pendingRequest.email,
+      })
+    );
+    expect(sendHotelOwnerSignupApprovedEmail).not.toHaveBeenCalledWith(
+      expect.objectContaining({
         temporaryPassword: expect.any(String),
       })
     );
+    expect(JSON.stringify(vi.mocked(sendHotelOwnerSignupApprovedEmail).mock.calls)).not.toContain(
+      "stored-signup-password-hash"
+    );
+  });
+
+  it("não aprova solicitação antiga sem passwordHash", async () => {
+    mockSuperAdmin();
+
+    const tx = {
+      hotelOwnerSignupRequest: {
+        findUnique: vi.fn().mockResolvedValue({
+          ...pendingRequest,
+          passwordHash: null,
+        }),
+      },
+      user: {
+        findUnique: vi.fn(),
+        create: vi.fn(),
+      },
+    };
+
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    const result = await approveHotelOwnerSignupRequestAction(
+      "request-1",
+      {
+        status: "idle",
+        message: "",
+      },
+      formData()
+    );
+
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("Esta solicitação não possui senha definida");
+    expect(tx.user.findUnique).not.toHaveBeenCalled();
+    expect(tx.user.create).not.toHaveBeenCalled();
   });
 
   it("aprovação não cria usuário duplicado", async () => {

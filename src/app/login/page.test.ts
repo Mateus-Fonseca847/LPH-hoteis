@@ -6,7 +6,7 @@ describe("LoginPage markup", () => {
     const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
 
     expect(source).toContain("Sou dono de hotel");
-    expect(source).toContain("Solicitar acesso");
+    expect(source).toContain("Solicitar acesso de hotel");
     expect(source).toContain('href="/cadastro"');
     expect(source).toContain("<LoginForm />");
   });

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/hotel-owner-signup/route";
+import { hashPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 
 vi.mock("@/lib/prisma", () => ({
@@ -22,6 +23,10 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+vi.mock("@/lib/auth/password", () => ({
+  hashPassword: vi.fn(),
+}));
+
 function createRequest(payload: unknown = validPayload) {
   return new Request("http://localhost/api/hotel-owner-signup", {
     method: "POST",
@@ -39,8 +44,10 @@ const validPayload = {
   hotelName: "Hotel Central",
   hotelCity: "São Paulo",
   hotelState: "SP",
-  hotelDocument: "12.345.678/0001-90",
+  hotelDocument: "12.345.678/0001-95",
   message: "Quero cadastrar meu hotel na plataforma.",
+  password: "senha123",
+  confirmPassword: "senha123",
 };
 
 describe("POST /api/hotel-owner-signup", () => {
@@ -51,6 +58,7 @@ describe("POST /api/hotel-owner-signup", () => {
     vi.mocked(prisma.hotelPermission.create).mockReset();
     vi.mocked(prisma.hotelOwnerSignupRequest.findFirst).mockReset();
     vi.mocked(prisma.hotelOwnerSignupRequest.create).mockReset();
+    vi.mocked(hashPassword).mockReset().mockResolvedValue("hashed-signup-password");
 
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.hotelOwnerSignupRequest.findFirst).mockResolvedValue(null);
@@ -69,14 +77,33 @@ describe("POST /api/hotel-owner-signup", () => {
       id: "request-1",
       status: "pending",
     });
+    expect(JSON.stringify(body)).not.toContain("passwordHash");
+    expect(JSON.stringify(body)).not.toContain(validPayload.password);
+    expect(JSON.stringify(body)).not.toContain(validPayload.confirmPassword);
     expect(prisma.hotelOwnerSignupRequest.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           email: "maria@hotel.com",
+          passwordHash: "hashed-signup-password",
           status: "pending",
         }),
       })
     );
+  });
+
+  it("bloqueia solicitação sem senha", async () => {
+    const response = await POST(
+      createRequest({
+        ...validPayload,
+        password: "",
+        confirmPassword: "",
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Informe a senha.");
+    expect(prisma.hotelOwnerSignupRequest.create).not.toHaveBeenCalled();
   });
 
   it("não cria User, Hotel, HotelPermission ou sessão", async () => {

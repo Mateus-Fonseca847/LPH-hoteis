@@ -20,7 +20,6 @@ type SendHotelOwnerSignupApprovedEmailInput = {
   to: string;
   responsibleName: string;
   hotelName: string;
-  temporaryPassword: string;
 };
 
 type SendHotelOwnerSignupRejectedEmailInput = {
@@ -200,23 +199,17 @@ export async function sendHotelOwnerSignupApprovedEmail(
 ) {
   const safeName = escapeHtml(input.responsibleName);
   const safeHotelName = escapeHtml(input.hotelName);
-  const safePassword = escapeHtml(input.temporaryPassword);
   const subject = "Acesso aprovado - LPH Hotéis";
   const text = [
     `Olá, ${input.responsibleName}.`,
     "",
     `Sua solicitação de acesso para ${input.hotelName} foi aprovada.`,
-    "Acesse /login com este e-mail e a senha temporária abaixo:",
-    input.temporaryPassword,
-    "",
-    "Recomendamos trocar a senha no primeiro acesso.",
+    "Acesse /login com este e-mail e a senha criada no cadastro.",
   ].join("\n");
   const html = `
     <p>Olá, ${safeName}.</p>
     <p>Sua solicitação de acesso para <strong>${safeHotelName}</strong> foi aprovada.</p>
-    <p>Acesse <strong>/login</strong> com este e-mail e a senha temporária abaixo:</p>
-    <p style="font-size: 18px; font-weight: 700;">${safePassword}</p>
-    <p>Recomendamos trocar a senha no primeiro acesso.</p>
+    <p>Acesse <strong>/login</strong> com este e-mail e a senha criada no cadastro.</p>
   `;
 
   await sendEmail({

@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 
+import { hashPassword } from "@/lib/auth/password";
 import { ConflictError, ValidationError } from "@/lib/errors/app-error";
 import { prisma } from "@/lib/prisma";
 import { parseHotelOwnerSignupPayload } from "@/lib/validations/hotel-owner-signup";
@@ -53,7 +54,17 @@ export async function createPendingHotelOwnerSignupRequest(
     throw new ValidationError(parsedPayload.error);
   }
 
-  const data = parsedPayload.data;
+  const { password } = parsedPayload.data;
+  const data = {
+    responsibleName: parsedPayload.data.responsibleName,
+    email: parsedPayload.data.email,
+    phone: parsedPayload.data.phone,
+    hotelName: parsedPayload.data.hotelName,
+    hotelCity: parsedPayload.data.hotelCity,
+    hotelState: parsedPayload.data.hotelState,
+    hotelDocument: parsedPayload.data.hotelDocument,
+    message: parsedPayload.data.message,
+  };
 
   if (await userExistsByEmail(data.email)) {
     throw new ConflictError(HOTEL_OWNER_SIGNUP_USER_EXISTS_MESSAGE);
@@ -63,10 +74,13 @@ export async function createPendingHotelOwnerSignupRequest(
     throw new ConflictError(HOTEL_OWNER_SIGNUP_PENDING_EXISTS_MESSAGE);
   }
 
+  const passwordHash = await hashPassword(password);
+
   try {
     const created = await prisma.hotelOwnerSignupRequest.create({
       data: {
         ...data,
+        passwordHash,
         status: "pending",
       },
       select: {

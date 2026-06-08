@@ -1,12 +1,9 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
-
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { requireAuthenticatedRequestUser } from "@/lib/auth";
-import { hashPassword } from "@/lib/auth/password";
 import { sendHotelOwnerSignupApprovedEmail, sendHotelOwnerSignupRejectedEmail } from "@/lib/email";
 import {
   AuthorizationError,
@@ -22,7 +19,8 @@ export type HotelOwnerSignupReviewState = {
   message: string;
 };
 
-const initialPasswordBytes = 18;
+const MISSING_PASSWORD_HASH_MESSAGE =
+  "Esta solicitação não possui senha definida. Peça ao solicitante para enviar uma nova solicitação.";
 
 async function requireSuperAdminActor() {
   const actor = await requireAuthenticatedRequestUser();
@@ -49,10 +47,6 @@ function getReviewNote(formData: FormData) {
   }
 
   return reviewNote || null;
-}
-
-function createTemporaryPassword() {
-  return `${randomBytes(initialPasswordBytes).toString("base64url")}A1`;
 }
 
 function revalidateSignupRequestPaths() {
@@ -136,12 +130,9 @@ export async function approveHotelOwnerSignupRequestAction(
   _previousState: HotelOwnerSignupReviewState,
   formData: FormData
 ): Promise<HotelOwnerSignupReviewState> {
-  const temporaryPassword = createTemporaryPassword();
-
   try {
     const actor = await requireSuperAdminActor();
     const reviewNote = getReviewNote(formData);
-    const passwordHash = await hashPassword(temporaryPassword);
     const now = new Date();
 
     const approvedRequest = await prisma.$transaction(async (tx) => {
@@ -152,6 +143,7 @@ export async function approveHotelOwnerSignupRequestAction(
           responsibleName: true,
           email: true,
           hotelName: true,
+          passwordHash: true,
           status: true,
         },
       });
@@ -162,6 +154,10 @@ export async function approveHotelOwnerSignupRequestAction(
 
       if (request.status !== "pending") {
         throw new ConflictError("Somente solicitações pendentes podem ser aprovadas.");
+      }
+
+      if (!request.passwordHash) {
+        throw new ConflictError(MISSING_PASSWORD_HASH_MESSAGE);
       }
 
       const existingUser = await tx.user.findUnique({
@@ -177,7 +173,7 @@ export async function approveHotelOwnerSignupRequestAction(
         data: {
           name: request.responsibleName,
           email: request.email,
-          passwordHash,
+          passwordHash: request.passwordHash,
           globalRole: "hotel_admin",
           isActive: true,
           emailTwoFactorEnabled: false,
@@ -218,7 +214,6 @@ export async function approveHotelOwnerSignupRequestAction(
       to: approvedRequest.email,
       responsibleName: approvedRequest.responsibleName,
       hotelName: approvedRequest.hotelName,
-      temporaryPassword,
     });
 
     revalidateSignupRequestPaths();
