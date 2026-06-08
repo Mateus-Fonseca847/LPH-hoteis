@@ -7,6 +7,9 @@ describe("AdminHomePage markup", () => {
 
     expect(source).toContain("Adicionar hotel");
     expect(source).toContain("/admin/hoteis/novo");
+    expect(source).toContain("/admin/solicitacoes-acesso");
+    expect(source).toContain("Solicitações de acesso");
+    expect(source).toContain("Analise pedidos de donos de hotéis.");
     expect(source).toContain("admin-identity-card");
     expect(source).not.toContain("admin-identity-card__icon");
   });

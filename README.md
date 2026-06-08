@@ -38,6 +38,7 @@ O deploy principal é Vercel + Neon PostgreSQL + Resend + Vercel Blob.
 - Sugestões de hotel via `/api/hoteis/sugestoes`.
 - Recomendações de viagem via `/api/viagem/recomendacoes`.
 - Cadastro público em `/cadastro`.
+- Solicitação pública de acesso de dono de hotel em `/cadastro`, gravada como `HotelOwnerSignupRequest`.
 - Login em `/login`.
 
 Hotéis com `isPublished=false` não aparecem na home, busca, mapa ou página pública.
@@ -57,6 +58,7 @@ Rotas principais:
 - `/admin/reservas/[id]`: operação de reserva.
 - `/admin/financeiro`: dashboard financeiro.
 - `/admin/seguranca`: 2FA por e-mail opcional.
+- `/admin/solicitacoes-acesso`: aprovação/rejeição de solicitações de donos de hotéis, restrita a `super_admin`.
 
 ## Papéis de Usuário
 
@@ -79,6 +81,19 @@ Administradores podem entrar com e-mail e senha. O 2FA por e-mail existe como fu
 - se `emailTwoFactorEnabled=true`, o login administrativo exige código por e-mail;
 - se `emailTwoFactorEnabled=false`, o admin entra apenas com e-mail e senha;
 - `twoFactorEnabled` e `twoFactorSecret` são campos legados de TOTP.
+
+## Solicitação de Acesso de Dono de Hotel
+
+O cadastro público de donos de hotéis não cria usuário automaticamente:
+
+1. O dono solicita acesso em `/cadastro`.
+2. A solicitação fica como `pending` em `HotelOwnerSignupRequest`.
+3. `super_admin` revisa em `/admin/solicitacoes-acesso`.
+4. Ao aprovar, o sistema cria `User` com `globalRole="hotel_admin"` e `isActive=true`.
+5. A aprovação não cria `super_admin`, não cria sessão e não cria `HotelPermission` sem hotel concreto.
+6. Como não há fluxo completo de definição de senha, a aprovação envia senha temporária forte por e-mail e recomenda troca no primeiro acesso.
+7. O `hotel_admin` aprovado pode criar seu primeiro hotel em `/admin/hoteis/novo`; nesse fluxo o sistema cria `HotelPermission owner` para o hotel criado.
+8. Ao rejeitar, o sistema marca a solicitação como `rejected` e não cria `User`.
 
 ## Criação, Aprovação e Publicação de Hotel
 
@@ -445,6 +460,7 @@ Públicas:
 - `GET /api/hoteis/sugestoes`
 - `POST /api/marketing/subscribers`
 - `POST /api/viagem/recomendacoes`
+- `POST /api/hotel-owner-signup`
 
 Autenticação:
 

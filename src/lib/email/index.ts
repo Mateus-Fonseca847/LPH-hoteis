@@ -16,6 +16,20 @@ type SendTwoFactorCodeEmailInput = {
   expiresInMinutes: number;
 };
 
+type SendHotelOwnerSignupApprovedEmailInput = {
+  to: string;
+  responsibleName: string;
+  hotelName: string;
+  temporaryPassword: string;
+};
+
+type SendHotelOwnerSignupRejectedEmailInput = {
+  to: string;
+  responsibleName: string;
+  hotelName: string;
+  reviewNote?: string | null;
+};
+
 const DEVELOPMENT_PROVIDER = "development";
 const RESEND_PROVIDER = "resend";
 const TWO_FACTOR_SEND_FAILURE_MESSAGE =
@@ -178,6 +192,67 @@ export async function sendTwoFactorCodeEmail(input: SendTwoFactorCodeEmailInput)
     }
 
     throw error;
+  });
+}
+
+export async function sendHotelOwnerSignupApprovedEmail(
+  input: SendHotelOwnerSignupApprovedEmailInput
+) {
+  const safeName = escapeHtml(input.responsibleName);
+  const safeHotelName = escapeHtml(input.hotelName);
+  const safePassword = escapeHtml(input.temporaryPassword);
+  const subject = "Acesso aprovado - LPH Hotéis";
+  const text = [
+    `Olá, ${input.responsibleName}.`,
+    "",
+    `Sua solicitação de acesso para ${input.hotelName} foi aprovada.`,
+    "Acesse /login com este e-mail e a senha temporária abaixo:",
+    input.temporaryPassword,
+    "",
+    "Recomendamos trocar a senha no primeiro acesso.",
+  ].join("\n");
+  const html = `
+    <p>Olá, ${safeName}.</p>
+    <p>Sua solicitação de acesso para <strong>${safeHotelName}</strong> foi aprovada.</p>
+    <p>Acesse <strong>/login</strong> com este e-mail e a senha temporária abaixo:</p>
+    <p style="font-size: 18px; font-weight: 700;">${safePassword}</p>
+    <p>Recomendamos trocar a senha no primeiro acesso.</p>
+  `;
+
+  await sendEmail({
+    to: input.to,
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendHotelOwnerSignupRejectedEmail(
+  input: SendHotelOwnerSignupRejectedEmailInput
+) {
+  const safeName = escapeHtml(input.responsibleName);
+  const safeHotelName = escapeHtml(input.hotelName);
+  const safeNote = input.reviewNote ? escapeHtml(input.reviewNote) : "";
+  const subject = "Solicitação analisada - LPH Hotéis";
+  const text = [
+    `Olá, ${input.responsibleName}.`,
+    "",
+    `Sua solicitação de acesso para ${input.hotelName} foi analisada pela equipe LPH.`,
+    input.reviewNote ? `Observação: ${input.reviewNote}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const html = `
+    <p>Olá, ${safeName}.</p>
+    <p>Sua solicitação de acesso para <strong>${safeHotelName}</strong> foi analisada pela equipe LPH.</p>
+    ${safeNote ? `<p><strong>Observação:</strong> ${safeNote}</p>` : ""}
+  `;
+
+  await sendEmail({
+    to: input.to,
+    subject,
+    text,
+    html,
   });
 }
 

@@ -197,6 +197,8 @@ model User {
   auditLogs                HotelAuditLog[]
   reservationOperationLogs ReservationOperationLog[]
   emailAuthCodes           EmailAuthCode[]
+  reviewedSignupRequests   HotelOwnerSignupRequest[] @relation("HotelOwnerSignupReviewedBy")
+  createdSignupRequests    HotelOwnerSignupRequest[] @relation("HotelOwnerSignupCreatedUser")
 
   @@index([globalRole])
   @@index([isActive])
@@ -234,6 +236,34 @@ model HotelPermission {
   @@index([userId])
   @@index([hotelId])
   @@index([hotelId, role])
+}
+
+model HotelOwnerSignupRequest {
+  id              String                 @id @default(cuid())
+  responsibleName String
+  email           String
+  phone           String
+  hotelName       String
+  hotelCity       String
+  hotelState      String
+  hotelDocument   String?
+  message         String?                @db.Text
+  status          HotelOwnerSignupStatus @default(pending)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  reviewedAt      DateTime?
+  reviewedById    String?
+  reviewNote      String?                @db.Text
+  createdUserId   String?
+  reviewedBy      User?                  @relation("HotelOwnerSignupReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdUser     User?                  @relation("HotelOwnerSignupCreatedUser", fields: [createdUserId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@index([reviewedById])
+  @@index([createdUserId])
+  @@index([email, status])
 }
 
 model HotelAuditLog {
@@ -435,6 +465,12 @@ enum HotelRole {
   owner
   admin
   editor
+}
+
+enum HotelOwnerSignupStatus {
+  pending
+  approved
+  rejected
 }
 
 enum EmailAuthCodePurpose {

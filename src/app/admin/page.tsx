@@ -84,6 +84,18 @@ export default async function AdminHomePage() {
   ]);
 
   const isSuperAdmin = user.globalRole === "super_admin";
+  const visibleOverviewCards = isSuperAdmin
+    ? [
+        ...overviewCards,
+        {
+          href: "/admin/solicitacoes-acesso",
+          label: "Acessos",
+          title: "Solicitações de acesso",
+          description: "Analise pedidos de donos de hotéis.",
+          action: "Ver solicitações",
+        },
+      ]
+    : overviewCards;
   const scopedAdminHotelIds = scopedHotelIds ?? [];
   const activeAdmins = isSuperAdmin
     ? await prisma.user.count({
@@ -139,7 +151,7 @@ export default async function AdminHomePage() {
           <small>{formatRole(user.globalRole)}</small>
         </article>
 
-        {overviewCards.map((card) => (
+        {visibleOverviewCards.map((card) => (
           <Link
             key={card.href}
             href={card.href}
