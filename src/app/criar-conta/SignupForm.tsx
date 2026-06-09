@@ -60,14 +60,14 @@ export function SignupForm() {
       const data = (await response.json()) as SignupResponse;
 
       if (!response.ok) {
-        setError(data.error ?? "NÃ£o foi possÃ­vel criar a conta.");
+        setError(data.error ?? "Não foi possÃ­vel criar a conta.");
         return;
       }
 
       router.push(data.redirectTo ?? "/login?cadastro=sucesso");
       router.refresh();
     } catch {
-      setError("NÃ£o foi possÃ­vel criar a conta.");
+      setError("Não foi possí­vel criar a conta.");
     } finally {
       setIsSubmitting(false);
     }
@@ -113,10 +113,10 @@ export function SignupForm() {
           required
         />
         <ul className="auth-requirements">
-          <li className={passwordChecks.minLength ? "is-met" : ""}>MÃ­nimo de 8 caracteres</li>
-          <li className={passwordChecks.hasUppercase ? "is-met" : ""}>Pelo menos uma maiÃºscula</li>
-          <li className={passwordChecks.hasLowercase ? "is-met" : ""}>Pelo menos uma minÃºscula</li>
-          <li className={passwordChecks.hasNumber ? "is-met" : ""}>Pelo menos um nÃºmero</li>
+          <li className={passwordChecks.minLength ? "is-met" : ""}>Mí­nimo de 8 caracteres</li>
+          <li className={passwordChecks.hasUppercase ? "is-met" : ""}>Pelo menos uma maiúscula</li>
+          <li className={passwordChecks.hasLowercase ? "is-met" : ""}>Pelo menos uma minúscula</li>
+          <li className={passwordChecks.hasNumber ? "is-met" : ""}>Pelo menos um número</li>
         </ul>
       </div>
 
