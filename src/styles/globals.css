@@ -5713,6 +5713,13 @@ a.booking-page-link {
   background: #147a4d;
 }
 
+.admin-create-hotel-form .admin-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
 .admin-create-hotel-submit:hover:not(:disabled),
 .admin-create-hotel-submit:focus-visible:not(:disabled) {
   background: #0f6841;
@@ -6792,6 +6799,9 @@ a.booking-page-link {
 }
 
 .admin-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 48px;
   padding: 0 18px;
   border: 1px solid rgba(6, 41, 79, 0.14);

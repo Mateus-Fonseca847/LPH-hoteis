@@ -49,7 +49,6 @@ function buildFormData(
   const formData = new FormData();
   const values = {
     name: "LPH Centro",
-    slug: "lph-centro",
     city: "São Paulo",
     state: "SP",
     shortDescription: "Hotel urbano para operação inicial.",
@@ -229,7 +228,85 @@ describe("createHotelAction", () => {
     );
   });
 
-  it("falha com slug duplicado", async () => {
+  it("cria hotel sem slug enviado no formulário", async () => {
+    const tx = {
+      hotel: {
+        create: vi.fn(async () => ({ id: "hotel-sem-slug" })),
+      },
+      hotelPermission: {
+        upsert: vi.fn(),
+      },
+      hotelAuditLog: {
+        create: vi.fn(),
+      },
+    };
+
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx));
+
+    const formData = buildFormData();
+    formData.delete("slug");
+
+    const result = await createHotelAction({ status: "idle", message: "" }, formData);
+
+    expect(result).toMatchObject({
+      status: "success",
+      hotelId: "hotel-sem-slug",
+    });
+    expect(tx.hotel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          slug: "lph-centro",
+        }),
+      })
+    );
+  });
+
+  it("gera slug normalizado a partir do nome", async () => {
+    const tx = {
+      hotel: {
+        create: vi.fn(async () => ({ id: "hotel-mare" })),
+      },
+      hotelPermission: {
+        upsert: vi.fn(),
+      },
+      hotelAuditLog: {
+        create: vi.fn(),
+      },
+    };
+
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx));
+
+    await createHotelAction(
+      { status: "idle", message: "" },
+      buildFormData({ name: "Pousada Casa Maré & Spa!" })
+    );
+
+    expect(tx.hotel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          slug: "pousada-casa-mare-spa",
+        }),
+      })
+    );
+  });
+
+  it("adiciona sufixo incremental quando slug já existe", async () => {
     vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
       id: "super-1",
       name: "Super Admin",
@@ -237,16 +314,36 @@ describe("createHotelAction", () => {
       globalRole: "super_admin",
       isActive: true,
     });
-    vi.mocked(prisma.hotel.findUnique).mockResolvedValue({ id: "hotel-existente" });
+    vi.mocked(prisma.hotel.findUnique)
+      .mockResolvedValueOnce({ id: "hotel-existente" } as never)
+      .mockResolvedValueOnce(null);
+
+    const tx = {
+      hotel: {
+        create: vi.fn(async () => ({ id: "hotel-2" })),
+      },
+      hotelPermission: {
+        upsert: vi.fn(),
+      },
+      hotelAuditLog: {
+        create: vi.fn(),
+      },
+    };
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx));
 
     const result = await createHotelAction({ status: "idle", message: "" }, buildFormData());
 
-    expect(result).toEqual({
-      status: "error",
-      message: "Já existe um hotel com este slug.",
-      errorCode: "DUPLICATE_SLUG",
+    expect(result).toMatchObject({
+      status: "success",
+      hotelId: "hotel-2",
     });
-    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.hotel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          slug: "lph-centro-2",
+        }),
+      })
+    );
   });
 
   it("aceita comodidades e políticas no formato estruturado da tela de criação", async () => {

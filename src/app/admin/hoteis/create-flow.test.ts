@@ -245,7 +245,6 @@ function buildFormData() {
   const formData = new FormData();
 
   formData.set("name", "LPH Fluxo Teste");
-  formData.set("slug", "lph-fluxo-teste");
   formData.set("city", "São Paulo");
   formData.set("state", "SP");
   formData.set("shortDescription", "Hotel de teste do fluxo.");

@@ -50,7 +50,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </p>
             <LoginForm />
             <div className="auth-footer-link">
-              <p>Sou dono de hotel</p>
+              <p>Ainda nÃ£o tenho conta</p>
+              <Link href="/criar-conta" className="auth-inline-link">
+                Criar conta
+              </Link>
+            </div>
+            <div className="auth-footer-link">
               <Link href="/cadastro" className="auth-inline-link">
                 Solicitar acesso de hotel
               </Link>

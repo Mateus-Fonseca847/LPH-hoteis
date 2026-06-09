@@ -12,6 +12,8 @@ describe("NewHotelPage markup", () => {
     expect(pageSource).toContain("Disponibilidade");
 
     expect(formSource).toContain("Dados principais");
+    expect(formSource).not.toContain("<span>Slug</span>");
+    expect(formSource).not.toContain('name="slug"');
     expect(formSource).toContain("Localização");
     expect(formSource).toContain("Contato");
     expect(formSource).toContain("Descrições");

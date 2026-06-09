@@ -17,6 +17,7 @@ import {
 import { resolveHotelMapLocation } from "@/lib/hotel-location";
 import { getRequestIpAddress } from "@/lib/hotel-write";
 import { prisma } from "@/lib/prisma";
+import { generateSlugFromName } from "@/lib/slug";
 import { storeHotelImageFile } from "@/lib/uploads/hotel-images";
 import { hotelContactEmailSchema } from "@/lib/validations/hotel";
 
@@ -76,7 +77,6 @@ const galleryImagesSchema = z
 
 const requiredCreateHotelFields = [
   "name",
-  "slug",
   "city",
   "state",
   "shortDescription",
@@ -95,13 +95,6 @@ const localUploadImagePathRegex =
 const createHotelSchema = z
   .object({
     name: z.string().trim().min(3, "Informe o nome do hotel.").max(120),
-    slug: z
-      .string()
-      .trim()
-      .toLowerCase()
-      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use um slug com letras, números e hífens.")
-      .min(3, "Slug deve ter pelo menos 3 caracteres.")
-      .max(80),
     city: z.string().trim().min(2, "Informe a cidade.").max(80),
     state: z
       .string()
@@ -240,7 +233,6 @@ function parseCreateHotelFormData(formData: FormData) {
 
   return createHotelSchema.safeParse({
     name,
-    slug: String(formData.get("slug") ?? ""),
     city: String(formData.get("city") ?? ""),
     state: String(formData.get("state") ?? ""),
     shortDescription: String(formData.get("shortDescription") ?? ""),
@@ -255,6 +247,29 @@ function parseCreateHotelFormData(formData: FormData) {
     checkInTime: String(formData.get("checkInTime") ?? ""),
     checkOutTime: String(formData.get("checkOutTime") ?? ""),
   });
+}
+
+async function generateUniqueHotelSlug(name: string) {
+  const baseSlug = generateSlugFromName(name).slice(0, 80).replace(/-$/g, "");
+
+  for (let suffix = 1; suffix <= 100; suffix += 1) {
+    const suffixText = suffix === 1 ? "" : `-${suffix}`;
+    const slug = `${baseSlug.slice(0, 80 - suffixText.length).replace(/-$/g, "")}${suffixText}`;
+    const existingHotel = await prisma.hotel.findUnique({
+      where: {
+        slug,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingHotel) {
+      return slug;
+    }
+  }
+
+  return `${baseSlug.slice(0, 67).replace(/-$/g, "")}-${randomUUID().slice(0, 12)}`;
 }
 
 function getCoverImageFile(formData: FormData) {
@@ -323,7 +338,6 @@ function getFormDataDiagnostics(formData: FormData) {
       coverImage.present || coverImageUrl ? missingFields : [...missingFields, "coverImage"],
     values: {
       name: String(formData.get("name") ?? "").trim(),
-      slug: String(formData.get("slug") ?? "").trim(),
       city: String(formData.get("city") ?? "").trim(),
       state: String(formData.get("state") ?? "").trim(),
       hasShortDescription: Boolean(String(formData.get("shortDescription") ?? "").trim()),
@@ -541,13 +555,14 @@ function getCreateHotelErrorMessage(error: unknown) {
 
 function buildCreatedHotelAuditValue(
   payload: z.infer<typeof createHotelSchema>,
+  slug: string,
   coverImageUrl: string,
   galleryImages: z.infer<typeof createHotelSchema>["galleryImages"],
   resolvedLocation: ReturnType<typeof resolveHotelMapLocation>
 ) {
   return {
     name: payload.name,
-    slug: payload.slug,
+    slug,
     shortDescription: payload.shortDescription,
     fullDescription: payload.fullDescription,
     city: payload.city,
@@ -617,23 +632,8 @@ export async function createHotelAction(
     const coverImageFile = getCoverImageFile(formData);
     const submittedCoverImageUrl = getCreateCoverImageUrl(formData);
     const coverAlt = String(formData.get("coverAlt") ?? "");
-    logContext.step = "slug-check";
-    const existingSlug = await prisma.hotel.findUnique({
-      where: {
-        slug: payload.slug,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (existingSlug) {
-      console.warn("[admin/hoteis/create] Duplicate slug.", {
-        slug: payload.slug,
-        existingHotelId: existingSlug.id,
-      });
-      throw new ConflictError("Já existe um hotel com este slug.");
-    }
+    logContext.step = "slug-generation";
+    const slug = await generateUniqueHotelSlug(payload.name);
 
     const hotelId = randomUUID();
     logContext.step = "cover-upload";
@@ -707,7 +707,7 @@ export async function createHotelAction(
     const ipAddress = getRequestIpAddress(requestHeaders);
     console.info("[admin/hoteis/create] Persisting hotel draft.", {
       hotelId,
-      slug: payload.slug,
+      slug,
       globalRole: user.globalRole,
       galleryImagesCount: galleryImages.length,
       amenitiesCount: payload.amenities.length,
@@ -722,7 +722,7 @@ export async function createHotelAction(
           data: {
             id: hotelId,
             name: payload.name,
-            slug: payload.slug,
+            slug,
             shortDescription: payload.shortDescription,
             fullDescription: payload.fullDescription,
             city: payload.city,
@@ -807,6 +807,7 @@ export async function createHotelAction(
             previousValue: Prisma.JsonNull,
             newValue: buildCreatedHotelAuditValue(
               payload,
+              slug,
               storedCoverImageUrl,
               galleryImages,
               resolvedLocation
@@ -836,7 +837,7 @@ export async function createHotelAction(
 
     console.info("[admin/hoteis/create] Hotel draft created.", {
       hotelId: hotel.id,
-      slug: payload.slug,
+      slug,
     });
 
     revalidatePath("/admin");

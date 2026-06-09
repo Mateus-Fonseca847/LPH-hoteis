@@ -205,19 +205,6 @@ export function CreateHotelForm() {
             <span>Nome</span>
             <input name="name" required minLength={3} maxLength={120} placeholder="LPH Centro" />
           </label>
-
-          <label className="admin-form-field">
-            <span>Slug</span>
-            <input
-              name="slug"
-              required
-              minLength={3}
-              maxLength={80}
-              pattern="[a-z0-9]+(-[a-z0-9]+)*"
-              placeholder="lph-centro"
-            />
-            <small>Use letras minúsculas, números e hífens.</small>
-          </label>
         </div>
       </section>
 
