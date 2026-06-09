@@ -1,8 +1,10 @@
-import { notFound } from "next/navigation";
+import { Prisma } from "@prisma/client";
+import Link from "next/link";
 
 import { AdminAccessDenied } from "@/app/admin/AdminAccessDenied";
 import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
 import { AuthorizationError, requireHotelEditAccess } from "@/lib/auth/authorization";
+import { hasHotelArchiveFields } from "@/lib/hotel-archive";
 import { resolveHotelMapLocation } from "@/lib/hotel-location";
 import { prisma } from "@/lib/prisma";
 import { isValidHotelContactEmail } from "@/lib/validations/hotel";
@@ -48,28 +50,129 @@ function formatAuditDate(value: Date) {
   }).format(value);
 }
 
+function getSafeEditLoadError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return {
+      name: error.name,
+      code: error.code,
+      message: error.message,
+      meta: error.meta,
+      isMissingFieldOrMigration: error.code === "P2021" || error.code === "P2022",
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      isRelationOrIncompleteDataError:
+        error.message.includes("RoomRate") ||
+        error.message.includes("RoomAvailability") ||
+        error.message.includes("HotelExperience") ||
+        error.message.includes("relation"),
+    };
+  }
+
+  return {
+    name: "UnknownError",
+    message: String(error),
+  };
+}
+
+function getEditLoadErrorMessage(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2021" || error.code === "P2022") {
+      return "Erro ao carregar hotel. Verifique se as migrations do banco foram aplicadas.";
+    }
+  }
+
+  if (error instanceof Error) {
+    if (
+      error.message.includes("RoomRate") ||
+      error.message.includes("RoomAvailability") ||
+      error.message.includes("HotelExperience") ||
+      error.message.includes("relation")
+    ) {
+      return "Não foi possível carregar todos os dados deste hotel. Verifique quartos, tarifas, disponibilidade ou experiências.";
+    }
+  }
+
+  return "Não foi possível carregar este hotel. Tente novamente ou contate a equipe LPH.";
+}
+
+function AdminHotelEditLoadError({ title, description }: { title: string; description: string }) {
+  return (
+    <section className="section admin-section">
+      <div className="hotel-empty-state" role="alert">
+        <strong>{title}</strong>
+        <p>{description}</p>
+        <div className="hotel-error-actions">
+          <Link href="/admin/hoteis" className="card-cta-button">
+            Voltar para hotéis
+          </Link>
+          <Link href="/admin" className="admin-secondary-button">
+            Voltar para o painel
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default async function AdminHotelDetailPage({ params }: AdminHotelDetailPageProps) {
   const { id } = await params;
   let user;
+
+  console.info("[admin/hoteis/edit/load] Starting hotel edit load.", {
+    hotelId: id,
+    step: "start",
+  });
 
   try {
     user = await requireAdminRouteSession(`/admin/hoteis/${id}`);
   } catch (error) {
     if (error instanceof AdminAccessError) {
+      console.warn("[admin/hoteis/edit/load] Admin route session denied.", {
+        hotelId: id,
+        step: "auth",
+        error: getSafeEditLoadError(error),
+      });
+
       return <AdminAccessDenied />;
     }
 
     throw error;
   }
 
+  console.info("[admin/hoteis/edit/load] User authenticated.", {
+    hotelId: id,
+    userId: user.id,
+    globalRole: user.globalRole,
+    step: "auth",
+  });
+
   if (user.globalRole !== "super_admin") {
     try {
       await requireHotelEditAccess(user.id, id);
+      console.info("[admin/hoteis/edit/load] Hotel edit authorization granted.", {
+        hotelId: id,
+        userId: user.id,
+        globalRole: user.globalRole,
+        step: "authorization",
+      });
     } catch (error) {
       if (error instanceof AuthorizationError) {
+        console.warn("[admin/hoteis/edit/load] Hotel edit authorization denied.", {
+          hotelId: id,
+          userId: user.id,
+          globalRole: user.globalRole,
+          step: "authorization",
+          error: getSafeEditLoadError(error),
+        });
+
         return (
-          <AdminAccessDenied
-            title="Hotel indisponível para edição"
+          <AdminHotelEditLoadError
+            title="Você não tem permissão para editar este hotel."
             description="Sua sessão está válida, mas este hotel não está vinculado ao seu escopo de edição."
           />
         );
@@ -77,112 +180,214 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
 
       throw error;
     }
+  } else {
+    console.info("[admin/hoteis/edit/load] Super admin authorization granted.", {
+      hotelId: id,
+      userId: user.id,
+      globalRole: user.globalRole,
+      step: "authorization",
+    });
   }
 
-  const hotel = await prisma.hotel.findUnique({
-    where: {
-      id,
-    },
-    include: {
-      amenities: {
-        orderBy: {
-          position: "asc",
-        },
+  const supportsArchiveFields = await hasHotelArchiveFields();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let hotel;
+  let activeRatesCount = 0;
+  let futureAvailabilityCount = 0;
+  let approvalSubmissionsCount = 0;
+
+  try {
+    console.info("[admin/hoteis/edit/load] Querying hotel.", {
+      hotelId: id,
+      userId: user.id,
+      globalRole: user.globalRole,
+      step: "hotel-query",
+      filters: {
+        id,
+        supportsArchiveFields,
       },
-      policies: {
-        orderBy: {
-          position: "asc",
-        },
+    });
+
+    hotel = await prisma.hotel.findUnique({
+      where: {
+        id,
       },
-      images: {
-        orderBy: {
-          position: "asc",
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        shortDescription: true,
+        fullDescription: true,
+        city: true,
+        state: true,
+        address: true,
+        latitude: true,
+        longitude: true,
+        phone: true,
+        email: true,
+        whatsapp: true,
+        coverImageUrl: true,
+        checkInTime: true,
+        checkOutTime: true,
+        isPublished: true,
+        ...(supportsArchiveFields ? { isArchived: true } : {}),
+        amenities: {
+          orderBy: {
+            position: "asc",
+          },
         },
-      },
-      experiences: {
-        orderBy: [{ createdAt: "asc" }, { title: "asc" }],
-      },
-      rooms: {
-        orderBy: [{ createdAt: "asc" }, { name: "asc" }],
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          imageUrl: true,
-          capacityAdults: true,
-          capacityChildren: true,
-          beds: true,
-          sizeM2: true,
-          amenities: true,
-          isActive: true,
-          capacity: true,
-          size: true,
-          priceFrom: true,
-          isAvailable: true,
+        policies: {
+          orderBy: {
+            position: "asc",
+          },
         },
-      },
-      auditLogs: {
-        orderBy: {
-          createdAt: "desc",
+        images: {
+          orderBy: {
+            position: "asc",
+          },
         },
-        take: 12,
-        include: {
-          user: {
-            select: {
-              name: true,
-              email: true,
+        experiences: {
+          orderBy: [{ createdAt: "asc" }, { title: "asc" }],
+        },
+        rooms: {
+          orderBy: [{ createdAt: "asc" }, { name: "asc" }],
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            imageUrl: true,
+            capacityAdults: true,
+            capacityChildren: true,
+            beds: true,
+            sizeM2: true,
+            amenities: true,
+            isActive: true,
+            capacity: true,
+            size: true,
+            priceFrom: true,
+            isAvailable: true,
+          },
+        },
+        auditLogs: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 12,
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    });
 
-  if (!hotel || hotel.isArchived) {
-    notFound();
+    console.info("[admin/hoteis/edit/load] Hotel query completed.", {
+      hotelId: id,
+      userId: user.id,
+      globalRole: user.globalRole,
+      step: "hotel-query",
+      hotelFound: Boolean(hotel),
+    });
+
+    if (!hotel) {
+      return (
+        <AdminHotelEditLoadError
+          title="Hotel não encontrado."
+          description="Não encontramos um hotel com o identificador informado."
+        />
+      );
+    }
+
+    if (supportsArchiveFields && "isArchived" in hotel && hotel.isArchived) {
+      return (
+        <AdminHotelEditLoadError
+          title="Este hotel foi removido ou arquivado."
+          description="Hotéis removidos não ficam disponíveis para edição operacional."
+        />
+      );
+    }
+
+    console.info("[admin/hoteis/edit/load] Querying related counters.", {
+      hotelId: hotel.id,
+      userId: user.id,
+      globalRole: user.globalRole,
+      step: "related-counters",
+    });
+
+    [activeRatesCount, futureAvailabilityCount, approvalSubmissionsCount] =
+      await prisma.$transaction([
+        prisma.roomRate.count({
+          where: {
+            isActive: true,
+            room: {
+              hotelId: hotel.id,
+              isActive: true,
+            },
+          },
+        }),
+        prisma.roomAvailability.count({
+          where: {
+            date: {
+              gte: today,
+            },
+            closed: false,
+            availableUnits: {
+              gt: 0,
+            },
+            room: {
+              hotelId: hotel.id,
+              isActive: true,
+            },
+          },
+        }),
+        prisma.hotelAuditLog.count({
+          where: {
+            hotelId: hotel.id,
+            action: "hotel.approval.submitted",
+          },
+        }),
+      ]);
+
+    console.info("[admin/hoteis/edit/load] Hotel edit data loaded.", {
+      hotelId: hotel.id,
+      userId: user.id,
+      globalRole: user.globalRole,
+      step: "done",
+      hotelFound: true,
+    });
+  } catch (error) {
+    const message = getEditLoadErrorMessage(error);
+
+    console.error("[admin/hoteis/edit/load] Failed to load hotel edit data.", {
+      hotelId: id,
+      userId: user.id,
+      globalRole: user.globalRole,
+      step: "load-error",
+      filters: {
+        id,
+        supportsArchiveFields,
+      },
+      error: getSafeEditLoadError(error),
+    });
+
+    return (
+      <AdminHotelEditLoadError
+        title={message}
+        description="A equipe administrativa pode usar os logs do servidor para identificar a etapa exata da falha."
+      />
+    );
   }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   const activeRoomsCount = hotel.rooms.filter((room) => room.isActive).length;
   const activeExperiencesCount = hotel.experiences.filter(
     (experience) => experience.isActive
   ).length;
-  const [activeRatesCount, futureAvailabilityCount, approvalSubmissionsCount] =
-    await prisma.$transaction([
-      prisma.roomRate.count({
-        where: {
-          isActive: true,
-          room: {
-            hotelId: hotel.id,
-            isActive: true,
-          },
-        },
-      }),
-      prisma.roomAvailability.count({
-        where: {
-          date: {
-            gte: today,
-          },
-          closed: false,
-          availableUnits: {
-            gt: 0,
-          },
-          room: {
-            hotelId: hotel.id,
-            isActive: true,
-          },
-        },
-      }),
-      prisma.hotelAuditLog.count({
-        where: {
-          hotelId: hotel.id,
-          action: "hotel.approval.submitted",
-        },
-      }),
-    ]);
-
   const pendingApprovalItems = [
     hotel.name.trim() ? null : "nome",
     hotel.shortDescription.trim() ? null : "descrição curta",
