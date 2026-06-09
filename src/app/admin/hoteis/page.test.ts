@@ -10,7 +10,9 @@ describe("AdminHotelsPage remove button", () => {
     expect(source).toContain("role === HotelRole.owner || role === HotelRole.admin");
     expect(source).toContain("hotel.canRemove");
     expect(source).toContain("RemoveHotelButton");
-    expect(source).toContain("isArchived: false");
+    expect(source).toContain("hasHotelArchiveFields");
+    expect(source).toContain("getActiveHotelWhere");
+    expect(source).toContain("[admin/hoteis/list]");
     expect(buttonSource).toContain("Remover hotel");
     expect(buttonSource).toContain("Tem certeza que deseja remover");
     expect(buttonSource).toContain("Hotéis com reservas vinculadas não serão removidos");

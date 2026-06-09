@@ -1,9 +1,9 @@
 import { unstable_cache } from "next/cache";
 
 import { hotels as fallbackHotels } from "@/data/hotels";
+import { getPublicHotelWhere } from "@/lib/hotel-archive";
 import { resolveHotelMapLocation } from "@/lib/hotel-location";
 import { prisma } from "@/lib/prisma";
-import { PUBLIC_HOTEL_WHERE } from "@/lib/public-hotel";
 
 export type PublicMapHotel = {
   id: string;
@@ -150,8 +150,10 @@ async function fetchPublishedMapHotels(): Promise<PublicMapHotel[]> {
   }
 
   try {
+    const publicHotelWhere = await getPublicHotelWhere();
+
     const hotels = await prisma.hotel.findMany({
-      where: PUBLIC_HOTEL_WHERE,
+      where: publicHotelWhere,
       select: {
         id: true,
         slug: true,

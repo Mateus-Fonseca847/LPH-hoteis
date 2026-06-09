@@ -5,8 +5,8 @@ import {
   getHotelBySlug,
   type Hotel as FallbackHotel,
 } from "@/data/hotels";
+import { getPublicHotelWhere } from "@/lib/hotel-archive";
 import { prisma } from "@/lib/prisma";
-import { PUBLIC_HOTEL_WHERE } from "@/lib/public-hotel";
 
 export type PublishedHotelCard = {
   slug: string;
@@ -259,16 +259,9 @@ async function hasCompatibleHotelSchema() {
       .then((rows) => {
         const columns = new Set(rows.map((row) => row.column_name));
 
-        return [
-          "slug",
-          "name",
-          "city",
-          "state",
-          "coverImageUrl",
-          "isPublished",
-          "isArchived",
-          "phone",
-        ].every((column) => columns.has(column));
+        return ["slug", "name", "city", "state", "coverImageUrl", "isPublished", "phone"].every(
+          (column) => columns.has(column)
+        );
       })
       .catch((error) => {
         return handleDatabaseFallback(error, false);
@@ -350,8 +343,10 @@ async function fetchPublishedHotels(): Promise<PublishedHotelCard[]> {
   }
 
   try {
+    const publicHotelWhere = await getPublicHotelWhere();
+
     return await prisma.hotel.findMany({
-      where: PUBLIC_HOTEL_WHERE,
+      where: publicHotelWhere,
       select: {
         slug: true,
         name: true,
@@ -382,8 +377,10 @@ export async function getHotelSlugs(): Promise<string[]> {
   }
 
   try {
+    const publicHotelWhere = await getPublicHotelWhere();
+
     const hotels = await prisma.hotel.findMany({
-      where: PUBLIC_HOTEL_WHERE,
+      where: publicHotelWhere,
       select: {
         slug: true,
       },
@@ -402,10 +399,11 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
 
   try {
     const now = new Date();
+    const publicHotelWhere = await getPublicHotelWhere();
     const hotel = await prisma.hotel.findFirst({
       where: {
         slug,
-        ...PUBLIC_HOTEL_WHERE,
+        ...publicHotelWhere,
       },
       include: {
         images: {
@@ -539,10 +537,11 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
     console.warn(`[hotel-data] Retrying hotel detail without rooms for slug "${slug}": ${message}`);
 
     try {
+      const publicHotelWhere = await getPublicHotelWhere();
       const hotel = await prisma.hotel.findFirst({
         where: {
           slug,
-          ...PUBLIC_HOTEL_WHERE,
+          ...publicHotelWhere,
         },
         include: {
           images: {

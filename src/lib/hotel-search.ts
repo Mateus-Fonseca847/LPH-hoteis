@@ -1,4 +1,5 @@
 import { hotels as fallbackHotels } from "@/data/hotels";
+import { getPublicHotelWhere } from "@/lib/hotel-archive";
 import { normalizeText } from "@/lib/normalize-text";
 import { prisma } from "@/lib/prisma";
 
@@ -120,10 +121,11 @@ export async function searchPublishedHotels(query: string, limit = MAX_RESULTS) 
   }
 
   try {
+    const publicHotelWhere = await getPublicHotelWhere();
+
     return await prisma.hotel.findMany({
       where: {
-        isPublished: true,
-        isArchived: false,
+        ...publicHotelWhere,
         OR: [
           { name: { contains: safeQuery, mode: "insensitive" } },
           { city: { contains: safeQuery, mode: "insensitive" } },

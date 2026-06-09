@@ -4,8 +4,8 @@ import {
   HOTEL_EXPERIENCE_CATEGORIES,
   HOTEL_EXPERIENCE_PREFERENCES,
 } from "@/lib/hotel-experience-options";
+import { getPublicHotelWhere } from "@/lib/hotel-archive";
 import { prisma } from "@/lib/prisma";
-import { PUBLIC_HOTEL_WHERE } from "@/lib/public-hotel";
 
 export { HOTEL_EXPERIENCE_CATEGORIES, HOTEL_EXPERIENCE_PREFERENCES };
 
@@ -30,10 +30,12 @@ export type PublicHotelExperience = {
 };
 
 async function fetchPublicHotelExperiences(): Promise<PublicHotelExperience[]> {
+  const publicHotelWhere = await getPublicHotelWhere();
+
   return prisma.hotelExperience.findMany({
     where: {
       isActive: true,
-      hotel: PUBLIC_HOTEL_WHERE,
+      hotel: publicHotelWhere,
     },
     select: {
       id: true,
