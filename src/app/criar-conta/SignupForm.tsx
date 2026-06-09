@@ -94,7 +94,7 @@ export function SignupForm() {
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="voce@empresa.com"
+          placeholder="Seu email"
           value={values.email}
           onChange={(event) => updateField("email", event.target.value)}
           required

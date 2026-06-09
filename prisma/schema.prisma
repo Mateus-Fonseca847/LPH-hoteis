@@ -25,6 +25,9 @@ model Hotel {
   latitude                  Decimal?                   @db.Decimal(10, 7)
   longitude                 Decimal?                   @db.Decimal(10, 7)
   isPublished               Boolean                    @default(true)
+  isArchived                Boolean                    @default(false)
+  archivedAt                DateTime?
+  archivedById              String?
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   images                    HotelImage[]
@@ -39,12 +42,15 @@ model Hotel {
   paymentReconciliationLogs PaymentReconciliationLog[]
   reservationOperationLogs  ReservationOperationLog[]
   paymentSettings           HotelPaymentSettings?
+  archivedBy                User?                      @relation("HotelArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
 
   @@index([slug])
   @@index([city])
   @@index([state])
   @@index([city, state])
   @@index([isPublished])
+  @@index([isArchived])
+  @@index([archivedById])
 }
 
 model HotelExperience {
@@ -199,6 +205,7 @@ model User {
   emailAuthCodes           EmailAuthCode[]
   reviewedSignupRequests   HotelOwnerSignupRequest[] @relation("HotelOwnerSignupReviewedBy")
   createdSignupRequests    HotelOwnerSignupRequest[] @relation("HotelOwnerSignupCreatedUser")
+  archivedHotels           Hotel[]                   @relation("HotelArchivedBy")
 
   @@index([globalRole])
   @@index([isActive])

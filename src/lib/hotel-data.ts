@@ -259,9 +259,16 @@ async function hasCompatibleHotelSchema() {
       .then((rows) => {
         const columns = new Set(rows.map((row) => row.column_name));
 
-        return ["slug", "name", "city", "state", "coverImageUrl", "isPublished", "phone"].every(
-          (column) => columns.has(column)
-        );
+        return [
+          "slug",
+          "name",
+          "city",
+          "state",
+          "coverImageUrl",
+          "isPublished",
+          "isArchived",
+          "phone",
+        ].every((column) => columns.has(column));
       })
       .catch((error) => {
         return handleDatabaseFallback(error, false);

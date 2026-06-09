@@ -109,6 +109,9 @@ describe("admin authorization scope", () => {
           hotelPermissions: expect.objectContaining({
             where: {
               hotelId: "hotel-b",
+              hotel: {
+                isArchived: false,
+              },
             },
           }),
         }),

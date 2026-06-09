@@ -6,7 +6,7 @@ import { requireAuthenticatedRequestUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { storeHotelImageFile } from "@/lib/uploads/hotel-images";
 
-import { createHotelAction } from "./actions";
+import { createHotelAction, removeHotelAction } from "./actions";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -28,6 +28,13 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     hotel: {
       findUnique: vi.fn(),
+      update: vi.fn(),
+    },
+    reservation: {
+      findFirst: vi.fn(),
+    },
+    hotelAuditLog: {
+      create: vi.fn(),
     },
     $transaction: vi.fn(),
   },
@@ -127,7 +134,7 @@ describe("createHotelAction", () => {
     expect(prisma.hotel.findUnique).not.toHaveBeenCalled();
   });
 
-  it("cria hotel, vínculo owner e auditoria para hotel_admin", async () => {
+  it("hotel_admin sem HotelPermission cria o primeiro hotel, vínculo owner e auditoria", async () => {
     const tx = {
       hotel: {
         create: vi.fn(async () => ({ id: "hotel-1" })),
@@ -215,6 +222,16 @@ describe("createHotelAction", () => {
           hotelId: "hotel-1",
           role: "owner",
         }),
+      })
+    );
+    expect(console.info).toHaveBeenCalledWith(
+      "[admin/hoteis/create] HotelPermission ensured for creator.",
+      expect.objectContaining({
+        userId: "admin-1",
+        globalRole: "hotel_admin",
+        hotelId: "hotel-1",
+        role: "owner",
+        created: true,
       })
     );
     expect(tx.hotelAuditLog.create).toHaveBeenCalledWith(
@@ -780,7 +797,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Banco de dados indisponível. Tente novamente em instantes.",
+      message: "Erro ao salvar hotel. Verifique as configurações do banco.",
       errorCode: "DATABASE_UNAVAILABLE",
     });
   });
@@ -805,7 +822,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Falha de schema do banco. Verifique se as migrations foram aplicadas.",
+      message: "Erro ao salvar hotel. Verifique as configurações do banco.",
       errorCode: "DATABASE_SCHEMA_MISMATCH",
     });
   });
@@ -830,7 +847,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Falha ao vincular dados relacionados do hotel.",
+      message: "Erro ao salvar hotel. Verifique as configurações do banco.",
       errorCode: "DATABASE_RELATION_FAILED",
     });
   });
@@ -852,7 +869,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Falha ao salvar hotel, galeria, comodidades ou políticas.",
+      message: "Erro ao salvar hotel. Verifique as configurações do banco.",
       errorCode: "DATABASE_RELATION_FAILED",
     });
     expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -896,5 +913,156 @@ describe("createHotelAction", () => {
     );
 
     consoleErrorSpy.mockRestore();
+  });
+});
+
+describe("removeHotelAction", () => {
+  const hotel = {
+    id: "hotel-1",
+    name: "LPH Centro",
+    slug: "lph-centro",
+    isPublished: true,
+    isArchived: false,
+    reservations: [],
+    permissions: [],
+  };
+
+  beforeEach(() => {
+    vi.mocked(requireAuthenticatedRequestUser).mockReset();
+    vi.mocked(prisma.hotel.findUnique).mockReset();
+    vi.mocked(prisma.hotel.update).mockReset();
+    vi.mocked(prisma.reservation.findFirst).mockReset();
+    vi.mocked(prisma.hotelAuditLog.create).mockReset();
+    vi.mocked(prisma.$transaction)
+      .mockReset()
+      .mockImplementation(async (callback) =>
+        callback({
+          reservation: {
+            findFirst: prisma.reservation.findFirst,
+          },
+          hotel: {
+            update: prisma.hotel.update,
+          },
+          hotelAuditLog: {
+            create: prisma.hotelAuditLog.create,
+          },
+        })
+      );
+  });
+
+  it("super_admin arquiva hotel permitido", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "super-1",
+      name: "Super Admin",
+      email: "super@example.com",
+      globalRole: "super_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(hotel);
+    vi.mocked(prisma.reservation.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.hotel.update).mockResolvedValue({ id: "hotel-1" });
+
+    const result = await removeHotelAction(
+      "hotel-1",
+      { status: "idle", message: "" },
+      new FormData()
+    );
+
+    expect(result).toEqual({
+      status: "success",
+      message: "Hotel removido com sucesso.",
+    });
+    expect(prisma.hotel.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "hotel-1" },
+        data: expect.objectContaining({
+          isArchived: true,
+          isPublished: false,
+          archivedById: "super-1",
+        }),
+      })
+    );
+  });
+
+  it("hotel_admin arquiva hotel com permissão owner/admin", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue({
+      ...hotel,
+      permissions: [{ id: "perm-1", role: "owner" }],
+    });
+    vi.mocked(prisma.reservation.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.hotel.update).mockResolvedValue({ id: "hotel-1" });
+
+    await expect(
+      removeHotelAction("hotel-1", { status: "idle", message: "" }, new FormData())
+    ).resolves.toEqual({
+      status: "success",
+      message: "Hotel removido com sucesso.",
+    });
+  });
+
+  it("hotel_admin não remove hotel de terceiro por chamada direta", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue(hotel);
+
+    await expect(
+      removeHotelAction("hotel-1", { status: "idle", message: "" }, new FormData())
+    ).resolves.toEqual({
+      status: "error",
+      message: "Você não tem permissão para remover este hotel.",
+    });
+    expect(prisma.hotel.update).not.toHaveBeenCalled();
+  });
+
+  it("user comum não acessa action de remoção", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "user-1",
+      name: "Usuário",
+      email: "user@example.com",
+      globalRole: "user",
+      isActive: true,
+    });
+
+    await expect(
+      removeHotelAction("hotel-1", { status: "idle", message: "" }, new FormData())
+    ).resolves.toEqual({
+      status: "error",
+      message: "Você não tem permissão para remover este hotel.",
+    });
+    expect(prisma.hotel.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("não remove hotel com reservas vinculadas", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "super-1",
+      name: "Super Admin",
+      email: "super@example.com",
+      globalRole: "super_admin",
+      isActive: true,
+    });
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue({
+      ...hotel,
+      reservations: [{ id: "reservation-1" }],
+    });
+
+    await expect(
+      removeHotelAction("hotel-1", { status: "idle", message: "" }, new FormData())
+    ).resolves.toEqual({
+      status: "error",
+      message: "Não é possível remover hotel com reservas vinculadas.",
+    });
+    expect(prisma.hotel.update).not.toHaveBeenCalled();
   });
 });

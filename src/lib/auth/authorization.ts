@@ -25,6 +25,9 @@ async function getPermissionContext(
       hotelPermissions: {
         where: {
           hotelId,
+          hotel: {
+            isArchived: false,
+          },
         },
         select: {
           role: true,

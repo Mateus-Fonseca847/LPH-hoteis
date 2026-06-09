@@ -123,6 +123,7 @@ export async function searchPublishedHotels(query: string, limit = MAX_RESULTS) 
     return await prisma.hotel.findMany({
       where: {
         isPublished: true,
+        isArchived: false,
         OR: [
           { name: { contains: safeQuery, mode: "insensitive" } },
           { city: { contains: safeQuery, mode: "insensitive" } },

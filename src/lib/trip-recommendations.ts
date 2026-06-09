@@ -293,6 +293,7 @@ async function getRecommendationHotels() {
     const hotels = await prisma.hotel.findMany({
       where: {
         isPublished: true,
+        isArchived: false,
       },
       include: {
         amenities: {

@@ -10,6 +10,8 @@ import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 import { AdminAccessDenied } from "../AdminAccessDenied";
+import { removeHotelAction } from "./actions";
+import { RemoveHotelButton } from "./RemoveHotelButton";
 
 type AdminHotelListItem = {
   city: string;
@@ -20,6 +22,7 @@ type AdminHotelListItem = {
   isPublished: boolean;
   name: string;
   permissionRole: string | null;
+  canRemove: boolean;
   state: string;
 };
 
@@ -65,6 +68,9 @@ export default async function AdminHotelsPage() {
           isPublished: true,
           ...completenessSelect,
         },
+        where: {
+          isArchived: false,
+        },
         orderBy: [{ city: "asc" }, { name: "asc" }],
       })
       .then((items) =>
@@ -76,6 +82,7 @@ export default async function AdminHotelsPage() {
             completenessPending: completeness.pending,
             completenessPercentage: completeness.percentage,
             permissionRole: null,
+            canRemove: true,
           };
         })
       );
@@ -86,6 +93,9 @@ export default async function AdminHotelsPage() {
           userId: user.id,
           role: {
             in: [HotelRole.owner, HotelRole.admin, HotelRole.editor],
+          },
+          hotel: {
+            isArchived: false,
           },
         },
         select: {
@@ -115,6 +125,7 @@ export default async function AdminHotelsPage() {
             completenessPending: completeness.pending,
             completenessPercentage: completeness.percentage,
             permissionRole: role,
+            canRemove: role === HotelRole.owner || role === HotelRole.admin,
           };
         })
       );
@@ -164,12 +175,21 @@ export default async function AdminHotelsPage() {
                 )}
               </div>
 
-              <Link
-                href={`/admin/hoteis/${hotel.id}`}
-                className="card-cta-button admin-edit-button"
-              >
-                Editar
-              </Link>
+              <div className="admin-hotel-card-actions">
+                <Link
+                  href={`/admin/hoteis/${hotel.id}`}
+                  className="card-cta-button admin-edit-button"
+                >
+                  Editar
+                </Link>
+
+                {hotel.canRemove ? (
+                  <RemoveHotelButton
+                    action={removeHotelAction.bind(null, hotel.id)}
+                    hotelName={hotel.name}
+                  />
+                ) : null}
+              </div>
             </article>
           ))}
         </div>

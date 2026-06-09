@@ -11,6 +11,7 @@ import { requireAuthenticatedRequestUser } from "@/lib/auth";
 import {
   ConflictError,
   AuthorizationError,
+  NotFoundError,
   ValidationError,
   getErrorMessage,
 } from "@/lib/errors/app-error";
@@ -26,6 +27,11 @@ export type CreateHotelState = {
   message: string;
   hotelId?: string;
   errorCode?: CreateHotelErrorCode;
+};
+
+export type RemoveHotelState = {
+  status: "idle" | "success" | "error";
+  message: string;
 };
 
 type CreateHotelErrorCode =
@@ -63,6 +69,8 @@ class CreateHotelTechnicalError extends Error {
     this.cause = cause;
   }
 }
+
+const removeAllowedRoles: HotelRole[] = [HotelRole.owner, HotelRole.admin];
 
 const galleryImageSchema = z.object({
   url: z.string().trim().url("Informe URLs válidas na galeria.").max(500),
@@ -432,26 +440,6 @@ function logCreateHotelError(error: unknown, context: CreateHotelLogContext) {
   });
 }
 
-function getCreateHotelPrismaErrorMessage(error: Prisma.PrismaClientKnownRequestError) {
-  if (error.code === "P2002") {
-    const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : "";
-
-    return target.includes("slug")
-      ? "Já existe um hotel com este slug."
-      : "Já existe um cadastro com dados únicos repetidos.";
-  }
-
-  if (error.code === "P2021" || error.code === "P2022") {
-    return "Falha de schema do banco. Verifique se as migrations foram aplicadas.";
-  }
-
-  if (error.code === "P2003") {
-    return "Falha ao vincular dados relacionados do hotel.";
-  }
-
-  return "Falha ao salvar hotel, galeria, comodidades ou políticas.";
-}
-
 function getCreateHotelErrorCode(error: unknown): CreateHotelErrorCode {
   if (error instanceof AuthorizationError) {
     return "FORBIDDEN";
@@ -466,7 +454,7 @@ function getCreateHotelErrorCode(error: unknown): CreateHotelErrorCode {
       return "CONTACT_EMAIL_REQUIRED";
     }
 
-    if (error.message === "Informe um e-mail de contato valido.") {
+    if (error.message === "Informe um e-mail de contato válido.") {
       return "CONTACT_EMAIL_INVALID";
     }
 
@@ -539,13 +527,11 @@ function getCreateHotelErrorMessage(error: unknown) {
     case "FORBIDDEN":
       return "Você não tem permissão para criar hotéis.";
     case "DATABASE_UNAVAILABLE":
-      return "Banco de dados indisponível. Tente novamente em instantes.";
+      return "Erro ao salvar hotel. Verifique as configurações do banco.";
     case "DATABASE_SCHEMA_MISMATCH":
-      return "Falha de schema do banco. Verifique se as migrations foram aplicadas.";
+      return "Erro ao salvar hotel. Verifique as configurações do banco.";
     case "DATABASE_RELATION_FAILED":
-      return error instanceof Prisma.PrismaClientKnownRequestError
-        ? getCreateHotelPrismaErrorMessage(error)
-        : "Falha ao salvar hotel, galeria, comodidades ou políticas.";
+      return "Erro ao salvar hotel. Verifique as configurações do banco.";
     case "VALIDATION_ERROR":
       return getErrorMessage(error, "Dados inválidos.");
     case "UNEXPECTED_ERROR":
@@ -760,7 +746,7 @@ export async function createHotelAction(
           },
         });
 
-        await tx.hotelPermission.upsert({
+        const permission = await tx.hotelPermission.upsert({
           where: {
             userId_hotelId: {
               userId: user.id,
@@ -775,6 +761,15 @@ export async function createHotelAction(
             hotelId: createdHotel.id,
             role: HotelRole.owner,
           },
+        });
+
+        console.info("[admin/hoteis/create] HotelPermission ensured for creator.", {
+          userId: user.id,
+          globalRole: user.globalRole,
+          hotelId: createdHotel.id,
+          permissionId: permission?.id,
+          role: permission?.role ?? HotelRole.owner,
+          created: true,
         });
 
         await tx.hotelAuditLog.create({
@@ -858,6 +853,149 @@ export async function createHotelAction(
       status: "error",
       message,
       errorCode: getCreateHotelErrorCode(error),
+    };
+  }
+}
+
+export async function removeHotelAction(
+  hotelId: string,
+  _previousState: RemoveHotelState,
+  _formData: FormData
+): Promise<RemoveHotelState> {
+  void _previousState;
+  void _formData;
+
+  try {
+    const safeHotelId = z.string().trim().min(1).parse(hotelId);
+    const user = await requireAuthenticatedRequestUser();
+
+    if (
+      !user.isActive ||
+      (user.globalRole !== "super_admin" && user.globalRole !== "hotel_admin")
+    ) {
+      throw new AuthorizationError("Você não tem permissão para remover este hotel.");
+    }
+
+    const hotel = await prisma.hotel.findUnique({
+      where: {
+        id: safeHotelId,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        isPublished: true,
+        isArchived: true,
+        reservations: {
+          select: {
+            id: true,
+          },
+          take: 1,
+        },
+        permissions: {
+          where: {
+            userId: user.id,
+            role: {
+              in: removeAllowedRoles,
+            },
+          },
+          select: {
+            id: true,
+            role: true,
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!hotel) {
+      throw new NotFoundError("Hotel não encontrado.");
+    }
+
+    if (hotel.isArchived) {
+      return {
+        status: "success",
+        message: "Hotel removido com sucesso.",
+      };
+    }
+
+    if (user.globalRole === "hotel_admin" && hotel.permissions.length === 0) {
+      throw new AuthorizationError("Você não tem permissão para remover este hotel.");
+    }
+
+    if (hotel.reservations.length > 0) {
+      throw new ConflictError("Não é possível remover hotel com reservas vinculadas.");
+    }
+
+    const requestHeaders = await headers();
+    const ipAddress = getRequestIpAddress(requestHeaders);
+    const archivedAt = new Date();
+
+    await prisma.$transaction(async (tx) => {
+      const reservation = await tx.reservation.findFirst({
+        where: {
+          hotelId: safeHotelId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (reservation) {
+        throw new ConflictError("Não é possível remover hotel com reservas vinculadas.");
+      }
+
+      await tx.hotel.update({
+        where: {
+          id: safeHotelId,
+        },
+        data: {
+          isArchived: true,
+          isPublished: false,
+          archivedAt,
+          archivedById: user.id,
+        },
+      });
+
+      await tx.hotelAuditLog.create({
+        data: {
+          userId: user.id,
+          hotelId: safeHotelId,
+          action: "hotel.archived",
+          changedFields: ["isArchived", "isPublished", "archivedAt", "archivedById"],
+          previousValue: {
+            isArchived: false,
+            isPublished: hotel.isPublished,
+            archivedAt: null,
+            archivedById: null,
+          },
+          newValue: {
+            isArchived: true,
+            isPublished: false,
+            archivedAt: archivedAt.toISOString(),
+            archivedById: user.id,
+          },
+          ipAddress,
+        },
+      });
+    });
+
+    revalidatePath("/");
+    revalidatePath("/admin");
+    revalidatePath("/admin/hoteis");
+    revalidatePath(`/admin/hoteis/${safeHotelId}`);
+    revalidatePath(`/hoteis/${hotel.slug}`);
+    revalidatePath("/buscar");
+    revalidatePath("/mapa");
+
+    return {
+      status: "success",
+      message: "Hotel removido com sucesso.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: getErrorMessage(error, "Não foi possível remover o hotel."),
     };
   }
 }

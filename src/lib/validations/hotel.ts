@@ -119,7 +119,7 @@ export const hotelContactEmailSchema = z
       .string()
       .min(1, "Informe o e-mail de contato do hotel.")
       .max(160, "E-mail muito longo.")
-      .email("Informe um e-mail de contato valido.")
+      .email("Informe um e-mail de contato válido.")
   );
 
 const timeSchema = z

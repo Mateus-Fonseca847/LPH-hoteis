@@ -116,6 +116,7 @@ async function getHotelApprovalReadiness(hotelId: string) {
       id: true,
       slug: true,
       isPublished: true,
+      isArchived: true,
       name: true,
       shortDescription: true,
       fullDescription: true,
@@ -183,7 +184,7 @@ async function getHotelApprovalReadiness(hotelId: string) {
     },
   });
 
-  if (!hotel) {
+  if (!hotel || hotel.isArchived) {
     throw new NotFoundError("Hotel não encontrado.");
   }
 
@@ -339,7 +340,7 @@ export async function updateHotelProfileAction(
       },
     });
 
-    if (!currentHotel) {
+    if (!currentHotel || currentHotel.isArchived) {
       throw new NotFoundError("Hotel não encontrado.");
     }
 

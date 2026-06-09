@@ -72,7 +72,7 @@ export function LoginForm() {
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="voce@empresa.com"
+          placeholder="Seu email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required

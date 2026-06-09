@@ -138,7 +138,7 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
     },
   });
 
-  if (!hotel) {
+  if (!hotel || hotel.isArchived) {
     notFound();
   }
 

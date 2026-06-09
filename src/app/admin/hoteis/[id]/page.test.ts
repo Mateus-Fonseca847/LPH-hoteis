@@ -10,6 +10,8 @@ describe("AdminHotelDetailPage markup", () => {
     );
 
     expect(source).toContain("HotelManagementWorkspace");
+    expect(source).toContain("requireHotelEditAccess(user.id, id)");
+    expect(source).toContain("Hotel indisponível para edição");
     expect(source).toContain("HotelApprovalReview");
     expect(source).toContain("approveHotelAction");
     expect(source).toContain('user.globalRole === "super_admin" ? approveHotelAction.bind');
