@@ -231,7 +231,8 @@ describe("createHotelAction", () => {
         globalRole: "hotel_admin",
         hotelId: "hotel-1",
         role: "owner",
-        created: true,
+        step: "hotel-permission",
+        hotelPermissionEnsured: true,
       })
     );
     expect(tx.hotelAuditLog.create).toHaveBeenCalledWith(

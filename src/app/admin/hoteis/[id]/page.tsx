@@ -153,12 +153,14 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
 
   if (user.globalRole !== "super_admin") {
     try {
-      await requireHotelEditAccess(user.id, id);
+      const permission = await requireHotelEditAccess(user.id, id);
       console.info("[admin/hoteis/edit/load] Hotel edit authorization granted.", {
         hotelId: id,
         userId: user.id,
         globalRole: user.globalRole,
         step: "authorization",
+        hasHotelPermission: Boolean(permission.hotelRole),
+        hotelRole: permission.hotelRole,
       });
     } catch (error) {
       if (error instanceof AuthorizationError) {
@@ -167,6 +169,7 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
           userId: user.id,
           globalRole: user.globalRole,
           step: "authorization",
+          hasHotelPermission: false,
           error: getSafeEditLoadError(error),
         });
 
@@ -186,6 +189,7 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
       userId: user.id,
       globalRole: user.globalRole,
       step: "authorization",
+      hasHotelPermission: "not_required",
     });
   }
 

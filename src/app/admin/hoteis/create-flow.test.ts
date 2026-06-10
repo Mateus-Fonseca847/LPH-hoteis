@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HotelRole } from "@prisma/client";
 
 import { requireAuthenticatedRequestUser } from "@/lib/auth";
+import { canEditHotel } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/prisma";
 import { searchPublishedHotels } from "@/lib/hotel-search";
 import { getPublishedMapHotels } from "@/lib/hotel-map";
@@ -212,6 +213,21 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(async (args) => findHotels(args)[0] ?? null),
       findMany: vi.fn(async (args = {}) => findHotels(args)),
     },
+    user: {
+      findUnique: vi.fn(async (args) => {
+        const permission = db.permissions.find(
+          (item) =>
+            item.userId === args.where.id &&
+            item.hotelId === args.select.hotelPermissions.where.hotelId
+        );
+
+        return {
+          globalRole: "hotel_admin",
+          isActive: true,
+          hotelPermissions: permission ? [{ role: permission.role }] : [],
+        };
+      }),
+    },
     hotelPermission: {
       findMany: vi.fn(async (args) =>
         db.permissions
@@ -278,6 +294,7 @@ describe("fluxo de criação de hotel", () => {
     });
     vi.mocked(prisma.hotel.findUnique).mockClear();
     vi.mocked(prisma.hotel.findMany).mockClear();
+    vi.mocked(prisma.user.findUnique).mockClear();
     vi.mocked(prisma.hotelPermission.findMany).mockClear();
     vi.mocked(prisma.$transaction).mockClear();
     tx.hotel.create.mockClear();
@@ -314,6 +331,8 @@ describe("fluxo de criação de hotel", () => {
       hotelId: result.hotelId,
       role: HotelRole.owner,
     });
+    await expect(canEditHotel("admin-1", String(result.hotelId))).resolves.toBe(true);
+    await expect(canEditHotel("admin-1", "hotel-terceiro")).resolves.toBe(false);
 
     const adminHotels = await prisma.hotelPermission.findMany({
       where: {

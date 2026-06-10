@@ -766,10 +766,11 @@ export async function createHotelAction(
         console.info("[admin/hoteis/create] HotelPermission ensured for creator.", {
           userId: user.id,
           globalRole: user.globalRole,
+          step: "hotel-permission",
           hotelId: createdHotel.id,
           permissionId: permission?.id,
           role: permission?.role ?? HotelRole.owner,
-          created: true,
+          hotelPermissionEnsured: true,
         });
 
         await tx.hotelAuditLog.create({
@@ -831,6 +832,9 @@ export async function createHotelAction(
       });
 
     console.info("[admin/hoteis/create] Hotel draft created.", {
+      userId: user.id,
+      globalRole: user.globalRole,
+      step: "done",
       hotelId: hotel.id,
       slug,
     });
