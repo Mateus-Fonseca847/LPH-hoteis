@@ -97,6 +97,36 @@ const requiredCreateHotelFields = [
   "checkOutTime",
 ] as const;
 
+const brazilianStateCodes = new Set([
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
+]);
+
 const localUploadImagePathRegex =
   /^\/uploads\/hotels\/[a-zA-Z0-9_-]{1,191}\/[a-zA-Z0-9][a-zA-Z0-9._-]{0,220}\.(?:jpg|jpeg|png|webp)$/i;
 
@@ -108,7 +138,8 @@ const createHotelSchema = z
       .string()
       .trim()
       .toUpperCase()
-      .regex(/^[A-Z]{2}$/, "Estado deve ter 2 letras."),
+      .regex(/^[A-Z]{2}$/, "Estado deve ter 2 letras.")
+      .refine((value) => brazilianStateCodes.has(value), "Informe uma UF válida."),
     shortDescription: z
       .string()
       .trim()
@@ -462,7 +493,7 @@ function getCreateHotelErrorCode(error: unknown): CreateHotelErrorCode {
       return "NAME_REQUIRED";
     }
 
-    if (error.message === "Envie uma imagem de capa ou informe a URL da capa.") {
+    if (error.message === "Informe uma imagem de capa ou URL pública.") {
       return "COVER_IMAGE_REQUIRED";
     }
 
@@ -519,7 +550,7 @@ function getCreateHotelErrorMessage(error: unknown) {
     case "DUPLICATE_SLUG":
       return "Já existe um hotel com este slug.";
     case "COVER_IMAGE_REQUIRED":
-      return "Envie uma imagem de capa ou informe a URL da capa.";
+      return "Informe uma imagem de capa ou URL pública.";
     case "COVER_UPLOAD_FAILED":
       return "Falha ao enviar imagem de capa.";
     case "IMAGE_STORAGE_NOT_CONFIGURED":
@@ -666,7 +697,7 @@ export async function createHotelAction(
       console.warn("[admin/hoteis/create] Missing cover image.", {
         missingFields: formDiagnostics.missingFields,
       });
-      throw new ValidationError("Envie uma imagem de capa ou informe a URL da capa.");
+      throw new ValidationError("Informe uma imagem de capa ou URL pública.");
     }
 
     logContext.step = "gallery-validation";

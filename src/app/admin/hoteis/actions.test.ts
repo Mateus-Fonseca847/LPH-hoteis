@@ -672,6 +672,28 @@ describe("createHotelAction", () => {
     expect(prisma.hotel.findUnique).not.toHaveBeenCalled();
   });
 
+  it("não cria hotel com UF inválida", async () => {
+    vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
+      id: "admin-1",
+      name: "Admin Hotel",
+      email: "admin@example.com",
+      globalRole: "hotel_admin",
+      isActive: true,
+    });
+
+    const result = await createHotelAction(
+      { status: "idle", message: "" },
+      buildFormData({ state: "XX" })
+    );
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Informe uma UF válida.",
+      errorCode: "VALIDATION_ERROR",
+    });
+    expect(prisma.hotel.findUnique).not.toHaveBeenCalled();
+  });
+
   it("não cria hotel sem imagem de capa", async () => {
     vi.mocked(requireAuthenticatedRequestUser).mockResolvedValue({
       id: "admin-1",
@@ -688,7 +710,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Envie uma imagem de capa ou informe a URL da capa.",
+      message: "Informe uma imagem de capa ou URL pública.",
       errorCode: "COVER_IMAGE_REQUIRED",
     });
     expect(storeHotelImageFile).not.toHaveBeenCalled();

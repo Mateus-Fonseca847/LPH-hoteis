@@ -82,7 +82,7 @@ function getSafeEditLoadError(error: unknown) {
 function getEditLoadErrorMessage(error: unknown) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2021" || error.code === "P2022") {
-      return "Erro ao carregar hotel. Verifique se as migrations do banco foram aplicadas.";
+      return "Erro de schema do banco. Aplique as migrations.";
     }
   }
 
@@ -97,7 +97,7 @@ function getEditLoadErrorMessage(error: unknown) {
     }
   }
 
-  return "Não foi possível carregar este hotel. Tente novamente ou contate a equipe LPH.";
+  return "Não foi possível carregar este hotel.";
 }
 
 function AdminHotelEditLoadError({ title, description }: { title: string; description: string }) {
