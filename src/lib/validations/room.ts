@@ -50,6 +50,11 @@ const positiveIntField = (label: string, min: number, max: number) =>
     .max(max, `${label} deve ser no máximo ${max}.`);
 
 const urlSchema = z.string().trim().url("URL inválida.").max(500, "URL muito longa.");
+const optionalUrlSchema = z
+  .string()
+  .trim()
+  .max(500, "URL muito longa.")
+  .refine((value) => !value || z.url().safeParse(value).success, "URL inválida.");
 
 const roomImageSchema = z
   .object({
@@ -101,7 +106,6 @@ const roomAmenitiesSchema = z
 
 const roomImagesSchema = z
   .array(roomImageSchema)
-  .min(1, "Adicione pelo menos uma imagem.")
   .max(20, "Máximo de 20 imagens.")
   .superRefine((images, context) => {
     const urls = new Set<string>();
@@ -119,11 +123,11 @@ const roomImagesSchema = z
     });
   });
 
-const roomBaseSchema = z
+const roomObjectSchema = z
   .object({
     name: textField("Nome", 3, 120),
     description: multilineField("Descrição", 10, 2000),
-    imageUrl: urlSchema,
+    imageUrl: optionalUrlSchema,
     images: roomImagesSchema.optional(),
     capacityAdults: positiveIntField("Capacidade de adultos", 1, 20),
     capacityChildren: positiveIntField("Capacidade de crianças", 0, 20),
@@ -134,9 +138,15 @@ const roomBaseSchema = z
   })
   .strict();
 
-export const createHotelRoomPayloadSchema = roomBaseSchema;
+export const createHotelRoomPayloadSchema = roomObjectSchema.refine(
+  (value) => Boolean(value.imageUrl || value.images?.length),
+  {
+    message: "Adicione pelo menos uma imagem.",
+    path: ["images"],
+  }
+);
 
-export const updateHotelRoomPayloadSchema = roomBaseSchema
+export const updateHotelRoomPayloadSchema = roomObjectSchema
   .partial()
   .strict()
   .refine((value) => Object.keys(value).length > 0, {

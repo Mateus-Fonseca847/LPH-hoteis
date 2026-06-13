@@ -5,7 +5,12 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 
 import { createHotelRoomAuditLog, type HotelRoomAuditSnapshot } from "@/lib/audit/hotel-room-audit";
-import { getErrorMessage, NotFoundError, ValidationError } from "@/lib/errors/app-error";
+import {
+  AuthorizationError,
+  getErrorMessage,
+  NotFoundError,
+  ValidationError,
+} from "@/lib/errors/app-error";
 import {
   getRequestIpAddress,
   parseHotelRouteParams,
@@ -14,6 +19,7 @@ import {
 } from "@/lib/hotel-write";
 import { prisma } from "@/lib/prisma";
 import { canonicalizeBedsValue, canonicalizeRoomAmenityLabels } from "@/lib/room-options";
+import { deleteStoredHotelImageFile } from "@/lib/uploads/hotel-images";
 import { parseCreateHotelRoomPayload, parseUpdateHotelRoomPayload } from "@/lib/validations/room";
 
 export type HotelRoomActionState = {
@@ -28,7 +34,7 @@ export type AuthorizedHotelRoom = {
   description: string;
   imageUrl: string;
   images: Array<{
-    id: string;
+    id?: string;
     url: string;
     alt: string;
     position: number;
@@ -85,7 +91,7 @@ function formatRoomForList(room: {
   description: string;
   imageUrl: string;
   images?: Array<{
-    id: string;
+    id?: string;
     url: string;
     alt: string;
     position: number;
@@ -112,14 +118,15 @@ function formatRoomForList(room: {
     images:
       room.images && room.images.length > 0
         ? room.images
-        : [
-            {
-              id: `${room.id}-legacy-image`,
-              url: room.imageUrl,
-              alt: `Imagem do quarto ${room.name}`,
-              position: 0,
-            },
-          ],
+        : room.imageUrl.trim()
+          ? [
+              {
+                url: room.imageUrl,
+                alt: `Imagem do quarto ${room.name}`,
+                position: 0,
+              },
+            ]
+          : [],
     capacityAdults: room.capacityAdults,
     capacityChildren: room.capacityChildren,
     beds: normalizedBeds.success ? normalizedBeds.value : room.beds,
@@ -158,21 +165,24 @@ function buildRoomImagesPayload(
     | undefined
 ) {
   const sourceImages =
-    images && images.length > 0
-      ? images
-      : [
+    images ??
+    (imageUrl.trim()
+      ? [
           {
             url: imageUrl,
             alt: `Imagem do quarto ${roomName}`,
             position: 0,
           },
-        ];
+        ]
+      : []);
 
-  return sourceImages.map((image, index) => ({
-    url: image.url,
-    alt: image.alt || `Imagem do quarto ${roomName}`,
-    position: index,
-  }));
+  return sourceImages
+    .filter((image) => image.url.trim())
+    .map((image, index) => ({
+      url: image.url,
+      alt: image.alt || `Imagem do quarto ${roomName}`,
+      position: index,
+    }));
 }
 
 async function getAuthorizedHotelContext(hotelId: string) {
@@ -528,6 +538,8 @@ export async function removeHotelRoomImageAction(
   roomId: string,
   imageId: string
 ): Promise<HotelRoomActionState> {
+  let removedImageUrl = "";
+
   try {
     const parsedParams = parseHotelRoomRouteParams({ hotelId, roomId });
 
@@ -561,9 +573,7 @@ export async function removeHotelRoomImageAction(
         throw new NotFoundError("Imagem não encontrada.");
       }
 
-      if (images.length <= 1) {
-        throw new ValidationError("Mantenha ao menos uma imagem do quarto.");
-      }
+      removedImageUrl = imageToRemove.url;
 
       await tx.hotelRoomImage.delete({
         where: {
@@ -595,7 +605,7 @@ export async function removeHotelRoomImageAction(
           id: room.id,
         },
         data: {
-          imageUrl: nextPrimaryImage?.url ?? room.imageUrl,
+          imageUrl: nextPrimaryImage?.url ?? "",
         },
       });
 
@@ -610,6 +620,17 @@ export async function removeHotelRoomImageAction(
       });
     });
 
+    if (removedImageUrl) {
+      await deleteStoredHotelImageFile(removedImageUrl).catch((error) => {
+        console.warn("[admin/hoteis/rooms/images/remove] Storage cleanup failed.", {
+          hotelId: hotel.id,
+          roomId: room.id,
+          imageId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+
     revalidateHotelRoomPaths(hotel.id, hotel.slug);
 
     return {
@@ -618,9 +639,16 @@ export async function removeHotelRoomImageAction(
       roomId: room.id,
     };
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return {
+        status: "error",
+        message: "Você não tem permissão para remover esta imagem.",
+      };
+    }
+
     return {
       status: "error",
-      message: getErrorMessage(error, "Não foi possível remover a imagem do quarto."),
+      message: getErrorMessage(error, "Não foi possível remover a imagem."),
     };
   }
 }

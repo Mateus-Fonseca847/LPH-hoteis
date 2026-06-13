@@ -712,7 +712,7 @@ function RoomFormCard({
                         type="button"
                         className="admin-secondary-button"
                         onClick={() => handleRemoveImage(image)}
-                        disabled={isUploadingImage || pending || values.images.length <= 1}
+                        disabled={isUploadingImage || pending}
                       >
                         Remover
                       </button>
@@ -992,6 +992,19 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
   const handleRemovePersistedImage = (roomId: string, imageId: string) => {
     runRoomTask(() => removeHotelRoomImageAction(hotelId, roomId, imageId), {
       roomId,
+      onSuccess: () => {
+        setEditForm((current) => {
+          const nextImages = current.images
+            .filter((image) => image.id !== imageId)
+            .map((image, index) => ({ ...image, position: index }));
+
+          return {
+            ...current,
+            images: nextImages,
+            imageUrl: nextImages[0]?.url ?? "",
+          };
+        });
+      },
     });
   };
 
