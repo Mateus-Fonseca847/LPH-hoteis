@@ -46,13 +46,17 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const formData = await request.formData();
-    const fileEntry = formData.get("file");
+    const fileEntries = [...formData.getAll("files"), ...formData.getAll("file")].filter(
+      (entry): entry is File => entry instanceof File && entry.size > 0
+    );
 
-    if (!(fileEntry instanceof File)) {
+    if (fileEntries.length === 0) {
       throw new ValidationError("Selecione uma imagem válida.");
     }
 
-    const storedImage = await storeHotelImageFile(hotelId, fileEntry);
+    const storedImages = await Promise.all(
+      fileEntries.map((fileEntry) => storeHotelImageFile(hotelId, fileEntry))
+    );
     const ipAddress = getRequestIpAddress(request.headers);
 
     await prisma.hotelAuditLog.create({
@@ -63,21 +67,21 @@ export async function POST(request: Request, context: RouteContext) {
         changedFields: ["roomImageUrl"],
         previousValue: {},
         newValue: {
-          url: storedImage.url,
+          urls: storedImages.map((storedImage) => storedImage.url),
         },
         ipAddress,
       },
     });
 
     return createApiSuccessResponse({
-      image: {
+      images: storedImages.map((storedImage) => ({
         url: storedImage.url,
+      })),
+      image: {
+        url: storedImages[0].url,
       },
     });
   } catch (error) {
-    return createHotelWriteApiErrorResponse(
-      error,
-      "Não foi possível concluir o upload da imagem do quarto."
-    );
+    return createHotelWriteApiErrorResponse(error, "Falha ao enviar imagem do quarto.");
   }
 }

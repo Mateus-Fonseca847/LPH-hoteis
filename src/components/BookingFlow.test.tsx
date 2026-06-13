@@ -1,4 +1,5 @@
-﻿import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { BookingFlow } from "@/components/BookingFlow";
@@ -15,5 +16,13 @@ describe("BookingFlow", () => {
     expect(html).toContain("Data de validade");
     expect(html).toContain("cart");
     expect(html).toContain("Consultar disponibilidade");
+  });
+
+  it("usa o carrossel de imagens do quarto na etapa de escolha", () => {
+    const source = readFileSync(new URL("./BookingFlow.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain("RoomImageCarousel");
+    expect(source).toContain("images={room.images}");
+    expect(source).toContain("fallbackImageUrl={room.imageUrl}");
   });
 });

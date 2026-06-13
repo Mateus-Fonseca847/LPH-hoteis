@@ -7,6 +7,7 @@ import type { AuthorizedHotelRoom, HotelRoomActionState } from "./room-actions";
 import {
   createHotelRoomAction,
   listHotelRoomsAction,
+  removeHotelRoomImageAction,
   toggleHotelRoomActiveAction,
   updateHotelRoomAction,
 } from "./room-actions";
@@ -20,10 +21,18 @@ import {
 } from "@/lib/room-options";
 import { createHotelRoomPayloadSchema } from "@/lib/validations/room";
 
+type RoomImageValue = {
+  id?: string;
+  url: string;
+  alt: string;
+  position: number;
+};
+
 type RoomFormValues = {
   name: string;
   description: string;
   imageUrl: string;
+  images: RoomImageValue[];
   capacityAdults: string;
   capacityChildren: string;
   beds: string;
@@ -40,14 +49,16 @@ type RoomFormMode = "create" | "edit";
 
 type RoomFormCardProps = {
   hotelId: string;
+  roomId?: string;
   mode: RoomFormMode;
   values: RoomFormValues;
   errors: RoomFormErrors;
   pending: boolean;
   title: string;
   submitLabel: string;
-  onChange: (field: keyof RoomFormValues, value: string | boolean) => void;
+  onChange: (field: keyof RoomFormValues, value: string | boolean | RoomImageValue[]) => void;
   onSubmit: () => void;
+  onRemoveImage?: (imageId: string) => void;
   onCancel: () => void;
 };
 
@@ -63,12 +74,14 @@ type FileUploadFieldProps = {
   id: string;
   onChange: (files: FileList | null) => void;
   title: string;
+  multiple?: boolean;
 };
 
 const EMPTY_FORM: RoomFormValues = {
   name: "",
   description: "",
   imageUrl: "",
+  images: [],
   capacityAdults: "2",
   capacityChildren: "0",
   beds: "",
@@ -295,6 +308,7 @@ function FileUploadField({
   auxiliaryText,
   fileName,
   id,
+  multiple = false,
   onChange,
   title,
 }: FileUploadFieldProps) {
@@ -305,6 +319,7 @@ function FileUploadField({
         className="admin-file-upload-input"
         type="file"
         accept={accept}
+        multiple={multiple}
         aria-label={title}
         onChange={(event) => onChange(event.target.files)}
       />
@@ -331,6 +346,7 @@ function getRoomFormValues(room: AuthorizedHotelRoom): RoomFormValues {
     name: room.name,
     description: room.description,
     imageUrl: room.imageUrl,
+    images: room.images,
     capacityAdults: String(room.capacityAdults),
     capacityChildren: String(room.capacityChildren),
     beds: room.beds,
@@ -341,10 +357,19 @@ function getRoomFormValues(room: AuthorizedHotelRoom): RoomFormValues {
 }
 
 function buildRoomPayload(values: RoomFormValues) {
+  const images = values.images.map((image, index) => ({
+    id: image.id,
+    url: image.url.trim(),
+    alt: image.alt.trim() || `Imagem do quarto ${values.name.trim()}`,
+    position: index,
+  }));
+  const primaryImageUrl = images[0]?.url ?? values.imageUrl.trim();
+
   return {
     name: values.name.trim(),
     description: values.description.trim(),
-    imageUrl: values.imageUrl.trim(),
+    imageUrl: primaryImageUrl,
+    images,
     capacityAdults: Number(values.capacityAdults),
     capacityChildren: Number(values.capacityChildren),
     beds: values.beds.trim(),
@@ -371,7 +396,7 @@ function validateRoomForm(values: RoomFormValues): RoomFormErrors {
 
     if (typeof field === "string" && !(field in nextErrors)) {
       nextErrors[field as keyof RoomFormErrors] =
-        field === "imageUrl" && !values.imageUrl.trim()
+        (field === "imageUrl" || field === "images") && values.images.length === 0
           ? "Envie a imagem do quarto."
           : issue.message;
     }
@@ -390,9 +415,12 @@ function formatCapacity(room: AuthorizedHotelRoom) {
   return parts.join(" + ");
 }
 
-async function uploadRoomImage(hotelId: string, file: File) {
+async function uploadRoomImages(hotelId: string, files: File[]) {
   const formData = new FormData();
-  formData.append("file", file);
+
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
 
   const response = await fetch(`/api/admin/hoteis/${hotelId}/quartos/upload`, {
     method: "POST",
@@ -402,20 +430,29 @@ async function uploadRoomImage(hotelId: string, file: File) {
   const payload = (await response.json().catch(() => null)) as {
     ok?: boolean;
     error?: string;
+    images?: Array<{
+      url: string;
+    }>;
     image?: {
       url: string;
     };
   } | null;
+  const images = payload?.images?.length
+    ? payload.images
+    : payload?.image?.url
+      ? [{ url: payload.image.url }]
+      : [];
 
-  if (!response.ok || !payload?.ok || !payload.image?.url) {
-    throw new Error(payload?.error || "Não foi possível enviar a imagem do quarto.");
+  if (!response.ok || !payload?.ok || images.length === 0) {
+    throw new Error(payload?.error || "Falha ao enviar imagem do quarto.");
   }
 
-  return payload.image.url;
+  return images;
 }
 
 function RoomFormCard({
   hotelId,
+  roomId,
   mode,
   values,
   errors,
@@ -424,19 +461,20 @@ function RoomFormCard({
   submitLabel,
   onChange,
   onSubmit,
+  onRemoveImage,
   onCancel,
 }: RoomFormCardProps) {
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [selectedImageFiles, setSelectedImageFiles] = useState<File[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [imageUploadFeedback, setImageUploadFeedback] = useState("");
   const [imageUploadFeedbackType, setImageUploadFeedbackType] = useState<"success" | "error">(
     "success"
   );
   const previewUrl = useMemo(
-    () => (selectedImageFile ? URL.createObjectURL(selectedImageFile) : null),
-    [selectedImageFile]
+    () => (selectedImageFiles[0] ? URL.createObjectURL(selectedImageFiles[0]) : null),
+    [selectedImageFiles]
   );
-  const imagePreviewUrl = previewUrl || values.imageUrl.trim();
+  const imagePreviewUrl = previewUrl || values.images[0]?.url || values.imageUrl.trim();
   const selectedBeds = useMemo(() => parseBedsValue(values.beds), [values.beds]);
   const selectedAmenities = useMemo(
     () =>
@@ -458,9 +496,9 @@ function RoomFormCard({
   }, [previewUrl]);
 
   const handleRoomImageUpload = async () => {
-    if (!selectedImageFile) {
+    if (selectedImageFiles.length === 0) {
       setImageUploadFeedbackType("error");
-      setImageUploadFeedback("Selecione um arquivo para enviar.");
+      setImageUploadFeedback("Selecione uma ou mais imagens para enviar.");
       return;
     }
 
@@ -468,19 +506,45 @@ function RoomFormCard({
     setImageUploadFeedback("");
 
     try {
-      const imageUrl = await uploadRoomImage(hotelId, selectedImageFile);
-      onChange("imageUrl", imageUrl);
-      setSelectedImageFile(null);
+      const uploadedImages = await uploadRoomImages(hotelId, selectedImageFiles);
+      const nextImages = [
+        ...values.images,
+        ...uploadedImages.map((image, index) => ({
+          url: image.url,
+          alt: `Imagem do quarto ${values.name || "quarto"}`,
+          position: values.images.length + index,
+        })),
+      ].map((image, index) => ({ ...image, position: index }));
+
+      onChange("images", nextImages);
+      onChange("imageUrl", nextImages[0]?.url ?? "");
+      setSelectedImageFiles([]);
       setImageUploadFeedbackType("success");
-      setImageUploadFeedback("Imagem do quarto enviada com sucesso.");
+      setImageUploadFeedback("Imagens do quarto enviadas com sucesso.");
     } catch (error) {
       setImageUploadFeedbackType("error");
       setImageUploadFeedback(
-        error instanceof Error ? error.message : "Não foi possível enviar a imagem do quarto."
+        error instanceof Error ? error.message : "Falha ao enviar imagem do quarto."
       );
     } finally {
       setIsUploadingImage(false);
     }
+  };
+
+  const handleRemoveImage = (image: RoomImageValue) => {
+    if (image.id && roomId && onRemoveImage) {
+      onRemoveImage(image.id);
+      return;
+    }
+
+    const nextImages = values.images
+      .filter((item) => item.url !== image.url)
+      .map((item, index) => ({ ...item, position: index }));
+
+    onChange("images", nextImages);
+    onChange("imageUrl", nextImages[0]?.url ?? "");
+    setImageUploadFeedbackType("success");
+    setImageUploadFeedback("Imagem removida com sucesso.");
   };
 
   const handleBedToggle = (optionId: string) => {
@@ -597,9 +661,14 @@ function RoomFormCard({
                 accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
                 title="Selecionar imagem do quarto"
                 auxiliaryText="PNG, JPG ou WebP até o limite permitido."
-                fileName={selectedImageFile?.name || ""}
+                fileName={
+                  selectedImageFiles.length > 0
+                    ? `${selectedImageFiles.length} arquivo(s) selecionado(s).`
+                    : ""
+                }
+                multiple
                 onChange={(files) => {
-                  setSelectedImageFile(files?.[0] ?? null);
+                  setSelectedImageFiles(Array.from(files ?? []));
                   setImageUploadFeedback("");
                 }}
               />
@@ -634,14 +703,32 @@ function RoomFormCard({
                 <small className="admin-form-error">{errors.imageUrl}</small>
               ) : null}
 
+              {values.images.length > 0 ? (
+                <div className="admin-room-meta-grid">
+                  {values.images.map((image, index) => (
+                    <span key={image.id ?? image.url}>
+                      {index === 0 ? "Capa" : `Imagem ${index + 1}`}
+                      <button
+                        type="button"
+                        className="admin-secondary-button"
+                        onClick={() => handleRemoveImage(image)}
+                        disabled={isUploadingImage || pending || values.images.length <= 1}
+                      >
+                        Remover
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
               <div className="admin-room-image-upload-actions">
                 <button
                   type="button"
                   className="card-cta-button admin-edit-button"
                   onClick={handleRoomImageUpload}
-                  disabled={!selectedImageFile || isUploadingImage}
+                  disabled={selectedImageFiles.length === 0 || isUploadingImage}
                 >
-                  {isUploadingImage ? "Enviando imagem..." : "Enviar imagem"}
+                  {isUploadingImage ? "Enviando imagens..." : "Enviar imagens"}
                 </button>
               </div>
             </div>
@@ -886,14 +973,26 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
     });
   };
 
-  const handleCreateChange = (field: keyof RoomFormValues, value: string | boolean) => {
+  const handleCreateChange = (
+    field: keyof RoomFormValues,
+    value: string | boolean | RoomImageValue[]
+  ) => {
     setCreateForm((current) => ({ ...current, [field]: value }));
     setCreateErrors((current) => ({ ...current, [field]: undefined, general: undefined }));
   };
 
-  const handleEditChange = (field: keyof RoomFormValues, value: string | boolean) => {
+  const handleEditChange = (
+    field: keyof RoomFormValues,
+    value: string | boolean | RoomImageValue[]
+  ) => {
     setEditForm((current) => ({ ...current, [field]: value }));
     setEditErrors((current) => ({ ...current, [field]: undefined, general: undefined }));
+  };
+
+  const handleRemovePersistedImage = (roomId: string, imageId: string) => {
+    runRoomTask(() => removeHotelRoomImageAction(hotelId, roomId, imageId), {
+      roomId,
+    });
   };
 
   return (
@@ -997,6 +1096,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
                   {isEditing ? (
                     <RoomFormCard
                       hotelId={hotelId}
+                      roomId={room.id}
                       mode="edit"
                       title={`Editar ${room.name}`}
                       submitLabel="Salvar"
@@ -1005,6 +1105,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
                       pending={isRoomPending}
                       onChange={handleEditChange}
                       onSubmit={() => handleEditSubmit(room.id)}
+                      onRemoveImage={(imageId) => handleRemovePersistedImage(room.id, imageId)}
                       onCancel={() => {
                         setEditingRoomId(null);
                         setEditForm(EMPTY_FORM);

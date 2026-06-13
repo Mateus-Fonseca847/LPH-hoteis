@@ -51,6 +51,15 @@ const positiveIntField = (label: string, min: number, max: number) =>
 
 const urlSchema = z.string().trim().url("URL inválida.").max(500, "URL muito longa.");
 
+const roomImageSchema = z
+  .object({
+    id: z.string().trim().min(1).optional(),
+    url: urlSchema,
+    alt: textField("Texto alternativo da imagem", 2, 140),
+    position: z.number().int().min(0).max(200),
+  })
+  .strict();
+
 const roomBedSchema = z
   .string()
   .transform(sanitizeText)
@@ -90,11 +99,32 @@ const roomAmenitiesSchema = z
     return result.success ? result.value : values;
   });
 
+const roomImagesSchema = z
+  .array(roomImageSchema)
+  .min(1, "Adicione pelo menos uma imagem.")
+  .max(20, "Máximo de 20 imagens.")
+  .superRefine((images, context) => {
+    const urls = new Set<string>();
+
+    images.forEach((image, index) => {
+      if (urls.has(image.url)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [index, "url"],
+          message: "Não repita a mesma imagem.",
+        });
+      }
+
+      urls.add(image.url);
+    });
+  });
+
 const roomBaseSchema = z
   .object({
     name: textField("Nome", 3, 120),
     description: multilineField("Descrição", 10, 2000),
     imageUrl: urlSchema,
+    images: roomImagesSchema.optional(),
     capacityAdults: positiveIntField("Capacidade de adultos", 1, 20),
     capacityChildren: positiveIntField("Capacidade de crianças", 0, 20),
     beds: roomBedSchema,

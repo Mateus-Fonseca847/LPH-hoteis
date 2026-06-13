@@ -89,6 +89,7 @@ export default async function HotelBookingPage({ params, searchParams }: HotelBo
     name: room.name,
     description: room.description,
     imageUrl: room.imageUrl,
+    images: room.images,
     capacity: room.capacity,
     capacityAdults: room.capacityAdults,
     capacityChildren: room.capacityChildren,

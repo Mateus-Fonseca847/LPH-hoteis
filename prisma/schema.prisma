@@ -95,6 +95,7 @@ model HotelRoom {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   hotel            Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  images           HotelRoomImage[]
   rates            RoomRate[]
   availability     RoomAvailability[]
   reservations     Reservation[]
@@ -102,6 +103,20 @@ model HotelRoom {
   @@index([hotelId])
   @@index([hotelId, isActive])
   @@index([hotelId, isAvailable])
+}
+
+model HotelRoomImage {
+  id        String    @id @default(cuid())
+  roomId    String
+  url       String
+  alt       String
+  position  Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  room      HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, url])
+  @@index([roomId, position])
 }
 
 model RoomRate {

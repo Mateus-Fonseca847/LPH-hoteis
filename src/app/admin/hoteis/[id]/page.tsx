@@ -262,6 +262,17 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
             name: true,
             description: true,
             imageUrl: true,
+            images: {
+              orderBy: {
+                position: "asc",
+              },
+              select: {
+                id: true,
+                url: true,
+                alt: true,
+                position: true,
+              },
+            },
             capacityAdults: true,
             capacityChildren: true,
             beds: true,

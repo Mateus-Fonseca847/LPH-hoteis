@@ -42,6 +42,7 @@ type HotelRoomRow = {
   name: string;
   description: string;
   imageUrl: string;
+  images: HotelImageRow[];
   capacityAdults: number;
   capacityChildren: number;
   capacity: number;
@@ -419,6 +420,17 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
             createdAt: "asc",
           },
           include: {
+            images: {
+              orderBy: {
+                position: "asc",
+              },
+              select: {
+                id: true,
+                url: true,
+                alt: true,
+                position: true,
+              },
+            },
             rates: {
               where: {
                 isActive: true,
@@ -482,6 +494,17 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
             name: room.name,
             description: room.description,
             imageUrl: room.imageUrl,
+            images:
+              room.images.length > 0
+                ? room.images
+                : [
+                    {
+                      id: `${room.id}-legacy-image`,
+                      url: room.imageUrl,
+                      alt: `Imagem do quarto ${room.name}`,
+                      position: 0,
+                    },
+                  ],
             capacityAdults: room.capacityAdults,
             capacityChildren: room.capacityChildren,
             capacity: room.capacity,

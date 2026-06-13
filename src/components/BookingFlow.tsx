@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 
-import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { RoomImageCarousel } from "@/components/RoomImageCarousel";
 import {
   getCompatibleRoomAvailabilityResults,
   type AvailabilityResultRoom,
@@ -765,18 +765,13 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
                       .join(" ")}
                   >
                     <div className="availability-room-card__media">
-                      {room.imageUrl ? (
-                        <ImageWithFallback
-                          src={room.imageUrl}
-                          alt={`Quarto ${room.name}`}
-                          fallbackLabel={`Imagem indisponível do quarto ${room.name}`}
-                          fill
-                          sizes="(max-width: 560px) 100vw, 180px"
-                          unoptimized
-                        />
-                      ) : (
-                        <span>{room.name}</span>
-                      )}
+                      <RoomImageCarousel
+                        images={room.images}
+                        fallbackImageUrl={room.imageUrl}
+                        roomName={room.name}
+                        fallbackLabel={`Imagem indisponível do quarto ${room.name}`}
+                        sizes="(max-width: 560px) 100vw, 180px"
+                      />
                     </div>
                     <div className="availability-room-card__content">
                       <div className="availability-room-card__header">
