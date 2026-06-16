@@ -7,6 +7,8 @@ describe("LoginPage markup", () => {
 
     expect(source).toContain("Criar conta");
     expect(source).toContain('href="/criar-conta"');
+    expect(source).toContain("Esqueci minha senha");
+    expect(source).toContain('href="/esqueci-senha"');
     expect(source).toContain("Solicitar acesso de hotel");
     expect(source).toContain('href="/cadastro"');
     expect(source).not.toContain("Sou dono de hotel");

@@ -11,6 +11,7 @@ import {
   toggleHotelRoomActiveAction,
   updateHotelRoomAction,
 } from "./room-actions";
+import { RoomRatesSubsection } from "./RoomRatesSubsection";
 import {
   buildBedsValue,
   buildRoomAmenityLabels,
@@ -876,6 +877,8 @@ function RoomFormCard({
           Cancelar
         </button>
       </div>
+
+      {mode === "create" ? <RoomRatesSubsection hotelId={hotelId} /> : null}
     </div>
   );
 }
@@ -1107,24 +1110,27 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
                   </div>
 
                   {isEditing ? (
-                    <RoomFormCard
-                      hotelId={hotelId}
-                      roomId={room.id}
-                      mode="edit"
-                      title={`Editar ${room.name}`}
-                      submitLabel="Salvar"
-                      values={editForm}
-                      errors={editErrors}
-                      pending={isRoomPending}
-                      onChange={handleEditChange}
-                      onSubmit={() => handleEditSubmit(room.id)}
-                      onRemoveImage={(imageId) => handleRemovePersistedImage(room.id, imageId)}
-                      onCancel={() => {
-                        setEditingRoomId(null);
-                        setEditForm(EMPTY_FORM);
-                        setEditErrors({});
-                      }}
-                    />
+                    <>
+                      <RoomFormCard
+                        hotelId={hotelId}
+                        roomId={room.id}
+                        mode="edit"
+                        title={`Editar ${room.name}`}
+                        submitLabel="Salvar"
+                        values={editForm}
+                        errors={editErrors}
+                        pending={isRoomPending}
+                        onChange={handleEditChange}
+                        onSubmit={() => handleEditSubmit(room.id)}
+                        onRemoveImage={(imageId) => handleRemovePersistedImage(room.id, imageId)}
+                        onCancel={() => {
+                          setEditingRoomId(null);
+                          setEditForm(EMPTY_FORM);
+                          setEditErrors({});
+                        }}
+                      />
+                      <RoomRatesSubsection hotelId={hotelId} roomId={room.id} />
+                    </>
                   ) : (
                     <>
                       <p className="admin-room-description">{room.description}</p>
@@ -1162,6 +1168,8 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
                               : "Ativar"}
                         </button>
                       </div>
+
+                      <RoomRatesSubsection hotelId={hotelId} roomId={room.id} />
                     </>
                   )}
                 </div>

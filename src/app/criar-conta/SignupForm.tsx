@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
+import { PasswordInput } from "@/components/PasswordInput";
+
 type SignupFormValues = {
   name: string;
   email: string;
@@ -103,9 +105,8 @@ export function SignupForm() {
 
       <div className="auth-field">
         <label htmlFor="password">Senha</label>
-        <input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="new-password"
           placeholder="Crie uma senha"
           value={values.password}
@@ -122,9 +123,8 @@ export function SignupForm() {
 
       <div className="auth-field">
         <label htmlFor="confirmPassword">Confirmar senha</label>
-        <input
+        <PasswordInput
           id="confirmPassword"
-          type="password"
           autoComplete="new-password"
           placeholder="Repita a senha"
           value={values.confirmPassword}

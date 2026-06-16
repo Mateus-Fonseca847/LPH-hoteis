@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 
+import { PasswordInput } from "@/components/PasswordInput";
 import { normalizeRedirectTarget } from "@/lib/auth/redirect";
 
 type LoginResponse = {
@@ -81,9 +82,8 @@ export function LoginForm() {
 
       <div className="auth-field">
         <label htmlFor="password">Senha</label>
-        <input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="current-password"
           placeholder="Sua senha"
           value={password}

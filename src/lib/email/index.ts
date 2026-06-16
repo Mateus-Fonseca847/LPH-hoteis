@@ -29,6 +29,13 @@ type SendHotelOwnerSignupRejectedEmailInput = {
   reviewNote?: string | null;
 };
 
+type SendPasswordResetEmailInput = {
+  to: string;
+  name?: string | null;
+  resetUrl: string;
+  expiresInMinutes: number;
+};
+
 const DEVELOPMENT_PROVIDER = "development";
 const RESEND_PROVIDER = "resend";
 const TWO_FACTOR_SEND_FAILURE_MESSAGE =
@@ -239,6 +246,38 @@ export async function sendHotelOwnerSignupRejectedEmail(
     <p>Olá, ${safeName}.</p>
     <p>Sua solicitação de acesso para <strong>${safeHotelName}</strong> foi analisada pela equipe LPH.</p>
     ${safeNote ? `<p><strong>Observação:</strong> ${safeNote}</p>` : ""}
+  `;
+
+  await sendEmail({
+    to: input.to,
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendPasswordResetEmail(input: SendPasswordResetEmailInput) {
+  const displayName = input.name?.trim() || "usuário";
+  const safeDisplayName = escapeHtml(displayName);
+  const safeResetUrl = escapeHtml(input.resetUrl);
+  const subject = "Redefinição de senha - LPH Hotéis";
+  const text = [
+    `Olá, ${displayName}.`,
+    "",
+    "Recebemos uma solicitação para redefinir sua senha na LPH Hotéis.",
+    `Acesse o link abaixo para criar uma nova senha. Ele expira em ${input.expiresInMinutes} minutos.`,
+    input.resetUrl,
+    "",
+    "Se você não solicitou esta redefinição, ignore este e-mail.",
+  ].join("\n");
+  const html = `
+    <p>Olá, ${safeDisplayName}.</p>
+    <p>Recebemos uma solicitação para redefinir sua senha na LPH Hotéis.</p>
+    <p>Use o botão abaixo para criar uma nova senha. Ele expira em ${input.expiresInMinutes} minutos.</p>
+    <p><a href="${safeResetUrl}" style="display:inline-block;padding:12px 18px;background:#111827;color:#ffffff;text-decoration:none;border-radius:6px;">Redefinir senha</a></p>
+    <p>Se o botão não funcionar, copie e cole este link no navegador:</p>
+    <p>${safeResetUrl}</p>
+    <p>Se você não solicitou esta redefinição, ignore este e-mail.</p>
   `;
 
   await sendEmail({

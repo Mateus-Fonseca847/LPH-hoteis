@@ -13,7 +13,6 @@ import { HotelManagementWorkspace } from "../HotelManagementWorkspace";
 import { HotelEditorForm } from "./HotelEditorForm";
 import { HotelApprovalReview } from "./HotelApprovalReview";
 import { HotelAvailabilitySection } from "./HotelAvailabilitySection";
-import { HotelRatesSection } from "./HotelRatesSection";
 import { HotelRoomsSection } from "./HotelRoomsSection";
 import {
   approveHotelAction,
@@ -465,7 +464,7 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
     {
       label: "Tarifas",
       description: `${activeRatesCount} ativa(s)`,
-      href: "#hotel-rates",
+      href: "#hotel-rooms",
       status: activeRatesCount > 0 ? ("complete" as const) : ("pending" as const),
     },
     {
@@ -562,17 +561,6 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
             initialRooms={hotel.rooms.map((room) => ({
               ...room,
               priceFrom: room.priceFrom.toString(),
-            }))}
-          />
-        </div>
-      }
-      ratesSlot={
-        <div id="hotel-rates">
-          <HotelRatesSection
-            hotelId={hotel.id}
-            rooms={hotel.rooms.map((room) => ({
-              id: room.id,
-              name: room.name,
             }))}
           />
         </div>

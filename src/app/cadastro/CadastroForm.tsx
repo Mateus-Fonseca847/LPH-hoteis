@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 
+import { PasswordInput } from "@/components/PasswordInput";
 import { formatCnpj, isValidCnpj } from "@/lib/cnpj";
 
 type CadastroFormValues = {
@@ -362,9 +363,8 @@ export function CadastroForm() {
 
       <div className="auth-field">
         <label htmlFor="password">Senha</label>
-        <input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="new-password"
           value={values.password}
           aria-invalid={Boolean(errors.password)}
@@ -382,9 +382,8 @@ export function CadastroForm() {
 
       <div className="auth-field">
         <label htmlFor="confirmPassword">Confirmar senha</label>
-        <input
+        <PasswordInput
           id="confirmPassword"
-          type="password"
           autoComplete="new-password"
           value={values.confirmPassword}
           aria-invalid={Boolean(errors.confirmPassword)}

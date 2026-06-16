@@ -455,7 +455,8 @@ describe("fluxo de criação de hotel", () => {
 
     expect(createFormSource).toContain("router.push(`/admin/hoteis/${state.hotelId}`)");
     expect(editPageSource).toContain("HotelRoomsSection");
-    expect(editPageSource).toContain("HotelRatesSection");
+    expect(editPageSource).not.toContain("HotelRatesSection");
+    expect(editPageSource).not.toContain("ratesSlot={");
     expect(editPageSource).toContain("HotelAvailabilitySection");
     expect(editPageSource).toContain("HotelEditorForm");
     expect(editPageSource).toContain("experiences");
