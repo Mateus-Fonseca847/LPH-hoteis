@@ -142,7 +142,7 @@ describe("profile experience recommendations", () => {
     expect(matches[0].href).toBe("/hoteis/boa-viagem");
   });
 
-  it("usa coverImageUrl como primeira imagem do card e do modal", () => {
+  it("mantem imagem da experiencia no card mesmo com hotel recomendado", () => {
     const hotel = {
       slug: "pousada-casa-mare",
       name: "Pousada Casa Maré",
@@ -163,11 +163,14 @@ describe("profile experience recommendations", () => {
       hotels: [hotel],
     });
 
-    expect(matches[0].image).toBe("https://cdn.example.test/casa-mare-cover.webp");
-    expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBe(matches[0].image);
+    expect(matches[0].experienceImage).toBe(experience.image);
+    expect(matches[0].recommendedHotelImage).toBe("https://cdn.example.test/casa-mare-cover.webp");
+    expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBe(
+      matches[0].recommendedHotelImage
+    );
   });
 
-  it("usa a primeira imagem da galeria quando o hotel nao tem capa", () => {
+  it("mantem imagem da experiencia quando hotel usa galeria", () => {
     const matches = getProfileExperienceMatches({
       recommendations: [experience],
       hotels: [
@@ -185,10 +188,14 @@ describe("profile experience recommendations", () => {
       ],
     });
 
-    expect(matches[0].image).toBe("https://cdn.example.test/gallery-1.webp");
+    expect(matches[0].experienceImage).toBe(experience.image);
+    expect(matches[0].recommendedHotelImage).toBe("https://cdn.example.test/gallery-1.webp");
+    expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBe(
+      matches[0].recommendedHotelImage
+    );
   });
 
-  it("usa imagem de quarto quando o hotel nao tem capa nem galeria", () => {
+  it("mantem imagem da experiencia quando hotel usa imagem de quarto", () => {
     const matches = getProfileExperienceMatches({
       recommendations: [experience],
       hotels: [
@@ -209,7 +216,11 @@ describe("profile experience recommendations", () => {
       ],
     });
 
-    expect(matches[0].image).toBe("https://cdn.example.test/room-gallery.webp");
+    expect(matches[0].experienceImage).toBe(experience.image);
+    expect(matches[0].recommendedHotelImage).toBe("https://cdn.example.test/room-gallery.webp");
+    expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBe(
+      matches[0].recommendedHotelImage
+    );
   });
 
   it("mantem fallback da experiencia quando o hotel realmente nao tem imagem", () => {
@@ -228,7 +239,8 @@ describe("profile experience recommendations", () => {
       ],
     });
 
-    expect(matches[0].image).toBe(experience.image);
+    expect(matches[0].experienceImage).toBe(experience.image);
+    expect(matches[0].recommendedHotelImage).toBeNull();
     expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBeNull();
   });
 
@@ -248,7 +260,8 @@ describe("profile experience recommendations", () => {
       ],
     });
 
-    expect(matches[0].image).toBe(experience.image);
+    expect(matches[0].experienceImage).toBe(experience.image);
+    expect(matches[0].recommendedHotelImage).toBeNull();
     expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBeNull();
   });
 
@@ -260,19 +273,8 @@ describe("profile experience recommendations", () => {
     expect(isUsableImageUrl("//example.com/image.webp")).toBe(false);
   });
 
-  it("resolve imagem do hotel antes da imagem da experiencia", () => {
-    const hotel = {
-      slug: "boa-viagem",
-      name: "Boa Viagem",
-      city: "Recife",
-      state: "PE",
-      coverImageUrl: "",
-      images: [{ url: "https://cdn.example.test/gallery.webp", position: 0 }],
-    };
-
-    expect(resolveExperienceImageUrl(hotel, experience.image)).toBe(
-      "https://cdn.example.test/gallery.webp"
-    );
-    expect(resolveExperienceImageUrl(null, experience.image)).toBe(experience.image);
+  it("resolve somente imagem valida da experiencia para o card principal", () => {
+    expect(resolveExperienceImageUrl(experience.image)).toBe(experience.image);
+    expect(resolveExperienceImageUrl("not a url")).toBeNull();
   });
 });

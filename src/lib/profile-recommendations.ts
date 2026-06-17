@@ -60,7 +60,8 @@ export type ProfileExperienceMatch<TExperience extends ProfileExperienceInput> =
     proximityLabel: string;
   }>;
   href: string;
-  image: string;
+  experienceImage: string;
+  recommendedHotelImage: string | null;
   ctaLabel: string;
   destinationCity: string;
   destinationState: string;
@@ -367,13 +368,8 @@ export function getProfileRecommendationHotelImage(hotel: ProfileRecommendationH
   );
 }
 
-export function resolveExperienceImageUrl(
-  hotel: ProfileRecommendationHotel | null,
-  destinationImage: string
-) {
-  return (
-    (hotel ? getProfileRecommendationHotelImage(hotel) : null) ?? cleanImageUrl(destinationImage)
-  );
+export function resolveExperienceImageUrl(destinationImage: string | null | undefined) {
+  return cleanImageUrl(destinationImage);
 }
 
 function getHotelProximityLabel(
@@ -459,7 +455,8 @@ export function getProfileExperienceMatches<TExperience extends ProfileExperienc
         destination.state
       );
       const hotel = hotelMatches.at(0)?.hotel ?? null;
-      const image = resolveExperienceImageUrl(hotel, experience.image);
+      const experienceImage = resolveExperienceImageUrl(experience.image);
+      const recommendedHotelImage = hotel ? getProfileRecommendationHotelImage(hotel) : null;
 
       return {
         experience,
@@ -468,7 +465,8 @@ export function getProfileExperienceMatches<TExperience extends ProfileExperienc
         href: hotel
           ? `/hoteis/${hotel.slug}`
           : `/buscar?destino=${encodeURIComponent(experience.query)}`,
-        image: image ?? "",
+        experienceImage: experienceImage ?? "",
+        recommendedHotelImage,
         ctaLabel: hotel ? "Ver hotel" : "Explorar hotéis",
         destinationCity: destination.city,
         destinationState: destination.state,

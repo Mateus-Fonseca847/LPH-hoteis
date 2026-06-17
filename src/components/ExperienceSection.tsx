@@ -75,6 +75,26 @@ type ExperienceVisualImageProps = {
   priority?: boolean;
 };
 
+function isNextImageCompatibleExperienceSource(src: string) {
+  if (src.startsWith("/")) {
+    return true;
+  }
+
+  try {
+    const url = new URL(src);
+    const hostname = url.hostname.toLowerCase();
+
+    return (
+      url.protocol === "https:" &&
+      (hostname === "images.unsplash.com" ||
+        hostname === "blob.vercel-storage.com" ||
+        hostname.endsWith(".public.blob.vercel-storage.com"))
+    );
+  } catch {
+    return false;
+  }
+}
+
 const MODAL_FOCUSABLE_SELECTOR = [
   "a[href]",
   "button:not([disabled])",
@@ -817,18 +837,33 @@ function ExperienceVisualImage({ src, alt, sizes, priority = false }: Experience
   } | null>(null);
   const imageSrc = isUsableImageUrl(src) ? src.trim() : null;
   const currentImageState = imageState?.src === imageSrc ? imageState.status : "loading";
+  const imageClassName = `experience-image ${currentImageState === "loaded" ? "is-loaded" : ""}`;
 
   return (
     <>
       <div className="experience-image-fallback" aria-hidden="true" />
-      {imageSrc && currentImageState !== "error" ? (
+      {imageSrc &&
+      currentImageState !== "error" &&
+      isNextImageCompatibleExperienceSource(imageSrc) ? (
         <Image
-          className={`experience-image ${currentImageState === "loaded" ? "is-loaded" : ""}`}
+          className={imageClassName}
           src={imageSrc}
           alt={alt}
           fill
           sizes={sizes}
           priority={priority}
+          onLoad={() => setImageState({ src: imageSrc, status: "loaded" })}
+          onError={() => setImageState({ src: imageSrc, status: "error" })}
+        />
+      ) : imageSrc && currentImageState !== "error" ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          className={imageClassName}
+          src={imageSrc}
+          alt={alt}
+          sizes={sizes}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
           onLoad={() => setImageState({ src: imageSrc, status: "loaded" })}
           onError={() => setImageState({ src: imageSrc, status: "error" })}
         />
@@ -1297,8 +1332,8 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
     const content = (
       <>
         <ExperienceVisualImage
-          src={match?.image ?? destination.image}
-          alt={match?.hotel ? `${match.hotel.name} em ${match.hotel.city}` : destination.alt}
+          src={match?.experienceImage ?? destination.image}
+          alt={destination.alt}
           sizes={imageSizes}
           priority={variant === "featured"}
         />
@@ -1379,8 +1414,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
             {selectedExperience.hotels.length > 0 ? (
               <div className="experience-hotels-list">
                 {selectedExperience.hotels.map(({ hotel, proximityLabel }) => {
-                  const hotelImageUrl =
-                    getProfileRecommendationHotelImage(hotel) || selectedExperience.image;
+                  const hotelImageUrl = getProfileRecommendationHotelImage(hotel);
 
                   return (
                     <article className="experience-hotel-option" key={hotel.slug}>
@@ -1465,12 +1499,8 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
               >
                 <div className="experience-recommendation-card__image">
                   <ExperienceVisualImage
-                    src={recommendation.image}
-                    alt={
-                      recommendation.hotel
-                        ? `${recommendation.hotel.name} em ${recommendation.hotel.city}`
-                        : recommendation.experience.alt
-                    }
+                    src={recommendation.experienceImage}
+                    alt={recommendation.experience.alt}
                     sizes="(max-width: 720px) 100vw, (max-width: 1180px) 50vw, 33vw"
                   />
                 </div>
