@@ -2,6 +2,7 @@ import { hotels as fallbackHotels } from "@/data/hotels";
 import { getPublicHotelWhere } from "@/lib/hotel-archive";
 import { normalizeText } from "@/lib/normalize-text";
 import { prisma } from "@/lib/prisma";
+import { dedupePublicHotels } from "@/lib/public-hotel-dedupe";
 
 const MAX_QUERY_LENGTH = 80;
 const MAX_SUGGESTIONS = 8;
@@ -16,6 +17,7 @@ export type HotelSearchSuggestion = {
 };
 
 export type HotelSearchResult = {
+  id?: string;
   slug: string;
   name: string;
   city: string;
@@ -58,6 +60,7 @@ function matchesHotelQuery(
 
 function mapFallbackResult(hotel: (typeof fallbackHotels)[number]): HotelSearchResult {
   return {
+    id: `fallback-${hotel.slug}`,
     slug: hotel.slug,
     name: hotel.name,
     city: hotel.city,
@@ -73,7 +76,10 @@ function getFallbackResults(query: string) {
     return [];
   }
 
-  return fallbackHotels.filter((hotel) => matchesHotelQuery(hotel, query)).map(mapFallbackResult);
+  return dedupePublicHotels(
+    fallbackHotels.filter((hotel) => matchesHotelQuery(hotel, query)).map(mapFallbackResult),
+    "home/hotels"
+  );
 }
 
 function buildDestinationSuggestions(results: HotelSearchResult[], query: string) {
@@ -123,7 +129,7 @@ export async function searchPublishedHotels(query: string, limit = MAX_RESULTS) 
   try {
     const publicHotelWhere = await getPublicHotelWhere();
 
-    return await prisma.hotel.findMany({
+    const hotels = await prisma.hotel.findMany({
       where: {
         ...publicHotelWhere,
         OR: [
@@ -136,6 +142,7 @@ export async function searchPublishedHotels(query: string, limit = MAX_RESULTS) 
         ],
       },
       select: {
+        id: true,
         slug: true,
         name: true,
         city: true,
@@ -147,6 +154,8 @@ export async function searchPublishedHotels(query: string, limit = MAX_RESULTS) 
       orderBy: [{ city: "asc" }, { name: "asc" }],
       take: limit,
     });
+
+    return dedupePublicHotels(hotels, "home/hotels").slice(0, limit);
   } catch (error) {
     if (canUseDevelopmentFallback) {
       return getFallbackResults(safeQuery).slice(0, limit);

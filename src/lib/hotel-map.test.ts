@@ -47,6 +47,54 @@ describe("mapHotelsForPublicMap", () => {
     ]);
   });
 
+  it("nao retorna hotel duplicado por id ou slug", () => {
+    expect(
+      mapHotelsForPublicMap([
+        {
+          id: "hotel-1",
+          slug: "pousada-casa-mare",
+          name: "Pousada Casa Mare",
+          shortDescription: "Desc",
+          city: "Sao Paulo",
+          state: "SP",
+          address: "Rua 1",
+          coverImageUrl: "/hotel-1.webp",
+          latitude: null,
+          longitude: null,
+        },
+        {
+          id: "hotel-1",
+          slug: "pousada-casa-mare-copia",
+          name: "Pousada Casa Mare copia",
+          shortDescription: "Desc",
+          city: "Sao Paulo",
+          state: "SP",
+          address: "Rua 2",
+          coverImageUrl: "/hotel-2.webp",
+          latitude: null,
+          longitude: null,
+        },
+        {
+          id: "hotel-2",
+          slug: "pousada-casa-mare",
+          name: "Pousada Casa Mare duplicada",
+          shortDescription: "Desc",
+          city: "Sao Paulo",
+          state: "SP",
+          address: "Rua 3",
+          coverImageUrl: "/hotel-3.webp",
+          latitude: null,
+          longitude: null,
+        },
+      ])
+    ).toEqual([
+      expect.objectContaining({
+        id: "hotel-1",
+        slug: "pousada-casa-mare",
+      }),
+    ]);
+  });
+
   it("mantem hotel quando cidade e estado resolvem a posicao no mapa", () => {
     expect(
       mapHotelsForPublicMap([

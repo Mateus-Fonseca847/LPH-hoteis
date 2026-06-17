@@ -6602,6 +6602,53 @@ a.booking-page-link {
   gap: 18px;
 }
 
+.admin-availability-room-list {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-availability-room-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-availability-room-card__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.admin-availability-room-card__header strong {
+  color: var(--brand);
+  font-size: 1.08rem;
+}
+
+.admin-availability-room-card__header p,
+.admin-availability-room-card__header small,
+.admin-availability-room-card__hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.admin-availability-room-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-availability-room-card__calendar {
+  display: grid;
+  gap: 12px;
+}
+
 .admin-rate-toolbar {
   grid-template-columns: minmax(0, 360px);
 }
@@ -6900,6 +6947,203 @@ a.booking-page-link {
   background: rgba(6, 41, 79, 0.04);
   color: var(--muted);
   line-height: 1.55;
+}
+
+.room-availability-calendar {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.room-availability-calendar__header,
+.room-availability-calendar__nav,
+.room-availability-calendar__legend,
+.room-availability-calendar__quick-actions,
+.room-availability-calendar__footer {
+  display: flex;
+  align-items: center;
+}
+
+.room-availability-calendar__header {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.room-availability-calendar__header span,
+.room-availability-calendar__legend span,
+.room-availability-calendar__selection,
+.room-availability-calendar__footer span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.room-availability-calendar__header strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--brand);
+  font-size: 1.12rem;
+}
+
+.room-availability-calendar__nav {
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.room-availability-calendar__nav button,
+.room-availability-calendar__quick-actions button {
+  min-height: 36px;
+  border: 1px solid rgba(6, 41, 79, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--brand);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.room-availability-calendar__nav button {
+  padding: 0 14px;
+}
+
+.room-availability-calendar__quick-actions button {
+  padding: 0 16px;
+}
+
+.room-availability-calendar__quick-actions button.is-active,
+.room-availability-calendar__nav button:hover,
+.room-availability-calendar__quick-actions button:hover {
+  background: var(--brand);
+  color: var(--surface);
+}
+
+.room-availability-calendar__legend {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.room-availability-calendar__legend span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+}
+
+.room-availability-calendar__legend .is-empty {
+  background: rgba(30, 30, 30, 0.06);
+}
+
+.room-availability-calendar__legend .is-available {
+  background: rgba(16, 185, 129, 0.14);
+  color: #0f766e;
+}
+
+.room-availability-calendar__legend .is-occupied {
+  background: rgba(245, 158, 11, 0.16);
+  color: #92400e;
+}
+
+.room-availability-calendar__legend .is-closed {
+  background: rgba(185, 28, 28, 0.12);
+  color: #991b1b;
+}
+
+.room-availability-calendar__legend .is-selected {
+  background: rgba(6, 41, 79, 0.14);
+  color: var(--brand);
+}
+
+.room-availability-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.room-availability-calendar__weekday {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.room-availability-calendar__day {
+  display: grid;
+  gap: 5px;
+  min-height: 76px;
+  padding: 10px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--brand);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.room-availability-calendar__day span {
+  font-weight: 900;
+}
+
+.room-availability-calendar__day small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.room-availability-calendar__day.is-outside-month {
+  opacity: 0.45;
+}
+
+.room-availability-calendar__day.is-today {
+  outline: 2px solid rgba(6, 41, 79, 0.26);
+  outline-offset: 1px;
+}
+
+.room-availability-calendar__day.is-available {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.room-availability-calendar__day.is-occupied {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.room-availability-calendar__day.is-closed {
+  background: rgba(30, 30, 30, 0.08);
+  border-color: rgba(185, 28, 28, 0.18);
+}
+
+.room-availability-calendar__day.is-selected {
+  background: rgba(6, 41, 79, 0.14);
+  border-color: rgba(6, 41, 79, 0.46);
+  box-shadow: inset 0 0 0 2px rgba(6, 41, 79, 0.18);
+}
+
+.room-availability-calendar__panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(6, 41, 79, 0.05);
+}
+
+.room-availability-calendar__quick-actions {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.room-availability-calendar__footer {
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .admin-secondary-button {

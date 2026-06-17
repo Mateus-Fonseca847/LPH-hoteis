@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
 
 type PublishedHotelCard = {
+  id?: string;
   slug: string;
   name: string;
   city: string;
@@ -44,11 +45,11 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
       lastTimestampRef.current = timestamp;
 
       if (!pausedRef.current) {
-        const halfWidth = track.scrollWidth / 2;
+        const maxScrollLeft = track.scrollWidth - track.clientWidth;
         track.scrollLeft += (pixelsPerSecond * delta) / 1000;
 
-        if (track.scrollLeft >= halfWidth) {
-          track.scrollLeft -= halfWidth;
+        if (maxScrollLeft > 0 && track.scrollLeft >= maxScrollLeft) {
+          track.scrollLeft = 0;
         }
       }
 
@@ -116,18 +117,18 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
     };
   }, [hotels.length]);
 
-  const normalizeLoopPosition = () => {
+  const normalizeCarouselPosition = () => {
     const track = trackRef.current;
     if (!track) return;
 
-    const loopWidth = track.scrollWidth / 2;
+    const maxScrollLeft = track.scrollWidth - track.clientWidth;
 
-    if (track.scrollLeft >= loopWidth) {
-      track.scrollLeft -= loopWidth;
+    if (track.scrollLeft > maxScrollLeft) {
+      track.scrollLeft = Math.max(maxScrollLeft, 0);
     }
 
     if (track.scrollLeft < 0) {
-      track.scrollLeft += loopWidth;
+      track.scrollLeft = 0;
     }
   };
 
@@ -161,11 +162,9 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
     });
 
     window.setTimeout(() => {
-      normalizeLoopPosition();
+      normalizeCarouselPosition();
     }, 420);
   };
-
-  const allHotels = hotels.length > 1 ? [...hotels, ...hotels] : hotels;
 
   return (
     <section id="journey" className="journey section reveal">
@@ -223,13 +222,11 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
           ) : null}
 
           <div ref={trackRef} className="hotel-cards-track">
-            {allHotels.map((hotel, index) => (
+            {hotels.map((hotel) => (
               <Link
-                key={`${hotel.slug}-${index}`}
+                key={hotel.id ?? hotel.slug}
                 href={`/hoteis/${hotel.slug}`}
                 className="hotel-card hotel-card-link"
-                aria-hidden={index >= hotels.length}
-                tabIndex={index >= hotels.length ? -1 : 0}
               >
                 <ImageWithFallback
                   src={hotel.coverImageUrl}

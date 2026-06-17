@@ -3,9 +3,21 @@ export type ProfileRecommendationHotel = {
   name: string;
   city: string;
   state: string;
-  coverImageUrl: string;
+  coverImageUrl?: string | null;
+  coverImage?: string | null;
   shortDescription?: string;
   isPublished?: boolean;
+  images?: Array<{
+    url?: string | null;
+    position?: number | null;
+  }>;
+  rooms?: Array<{
+    imageUrl?: string | null;
+    images?: Array<{
+      url?: string | null;
+      position?: number | null;
+    }>;
+  }>;
 };
 
 export type TouristAttractionIconType =
@@ -293,13 +305,46 @@ function scoreCompatibleHotel(
 ) {
   let score = 0;
 
-  if (hotel.coverImageUrl) {
+  if (getProfileRecommendationHotelImage(hotel)) {
     score += 6;
   }
 
   score += experience.matchPriority ?? 0;
 
   return score;
+}
+
+function cleanImageUrl(value: string | null | undefined) {
+  const imageUrl = value?.trim();
+  return imageUrl || null;
+}
+
+function getFirstPositionedImageUrl(
+  images: Array<{ url?: string | null; position?: number | null }> | undefined
+) {
+  return (
+    images
+      ?.filter((image) => cleanImageUrl(image.url))
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+      .map((image) => cleanImageUrl(image.url))
+      .find(Boolean) ?? null
+  );
+}
+
+export function getProfileRecommendationHotelImage(hotel: ProfileRecommendationHotel) {
+  return (
+    cleanImageUrl(hotel.coverImageUrl) ??
+    cleanImageUrl(hotel.coverImage) ??
+    getFirstPositionedImageUrl(hotel.images) ??
+    hotel.rooms
+      ?.flatMap((room) => room.images ?? [])
+      .filter((image) => cleanImageUrl(image.url))
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+      .map((image) => cleanImageUrl(image.url))
+      .find(Boolean) ??
+    hotel.rooms?.map((room) => cleanImageUrl(room.imageUrl)).find(Boolean) ??
+    null
+  );
 }
 
 function getHotelProximityLabel(
@@ -385,6 +430,7 @@ export function getProfileExperienceMatches<TExperience extends ProfileExperienc
         destination.state
       );
       const hotel = hotelMatches.at(0)?.hotel ?? null;
+      const hotelImage = hotel ? getProfileRecommendationHotelImage(hotel) : null;
 
       return {
         experience,
@@ -393,7 +439,7 @@ export function getProfileExperienceMatches<TExperience extends ProfileExperienc
         href: hotel
           ? `/hoteis/${hotel.slug}`
           : `/buscar?destino=${encodeURIComponent(experience.query)}`,
-        image: hotel?.coverImageUrl || experience.image,
+        image: hotelImage || experience.image,
         ctaLabel: hotel ? "Ver hotel" : "Explorar hotéis",
         destinationCity: destination.city,
         destinationState: destination.state,

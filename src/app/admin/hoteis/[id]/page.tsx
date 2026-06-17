@@ -572,6 +572,10 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
             rooms={hotel.rooms.map((room) => ({
               id: room.id,
               name: room.name,
+              capacityAdults: room.capacityAdults,
+              capacityChildren: room.capacityChildren,
+              capacity: room.capacity,
+              isActive: room.isActive,
             }))}
           />
         </div>

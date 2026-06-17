@@ -24,5 +24,7 @@ describe("BookingFlow", () => {
     expect(source).toContain("RoomImageCarousel");
     expect(source).toContain("images={room.images}");
     expect(source).toContain("fallbackImageUrl={room.imageUrl}");
+    expect(source).toContain("`${room.sizeM2} m²`");
+    expect(source).not.toContain(String.fromCharCode(109, 194, 178));
   });
 });

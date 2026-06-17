@@ -7,14 +7,27 @@ import {
 } from "@/data/hotels";
 import { getPublicHotelWhere } from "@/lib/hotel-archive";
 import { prisma } from "@/lib/prisma";
+import { dedupePublicHotels } from "@/lib/public-hotel-dedupe";
 
 export type PublishedHotelCard = {
+  id: string;
   slug: string;
   name: string;
   shortDescription?: string;
   city: string;
   state: string;
   coverImageUrl: string;
+  images: Array<{
+    url: string;
+    position: number;
+  }>;
+  rooms: Array<{
+    imageUrl: string;
+    images: Array<{
+      url: string;
+      position: number;
+    }>;
+  }>;
 };
 
 type HotelImageRow = {
@@ -221,11 +234,17 @@ function shouldSkipDatabaseDuringBuild() {
 }
 
 function getFallbackPublishedHotels() {
-  return canUseDevelopmentFallback ? fallbackHotels.map(mapFallbackCard) : [];
+  return canUseDevelopmentFallback
+    ? dedupePublicHotels(fallbackHotels.map(mapFallbackCard), "home/hotels")
+    : [];
 }
 
 function getFallbackHotelSlugs() {
-  return canUseDevelopmentFallback ? fallbackHotels.map((hotel) => hotel.slug) : [];
+  return canUseDevelopmentFallback
+    ? dedupePublicHotels(fallbackHotels.map(mapFallbackCard), "home/hotels").map(
+        (hotel) => hotel.slug
+      )
+    : [];
 }
 
 function getFallbackHotelPageData(slug: string) {
@@ -274,12 +293,15 @@ async function hasCompatibleHotelSchema() {
 
 function mapFallbackCard(hotel: FallbackHotel): PublishedHotelCard {
   return {
+    id: `fallback-${hotel.slug}`,
     slug: hotel.slug,
     name: hotel.name,
     shortDescription: hotel.shortDescription,
     city: hotel.city,
     state: hotel.state,
     coverImageUrl: hotel.image,
+    images: hotel.gallery.map((url, position) => ({ url, position })),
+    rooms: [],
   };
 }
 
@@ -346,18 +368,50 @@ async function fetchPublishedHotels(): Promise<PublishedHotelCard[]> {
   try {
     const publicHotelWhere = await getPublicHotelWhere();
 
-    return await prisma.hotel.findMany({
+    const hotels = await prisma.hotel.findMany({
       where: publicHotelWhere,
       select: {
+        id: true,
         slug: true,
         name: true,
         shortDescription: true,
         city: true,
         state: true,
         coverImageUrl: true,
+        images: {
+          orderBy: {
+            position: "asc",
+          },
+          select: {
+            url: true,
+            position: true,
+          },
+        },
+        rooms: {
+          where: {
+            isActive: true,
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+          select: {
+            imageUrl: true,
+            images: {
+              orderBy: {
+                position: "asc",
+              },
+              select: {
+                url: true,
+                position: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [{ city: "asc" }, { name: "asc" }],
     });
+
+    return dedupePublicHotels(hotels, "home/hotels");
   } catch (error) {
     return handleDatabaseFallback(error, getFallbackPublishedHotels());
   }
@@ -387,7 +441,7 @@ export async function getHotelSlugs(): Promise<string[]> {
       },
     });
 
-    return hotels.map((hotel) => hotel.slug);
+    return dedupePublicHotels(hotels, "home/hotels").map((hotel) => hotel.slug);
   } catch (error) {
     return handleDatabaseFallback(error, getFallbackHotelSlugs());
   }

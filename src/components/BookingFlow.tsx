@@ -792,7 +792,7 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
                       <div className="hotel-room-meta availability-room-card__meta">
                         <span>{capacityLabel}</span>
                         <span>{room.beds}</span>
-                        <span>{room.sizeM2 ? `${room.sizeM2} mÂ²` : room.size}</span>
+                        <span>{room.sizeM2 ? `${room.sizeM2} m²` : room.size}</span>
                       </div>
                       <div className="availability-room-card__footer">
                         <div>
