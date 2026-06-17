@@ -15,6 +15,7 @@ import type { PublishedHotelCard } from "@/lib/hotel-data";
 import {
   getProfileExperienceMatches,
   getProfileRecommendationHotelImage,
+  isUsableImageUrl,
   type ProfileExperienceMatch,
   type ProfileTouristAttraction,
 } from "@/lib/profile-recommendations";
@@ -68,7 +69,7 @@ type Recommendation = {
 };
 
 type ExperienceVisualImageProps = {
-  src: string;
+  src: string | null;
   alt: string;
   sizes: string;
   priority?: boolean;
@@ -814,21 +815,24 @@ function ExperienceVisualImage({ src, alt, sizes, priority = false }: Experience
     src: string;
     status: "loaded" | "error";
   } | null>(null);
-  const currentImageState = imageState?.src === src ? imageState.status : "loading";
+  const imageSrc = isUsableImageUrl(src) ? src.trim() : null;
+  const currentImageState = imageState?.src === imageSrc ? imageState.status : "loading";
 
   return (
     <>
       <div className="experience-image-fallback" aria-hidden="true" />
-      <Image
-        className={`experience-image ${currentImageState === "loaded" ? "is-loaded" : ""}`}
-        src={src}
-        alt={alt}
-        fill
-        sizes={sizes}
-        priority={priority}
-        onLoad={() => setImageState({ src, status: "loaded" })}
-        onError={() => setImageState({ src, status: "error" })}
-      />
+      {imageSrc && currentImageState !== "error" ? (
+        <Image
+          className={`experience-image ${currentImageState === "loaded" ? "is-loaded" : ""}`}
+          src={imageSrc}
+          alt={alt}
+          fill
+          sizes={sizes}
+          priority={priority}
+          onLoad={() => setImageState({ src: imageSrc, status: "loaded" })}
+          onError={() => setImageState({ src: imageSrc, status: "error" })}
+        />
+      ) : null}
     </>
   );
 }
@@ -1375,7 +1379,8 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
             {selectedExperience.hotels.length > 0 ? (
               <div className="experience-hotels-list">
                 {selectedExperience.hotels.map(({ hotel, proximityLabel }) => {
-                  const hotelImageUrl = getProfileRecommendationHotelImage(hotel);
+                  const hotelImageUrl =
+                    getProfileRecommendationHotelImage(hotel) || selectedExperience.image;
 
                   return (
                     <article className="experience-hotel-option" key={hotel.slug}>

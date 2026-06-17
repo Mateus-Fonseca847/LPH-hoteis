@@ -41,23 +41,31 @@ export function getCalendarDays(month: string) {
   const first = toUtcDate(startDate);
   const last = toUtcDate(endDate);
   const current = new Date(first);
-  current.setUTCDate(current.getUTCDate() - current.getUTCDay());
 
-  const days: Array<{ date: string; inMonth: boolean }> = [];
+  const days: Array<{ date: string | null; inMonth: boolean }> = Array.from(
+    { length: first.getUTCDay() },
+    () => ({
+      date: null,
+      inMonth: false,
+    })
+  );
 
-  while (days.length < 42) {
+  while (current.getTime() <= last.getTime()) {
     const date = current.toISOString().slice(0, 10);
 
     days.push({
       date,
-      inMonth: current.getUTCMonth() === first.getUTCMonth(),
+      inMonth: true,
     });
 
     current.setUTCDate(current.getUTCDate() + 1);
+  }
 
-    if (current.getTime() > last.getTime() && current.getUTCDay() === 0) {
-      break;
-    }
+  while (days.length % 7 !== 0 || days.length < 42) {
+    days.push({
+      date: null,
+      inMonth: false,
+    });
   }
 
   return days;
@@ -97,7 +105,7 @@ export function buildCalendarSavePayload({
   startDate,
   endDate,
   mode,
-  totalUnits,
+  roomUnits,
   availableUnits,
   closed,
   note,
@@ -106,17 +114,19 @@ export function buildCalendarSavePayload({
   startDate: string;
   endDate: string;
   mode: AvailabilityMode;
-  totalUnits: number;
+  roomUnits: number;
   availableUnits: number;
   closed: boolean;
   note: string;
 }): CalendarSavePayload {
+  const safeRoomUnits = Number.isInteger(roomUnits) && roomUnits > 0 ? roomUnits : 1;
+
   if (mode === "closed") {
     return {
       roomId,
       startDate,
       endDate,
-      totalUnits: Math.max(totalUnits, 0),
+      totalUnits: safeRoomUnits,
       availableUnits: 0,
       closed: true,
       note: note.trim() || undefined,
@@ -128,20 +138,20 @@ export function buildCalendarSavePayload({
       roomId,
       startDate,
       endDate,
-      totalUnits: Math.max(totalUnits, 0),
+      totalUnits: safeRoomUnits,
       availableUnits: 0,
       closed: false,
       note: note.trim() || undefined,
     };
   }
 
-  const safeAvailableUnits = Math.max(availableUnits, 1);
+  const safeAvailableUnits = Math.min(Math.max(availableUnits, 1), safeRoomUnits);
 
   return {
     roomId,
     startDate,
     endDate,
-    totalUnits: Math.max(totalUnits, safeAvailableUnits),
+    totalUnits: safeRoomUnits,
     availableUnits: safeAvailableUnits,
     closed,
     note: note.trim() || undefined,

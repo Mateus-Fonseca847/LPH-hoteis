@@ -132,7 +132,13 @@ async function getAuthorizedRoomContext(hotelId: string, roomId: string) {
   };
 }
 
-function assertAvailabilityLimits(totalUnits: number, availableUnits: number) {
+function assertAvailabilityLimits(totalUnits: number, availableUnits: number, roomUnits: number) {
+  if (totalUnits > roomUnits || availableUnits > roomUnits) {
+    throw new ValidationError(
+      "As unidades disponíveis não podem ser maiores que as unidades do quarto."
+    );
+  }
+
   if (availableUnits > totalUnits) {
     throw new ValidationError(
       "Unidades disponíveis não podem ser maiores que o total de unidades."
@@ -249,13 +255,13 @@ export async function saveRoomAvailabilityRangeAction(
           parsedPayload.data.totalUnits ??
           existing?.totalUnits ??
           parsedPayload.data.availableUnits ??
-          0;
+          room.units;
         const availableUnits =
           parsedPayload.data.availableUnits ?? existing?.availableUnits ?? totalUnits;
         const closed = parsedPayload.data.closed ?? existing?.closed ?? false;
         const note = parsedPayload.data.note ?? existing?.note ?? null;
 
-        assertAvailabilityLimits(totalUnits, availableUnits);
+        assertAvailabilityLimits(totalUnits, availableUnits, room.units);
 
         const row = await tx.roomAvailability.upsert({
           where: {

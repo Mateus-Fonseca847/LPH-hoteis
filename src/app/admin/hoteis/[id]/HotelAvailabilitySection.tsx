@@ -18,6 +18,7 @@ import {
 type HotelAvailabilityRoom = {
   id: string;
   name: string;
+  units: number;
   capacityAdults: number;
   capacityChildren: number;
   capacity: number;
@@ -271,12 +272,16 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
                   } criança${room.capacityChildren === 1 ? "" : "s"}`
                 : `${room.capacity} hóspede${room.capacity === 1 ? "" : "s"}`;
 
+            const unitsLabel = `${room.units} unidade${room.units === 1 ? "" : "s"}`;
+
             return (
               <article className="admin-availability-room-card" key={room.id}>
                 <div className="admin-availability-room-card__header">
                   <div>
                     <strong>{room.name}</strong>
-                    <p>{capacityLabel}</p>
+                    <p>
+                      {capacityLabel} Â· {unitsLabel}
+                    </p>
                     <small>
                       {getRoomSummary(state.availability, state.startDate, state.endDate)}
                     </small>
@@ -312,6 +317,7 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
                       hotelId={hotelId}
                       roomId={room.id}
                       roomName={room.name}
+                      defaultUnits={room.units}
                       availability={state.availability}
                       onVisibleRangeChange={(startDate, endDate) =>
                         handleVisibleRangeChange(room.id, startDate, endDate)

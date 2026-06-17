@@ -24,6 +24,7 @@ type RoomAvailabilityCalendarProps = {
   hotelId: string;
   roomId: string;
   roomName: string;
+  defaultUnits: number;
   availability: AuthorizedRoomAvailability[];
   onVisibleRangeChange?: (startDate: string, endDate: string) => void;
   onSavePeriod: (payload: CalendarSavePayload) => Promise<RoomAvailabilityActionState>;
@@ -69,6 +70,7 @@ export function RoomAvailabilityCalendar({
   hotelId,
   roomId,
   roomName,
+  defaultUnits,
   availability,
   onVisibleRangeChange,
   onSavePeriod,
@@ -80,8 +82,11 @@ export function RoomAvailabilityCalendar({
     startDate: string | null;
     endDate: string | null;
   }>({ startDate: null, endDate: null });
-  const [totalUnits, setTotalUnits] = useState("1");
-  const [availableUnits, setAvailableUnits] = useState("1");
+  const defaultUnitsValue =
+    Number.isInteger(defaultUnits) && defaultUnits > 0 ? String(defaultUnits) : "1";
+  const roomUnits = Number(defaultUnitsValue);
+  const [totalUnits, setTotalUnits] = useState(defaultUnitsValue);
+  const [availableUnits, setAvailableUnits] = useState(defaultUnitsValue);
   const [closed, setClosed] = useState(false);
   const [note, setNote] = useState("");
   const [mode, setMode] = useState<AvailabilityMode>("available");
@@ -113,6 +118,17 @@ export function RoomAvailabilityCalendar({
     onVisibleRangeChange?.(range.startDate, range.endDate);
   }, [onVisibleRangeChange, visibleMonth]);
 
+  useEffect(() => {
+    setTotalUnits(defaultUnitsValue);
+    setAvailableUnits((current) => {
+      const currentUnits = Number(current);
+
+      return Number.isInteger(currentUnits) && currentUnits >= 0 && currentUnits <= roomUnits
+        ? current
+        : defaultUnitsValue;
+    });
+  }, [defaultUnitsValue, roomUnits]);
+
   const handleMonthChange = (offset: number) => {
     setVisibleMonth((current) => shiftCalendarMonth(current, offset));
   };
@@ -127,18 +143,20 @@ export function RoomAvailabilityCalendar({
 
     if (nextMode === "available") {
       setClosed(false);
-      setTotalUnits((current) => (Number(current) > 0 ? current : "1"));
-      setAvailableUnits((current) => (Number(current) > 0 ? current : "1"));
+      setTotalUnits(defaultUnitsValue);
+      setAvailableUnits(defaultUnitsValue);
       return;
     }
 
     if (nextMode === "occupied") {
       setClosed(false);
+      setTotalUnits(defaultUnitsValue);
       setAvailableUnits("0");
       return;
     }
 
     setClosed(true);
+    setTotalUnits(defaultUnitsValue);
     setAvailableUnits("0");
   };
 
@@ -155,13 +173,25 @@ export function RoomAvailabilityCalendar({
       return;
     }
 
+    const nextAvailableUnits = Number(availableUnits);
+
+    if (
+      !Number.isInteger(nextAvailableUnits) ||
+      nextAvailableUnits < 0 ||
+      nextAvailableUnits > roomUnits
+    ) {
+      setFeedbackType("error");
+      setFeedback("As unidades disponíveis não podem ser maiores que as unidades do quarto.");
+      return;
+    }
+
     const payload = buildCalendarSavePayload({
       roomId,
       startDate: completedStartDate,
       endDate: completedEndDate,
       mode,
-      totalUnits: Number(totalUnits),
-      availableUnits: Number(availableUnits),
+      roomUnits,
+      availableUnits: nextAvailableUnits,
       closed,
       note,
     });
@@ -187,12 +217,22 @@ export function RoomAvailabilityCalendar({
           <strong>{roomName}</strong>
         </div>
         <div className="room-availability-calendar__nav" aria-label="Navegação de mês">
-          <button type="button" onClick={() => handleMonthChange(-1)} disabled={isPending}>
-            Mês anterior
+          <button
+            type="button"
+            onClick={() => handleMonthChange(-1)}
+            disabled={isPending}
+            aria-label="Mês anterior"
+          >
+            {"<"}
           </button>
           <strong>{monthLabel}</strong>
-          <button type="button" onClick={() => handleMonthChange(1)} disabled={isPending}>
-            Próximo mês
+          <button
+            type="button"
+            onClick={() => handleMonthChange(1)}
+            disabled={isPending}
+            aria-label="Próximo mês"
+          >
+            {">"}
           </button>
         </div>
       </div>
@@ -211,15 +251,27 @@ export function RoomAvailabilityCalendar({
             {label}
           </span>
         ))}
-        {calendarDays.map((day) => {
-          const entry = availabilityByDate.get(day.date);
+        {calendarDays.map((day, index) => {
+          if (!day.date) {
+            return (
+              <span
+                key={`empty-${index}`}
+                className="room-availability-calendar__day-spacer"
+                role="gridcell"
+                aria-hidden="true"
+              />
+            );
+          }
+
+          const date = day.date;
+          const entry = availabilityByDate.get(date);
           const status = resolveAvailabilityStatus(entry);
-          const isSelected = isInSelectedRange(day.date, selectedRange);
+          const isSelected = isInSelectedRange(date, selectedRange);
           const className = [
             "room-availability-calendar__day",
             `is-${status}`,
             day.inMonth ? "" : "is-outside-month",
-            day.date === today ? "is-today" : "",
+            date === today ? "is-today" : "",
             isSelected ? "is-selected" : "",
           ]
             .filter(Boolean)
@@ -230,10 +282,10 @@ export function RoomAvailabilityCalendar({
               key={day.date}
               type="button"
               className={className}
-              onClick={() => handleDaySelect(day.date)}
+              onClick={() => handleDaySelect(date)}
               aria-pressed={isSelected}
             >
-              <span>{Number(day.date.slice(8, 10))}</span>
+              <span>{Number(date.slice(8, 10))}</span>
               <small>
                 {status === "available"
                   ? `${entry?.availableUnits}/${entry?.totalUnits}`
@@ -257,6 +309,10 @@ export function RoomAvailabilityCalendar({
 
       {hasCompleteRange ? (
         <div className="room-availability-calendar__panel">
+          <p className="room-availability-calendar__selection" role="status">
+            Este quarto possui {roomUnits} unidade{roomUnits === 1 ? "" : "s"} cadastrada
+            {roomUnits === 1 ? "" : "s"}.
+          </p>
           <div className="room-availability-calendar__quick-actions">
             <button
               type="button"
@@ -284,18 +340,15 @@ export function RoomAvailabilityCalendar({
           <div className="admin-form-grid admin-form-grid--three">
             <label className="admin-form-field">
               <span>Unidades totais</span>
-              <input
-                type="number"
-                min="0"
-                value={totalUnits}
-                onChange={(event) => setTotalUnits(event.target.value)}
-              />
+              <input type="number" min={roomUnits} max={roomUnits} value={totalUnits} readOnly />
             </label>
             <label className="admin-form-field">
               <span>Unidades disponíveis</span>
               <input
                 type="number"
                 min="0"
+                max={roomUnits}
+                step="1"
                 value={availableUnits}
                 onChange={(event) => setAvailableUnits(event.target.value)}
               />

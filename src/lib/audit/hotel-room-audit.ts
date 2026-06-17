@@ -5,6 +5,7 @@ type HotelRoomAuditSnapshot = {
   name: string;
   description: string;
   imageUrl: string;
+  units: number;
   capacityAdults: number;
   capacityChildren: number;
   beds: string;

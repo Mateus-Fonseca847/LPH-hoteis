@@ -6990,8 +6990,8 @@ a.booking-page-link {
 
 .room-availability-calendar__nav {
   gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  flex-wrap: nowrap;
+  justify-content: center;
 }
 
 .room-availability-calendar__nav button,
@@ -7008,7 +7008,20 @@ a.booking-page-link {
 }
 
 .room-availability-calendar__nav button {
-  padding: 0 14px;
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.room-availability-calendar__nav strong {
+  min-width: 160px;
+  margin: 0;
+  text-align: center;
 }
 
 .room-availability-calendar__quick-actions button {
@@ -7073,11 +7086,15 @@ a.booking-page-link {
   text-transform: uppercase;
 }
 
-.room-availability-calendar__day {
+.room-availability-calendar__day,
+.room-availability-calendar__day-spacer {
   display: grid;
   gap: 5px;
   min-height: 76px;
   padding: 10px;
+}
+
+.room-availability-calendar__day {
   border: 1px solid rgba(30, 30, 30, 0.08);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.78);
@@ -7085,6 +7102,11 @@ a.booking-page-link {
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.room-availability-calendar__day-spacer {
+  border: 1px solid transparent;
+  border-radius: 14px;
 }
 
 .room-availability-calendar__day span {

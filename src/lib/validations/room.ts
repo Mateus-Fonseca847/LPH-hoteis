@@ -129,6 +129,7 @@ const roomObjectSchema = z
     description: multilineField("Descrição", 10, 2000),
     imageUrl: optionalUrlSchema,
     images: roomImagesSchema.optional(),
+    units: positiveIntField("Unidades", 1, 999),
     capacityAdults: positiveIntField("Capacidade de adultos", 1, 20),
     capacityChildren: positiveIntField("Capacidade de crianças", 0, 20),
     beds: roomBedSchema,

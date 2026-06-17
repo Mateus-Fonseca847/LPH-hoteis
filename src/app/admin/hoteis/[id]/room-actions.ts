@@ -39,6 +39,7 @@ export type AuthorizedHotelRoom = {
     alt: string;
     position: number;
   }>;
+  units: number;
   capacityAdults: number;
   capacityChildren: number;
   beds: string;
@@ -56,6 +57,7 @@ function mapRoomSnapshot(room: {
   name: string;
   description: string;
   imageUrl: string;
+  units: number;
   capacityAdults: number;
   capacityChildren: number;
   beds: string;
@@ -72,6 +74,7 @@ function mapRoomSnapshot(room: {
     name: room.name,
     description: room.description,
     imageUrl: room.imageUrl,
+    units: room.units,
     capacityAdults: room.capacityAdults,
     capacityChildren: room.capacityChildren,
     beds: room.beds,
@@ -96,6 +99,7 @@ function formatRoomForList(room: {
     alt: string;
     position: number;
   }>;
+  units: number;
   capacityAdults: number;
   capacityChildren: number;
   beds: string;
@@ -128,6 +132,7 @@ function formatRoomForList(room: {
             ]
           : [],
     capacityAdults: room.capacityAdults,
+    units: room.units,
     capacityChildren: room.capacityChildren,
     beds: normalizedBeds.success ? normalizedBeds.value : room.beds,
     sizeM2: room.sizeM2,
@@ -322,6 +327,7 @@ export async function createHotelRoomAction(
           images: {
             create: roomImages,
           },
+          units: roomPayload.units,
           capacityAdults: roomPayload.capacityAdults,
           capacityChildren: roomPayload.capacityChildren,
           beds: roomPayload.beds,
@@ -394,6 +400,7 @@ export async function updateHotelRoomAction(
         )
       : null;
     const nextImageUrl = nextImages?.[0]?.url ?? roomPayload.imageUrl ?? room.imageUrl;
+    const nextUnits = roomPayload.units ?? room.units;
     const nextCapacityAdults = roomPayload.capacityAdults ?? room.capacityAdults;
     const nextCapacityChildren = roomPayload.capacityChildren ?? room.capacityChildren;
     const nextSizeM2 = roomPayload.sizeM2 ?? room.sizeM2 ?? 1;
@@ -416,6 +423,7 @@ export async function updateHotelRoomAction(
           name: roomPayload.name ?? room.name,
           description: roomPayload.description ?? room.description,
           imageUrl: nextImageUrl,
+          units: nextUnits,
           capacityAdults: nextCapacityAdults,
           capacityChildren: nextCapacityChildren,
           beds: roomPayload.beds ?? room.beds,

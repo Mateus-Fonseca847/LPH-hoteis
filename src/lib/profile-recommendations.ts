@@ -314,9 +314,29 @@ function scoreCompatibleHotel(
   return score;
 }
 
+export function isUsableImageUrl(value: string | null | undefined): value is string {
+  const imageUrl = value?.trim();
+
+  if (!imageUrl) {
+    return false;
+  }
+
+  if (imageUrl.startsWith("/")) {
+    return !imageUrl.startsWith("//");
+  }
+
+  try {
+    const url = new URL(imageUrl);
+
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function cleanImageUrl(value: string | null | undefined) {
   const imageUrl = value?.trim();
-  return imageUrl || null;
+  return isUsableImageUrl(imageUrl) ? imageUrl : null;
 }
 
 function getFirstPositionedImageUrl(
@@ -344,6 +364,15 @@ export function getProfileRecommendationHotelImage(hotel: ProfileRecommendationH
       .find(Boolean) ??
     hotel.rooms?.map((room) => cleanImageUrl(room.imageUrl)).find(Boolean) ??
     null
+  );
+}
+
+export function resolveExperienceImageUrl(
+  hotel: ProfileRecommendationHotel | null,
+  destinationImage: string
+) {
+  return (
+    (hotel ? getProfileRecommendationHotelImage(hotel) : null) ?? cleanImageUrl(destinationImage)
   );
 }
 
@@ -430,7 +459,7 @@ export function getProfileExperienceMatches<TExperience extends ProfileExperienc
         destination.state
       );
       const hotel = hotelMatches.at(0)?.hotel ?? null;
-      const hotelImage = hotel ? getProfileRecommendationHotelImage(hotel) : null;
+      const image = resolveExperienceImageUrl(hotel, experience.image);
 
       return {
         experience,
@@ -439,7 +468,7 @@ export function getProfileExperienceMatches<TExperience extends ProfileExperienc
         href: hotel
           ? `/hoteis/${hotel.slug}`
           : `/buscar?destino=${encodeURIComponent(experience.query)}`,
-        image: hotelImage || experience.image,
+        image: image ?? "",
         ctaLabel: hotel ? "Ver hotel" : "Explorar hotéis",
         destinationCity: destination.city,
         destinationState: destination.state,

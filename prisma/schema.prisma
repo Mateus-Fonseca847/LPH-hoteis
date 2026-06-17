@@ -82,6 +82,7 @@ model HotelRoom {
   name             String
   description      String             @db.Text
   imageUrl         String
+  units            Int                @default(1)
   capacity         Int
   capacityAdults   Int                @default(1)
   capacityChildren Int                @default(0)

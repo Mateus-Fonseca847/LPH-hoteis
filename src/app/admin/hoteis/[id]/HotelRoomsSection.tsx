@@ -34,6 +34,7 @@ type RoomFormValues = {
   description: string;
   imageUrl: string;
   images: RoomImageValue[];
+  units: string;
   capacityAdults: string;
   capacityChildren: string;
   beds: string;
@@ -83,6 +84,7 @@ const EMPTY_FORM: RoomFormValues = {
   description: "",
   imageUrl: "",
   images: [],
+  units: "1",
   capacityAdults: "2",
   capacityChildren: "0",
   beds: "",
@@ -348,6 +350,7 @@ function getRoomFormValues(room: AuthorizedHotelRoom): RoomFormValues {
     description: room.description,
     imageUrl: room.imageUrl,
     images: room.images,
+    units: String(room.units),
     capacityAdults: String(room.capacityAdults),
     capacityChildren: String(room.capacityChildren),
     beds: room.beds,
@@ -371,6 +374,7 @@ function buildRoomPayload(values: RoomFormValues) {
     description: values.description.trim(),
     imageUrl: primaryImageUrl,
     images,
+    units: Number(values.units),
     capacityAdults: Number(values.capacityAdults),
     capacityChildren: Number(values.capacityChildren),
     beds: values.beds.trim(),
@@ -399,7 +403,11 @@ function validateRoomForm(values: RoomFormValues): RoomFormErrors {
       nextErrors[field as keyof RoomFormErrors] =
         (field === "imageUrl" || field === "images") && values.images.length === 0
           ? "Envie a imagem do quarto."
-          : issue.message;
+          : field === "units" && !Number.isInteger(Number(values.units))
+            ? "A quantidade de unidades deve ser um número inteiro."
+            : field === "units"
+              ? "Informe pelo menos 1 unidade."
+              : issue.message;
     }
   }
 
@@ -607,6 +615,23 @@ function RoomFormCard({
                   aria-invalid={Boolean(errors.name)}
                 />
                 {errors.name ? <small className="admin-form-error">{errors.name}</small> : null}
+              </label>
+
+              <label className="admin-form-field">
+                <span>Unidades deste quarto</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  max="999"
+                  step="1"
+                  placeholder="Ex.: 4"
+                  value={values.units}
+                  onChange={(event) => onChange("units", event.target.value)}
+                  aria-invalid={Boolean(errors.units)}
+                />
+                <small>Informe quantas unidades iguais deste quarto o hotel possui.</small>
+                {errors.units ? <small className="admin-form-error">{errors.units}</small> : null}
               </label>
 
               <label className="admin-form-field">
@@ -1104,6 +1129,9 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
                   </div>
 
                   <div className="admin-room-meta-grid">
+                    <span>
+                      {room.units} unidade{room.units > 1 ? "s" : ""}
+                    </span>
                     <span>{room.beds}</span>
                     <span>{room.sizeM2 ? `${room.sizeM2} m²` : room.size}</span>
                     <span>{room.amenities.length} comodidades</span>

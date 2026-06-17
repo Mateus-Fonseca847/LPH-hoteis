@@ -272,6 +272,7 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
                 position: true,
               },
             },
+            units: true,
             capacityAdults: true,
             capacityChildren: true,
             beds: true,
@@ -572,6 +573,7 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
             rooms={hotel.rooms.map((room) => ({
               id: room.id,
               name: room.name,
+              units: room.units,
               capacityAdults: room.capacityAdults,
               capacityChildren: room.capacityChildren,
               capacity: room.capacity,

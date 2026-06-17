@@ -56,6 +56,7 @@ const room = {
   name: "Suíte",
   description: "Quarto confortável",
   imageUrl: "https://cdn.example.test/image-1.webp",
+  units: 1,
   capacityAdults: 2,
   capacityChildren: 0,
   beds: "1x cama queen",

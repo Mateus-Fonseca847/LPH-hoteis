@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   getProfileExperienceMatches,
   getProfileRecommendationHotelImage,
+  isUsableImageUrl,
   normalizeLocationState,
   normalizeLocationText,
+  resolveExperienceImageUrl,
 } from "@/lib/profile-recommendations";
 
 const experience = {
@@ -228,5 +230,49 @@ describe("profile experience recommendations", () => {
 
     expect(matches[0].image).toBe(experience.image);
     expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBeNull();
+  });
+
+  it("ignora URLs invalidas do hotel e usa a imagem da experiencia", () => {
+    const matches = getProfileExperienceMatches({
+      recommendations: [experience],
+      hotels: [
+        {
+          slug: "boa-viagem",
+          name: "Boa Viagem",
+          city: "Recife",
+          state: "PE",
+          coverImageUrl: "not a url",
+          images: [{ url: "ftp://cdn.example.test/gallery.webp", position: 0 }],
+          rooms: [{ imageUrl: "//cdn.example.test/room.webp", images: [] }],
+        },
+      ],
+    });
+
+    expect(matches[0].image).toBe(experience.image);
+    expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBeNull();
+  });
+
+  it("valida URLs de imagem aceitas para recomendacoes", () => {
+    expect(isUsableImageUrl("https://example.com/image.webp")).toBe(true);
+    expect(isUsableImageUrl("/images/local.webp")).toBe(true);
+    expect(isUsableImageUrl("")).toBe(false);
+    expect(isUsableImageUrl("ftp://example.com/image.webp")).toBe(false);
+    expect(isUsableImageUrl("//example.com/image.webp")).toBe(false);
+  });
+
+  it("resolve imagem do hotel antes da imagem da experiencia", () => {
+    const hotel = {
+      slug: "boa-viagem",
+      name: "Boa Viagem",
+      city: "Recife",
+      state: "PE",
+      coverImageUrl: "",
+      images: [{ url: "https://cdn.example.test/gallery.webp", position: 0 }],
+    };
+
+    expect(resolveExperienceImageUrl(hotel, experience.image)).toBe(
+      "https://cdn.example.test/gallery.webp"
+    );
+    expect(resolveExperienceImageUrl(null, experience.image)).toBe(experience.image);
   });
 });

@@ -43,14 +43,20 @@ const availability: AuthorizedRoomAvailability[] = [
 ];
 
 describe("RoomAvailabilityCalendar", () => {
-  it("renderiza calendário visual para um quarto", () => {
+  it("renderiza calendario visual para um quarto", () => {
     const source = readFileSync(new URL("./RoomAvailabilityCalendar.tsx", import.meta.url), "utf8");
 
     expect(source).toContain("Calendário do quarto");
     expect(source).toContain("roomName");
-    expect(source).toContain("Mês anterior");
-    expect(source).toContain("Próximo mês");
+    expect(source).toContain("defaultUnits");
+    expect(source).toContain('aria-label="Mês anterior"');
+    expect(source).toContain('aria-label="Próximo mês"');
+    expect(source).toContain('{"<"}');
+    expect(source).toContain('{">"}');
+    expect(source).not.toContain(">Mês anterior<");
+    expect(source).not.toContain(">Próximo mês<");
     expect(source).toContain("`is-${status}`");
+    expect(source).toContain("room-availability-calendar__day-spacer");
     expect(source).toContain("Salvar período");
     expect(source).toContain("Liberar período");
     expect(source).toContain("Selecione um período de até 180 dias.");
@@ -60,19 +66,39 @@ describe("RoomAvailabilityCalendar", () => {
     expect(source).toContain("Não foi possível salvar a disponibilidade.");
   });
 
-  it("calcula mês anterior e próximo", () => {
+  it("mantem a legenda visual de status", () => {
+    const source = readFileSync(new URL("./RoomAvailabilityCalendar.tsx", import.meta.url), "utf8");
+    const styles = readFileSync(new URL("../../../../styles/globals.css", import.meta.url), "utf8");
+
+    expect(source).toContain("room-availability-calendar__legend");
+    expect(source).toContain("Sem cadastro");
+    expect(source).toContain("Disponível");
+    expect(source).toContain("Ocupado");
+    expect(source).toContain("Fechado");
+    expect(source).toContain("Selecionado");
+    expect(styles).toContain("room-availability-calendar__day.is-available");
+    expect(styles).toContain("room-availability-calendar__day.is-occupied");
+    expect(styles).toContain("room-availability-calendar__day.is-closed");
+    expect(styles).toContain("room-availability-calendar__day.is-selected");
+  });
+
+  it("calcula mes anterior e proximo", () => {
     expect(shiftCalendarMonth("2026-06", -1)).toBe("2026-05");
     expect(shiftCalendarMonth("2026-06", 1)).toBe("2026-07");
   });
 
-  it("monta a grade do mês", () => {
+  it("monta a grade do mes com 7 colunas e celulas vazias", () => {
     const days = getCalendarDays("2026-06");
 
-    expect(days.some((day) => day.date === "2026-06-01" && day.inMonth)).toBe(true);
+    expect(days).toHaveLength(42);
+    expect(days.slice(0, 7)).toHaveLength(7);
+    expect(days[0]).toEqual({ date: null, inMonth: false });
+    expect(days[1]).toEqual({ date: "2026-06-01", inMonth: true });
     expect(days.some((day) => day.date === "2026-06-30" && day.inMonth)).toBe(true);
+    expect(days.at(-1)).toEqual({ date: null, inMonth: false });
   });
 
-  it("seleciona intervalo e inverte quando a segunda data é anterior", () => {
+  it("seleciona intervalo e inverte quando a segunda data e anterior", () => {
     const firstClick = selectCalendarRange({ startDate: null, endDate: null }, "2026-06-20");
     const secondClick = selectCalendarRange(firstClick, "2026-06-10");
 
@@ -85,7 +111,7 @@ describe("RoomAvailabilityCalendar", () => {
       startDate: "2026-06-10",
       endDate: "2026-06-12",
       mode: "occupied",
-      totalUnits: 2,
+      roomUnits: 2,
       availableUnits: 2,
       closed: true,
       note: "",
@@ -104,7 +130,7 @@ describe("RoomAvailabilityCalendar", () => {
       startDate: "2026-06-10",
       endDate: "2026-06-12",
       mode: "closed",
-      totalUnits: 2,
+      roomUnits: 2,
       availableUnits: 2,
       closed: false,
       note: "",
@@ -114,13 +140,13 @@ describe("RoomAvailabilityCalendar", () => {
     expect(payload.availableUnits).toBe(0);
   });
 
-  it("disponível salva closed false e availableUnits maior que zero", () => {
+  it("disponivel salva closed false e availableUnits maior que zero", () => {
     const payload = buildCalendarSavePayload({
       roomId,
       startDate: "2026-06-10",
       endDate: "2026-06-12",
       mode: "available",
-      totalUnits: 0,
+      roomUnits: 1,
       availableUnits: 0,
       closed: false,
       note: "",
@@ -131,13 +157,13 @@ describe("RoomAvailabilityCalendar", () => {
     expect(payload.totalUnits).toBeGreaterThanOrEqual(payload.availableUnits);
   });
 
-  it("usa o roomId recebido e não afeta outros quartos", () => {
+  it("usa o roomId recebido e nao afeta outros quartos", () => {
     const payload = buildCalendarSavePayload({
       roomId: "room_target_123456",
       startDate: "2026-06-10",
       endDate: "2026-06-12",
       mode: "available",
-      totalUnits: 3,
+      roomUnits: 3,
       availableUnits: 1,
       closed: false,
       note: "ok",
@@ -152,5 +178,72 @@ describe("RoomAvailabilityCalendar", () => {
     expect(resolveAvailabilityStatus(availability[0])).toBe("available");
     expect(resolveAvailabilityStatus(availability[1])).toBe("occupied");
     expect(resolveAvailabilityStatus(availability[2])).toBe("closed");
+  });
+
+  it("usa unidades do quarto como total ao liberar periodo", () => {
+    const payload = buildCalendarSavePayload({
+      roomId,
+      startDate: "2026-06-10",
+      endDate: "2026-06-12",
+      mode: "available",
+      roomUnits: 4,
+      availableUnits: 4,
+      closed: false,
+      note: "",
+    });
+
+    expect(payload.totalUnits).toBe(4);
+    expect(payload.availableUnits).toBe(4);
+    expect(payload.closed).toBe(false);
+  });
+
+  it("usa unidades do quarto como total ao ocupar periodo", () => {
+    const payload = buildCalendarSavePayload({
+      roomId,
+      startDate: "2026-06-10",
+      endDate: "2026-06-12",
+      mode: "occupied",
+      roomUnits: 4,
+      availableUnits: 4,
+      closed: true,
+      note: "",
+    });
+
+    expect(payload.totalUnits).toBe(4);
+    expect(payload.availableUnits).toBe(0);
+    expect(payload.closed).toBe(false);
+  });
+
+  it("usa unidades do quarto como total ao fechar periodo", () => {
+    const payload = buildCalendarSavePayload({
+      roomId,
+      startDate: "2026-06-10",
+      endDate: "2026-06-12",
+      mode: "closed",
+      roomUnits: 4,
+      availableUnits: 4,
+      closed: false,
+      note: "",
+    });
+
+    expect(payload.totalUnits).toBe(4);
+    expect(payload.availableUnits).toBe(0);
+    expect(payload.closed).toBe(true);
+  });
+
+  it("limita unidades disponiveis ao total do quarto", () => {
+    const payload = buildCalendarSavePayload({
+      roomId,
+      startDate: "2026-06-10",
+      endDate: "2026-06-12",
+      mode: "available",
+      roomUnits: 3,
+      availableUnits: 5,
+      closed: false,
+      note: "",
+    });
+
+    expect(payload.totalUnits).toBe(3);
+    expect(payload.availableUnits).toBe(3);
   });
 });
