@@ -39,6 +39,10 @@ function getTodayDateOnly() {
   return toDateOnly(new Date());
 }
 
+function getRoomUnitCount(room: { units?: number | null }) {
+  return Number.isInteger(room.units) && room.units && room.units > 0 ? room.units : 1;
+}
+
 export async function POST(request: Request) {
   try {
     let body: unknown;
@@ -173,6 +177,19 @@ export async function POST(request: Request) {
 
     const reservation = await prisma.$transaction(async (transaction) => {
       const availabilityDates = getStayDates(checkIn, checkOut).map(toUtcDate);
+      const roomUnits = getRoomUnitCount(room);
+
+      await transaction.roomAvailability.createMany({
+        data: availabilityDates.map((date) => ({
+          roomId,
+          date,
+          totalUnits: roomUnits,
+          availableUnits: roomUnits,
+          closed: false,
+        })),
+        skipDuplicates: true,
+      });
+
       const availabilityUpdate = await transaction.roomAvailability.updateMany({
         where: {
           roomId,

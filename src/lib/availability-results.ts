@@ -19,6 +19,7 @@ export type AvailabilityResultRoom = {
     position: number;
   }>;
   capacity: number;
+  units?: number;
   capacityAdults: number;
   capacityChildren: number;
   beds: string;

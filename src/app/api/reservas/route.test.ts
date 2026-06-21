@@ -47,6 +47,7 @@ const room = {
   hotelId: validPayload.hotelId,
   name: "Suite Vista Mar",
   isAvailable: true,
+  units: 2,
   capacity: 3,
   capacityAdults: 2,
   capacityChildren: 1,
@@ -94,6 +95,9 @@ function createRequest(payload: unknown = validPayload) {
 function mockReservationTransaction(options?: { availabilityCount?: number }) {
   const tx = {
     roomAvailability: {
+      createMany: vi.fn().mockResolvedValue({
+        count: 0,
+      }),
       updateMany: vi.fn().mockResolvedValue({
         count: options?.availabilityCount ?? 2,
       }),
@@ -140,6 +144,25 @@ describe("POST /api/reservas", () => {
 
     expect(response.status).toBe(201);
     expect(body.ok).toBe(true);
+    expect(tx.roomAvailability.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          roomId: validPayload.roomId,
+          date: new Date(Date.UTC(2099, 6, 10)),
+          totalUnits: 2,
+          availableUnits: 2,
+          closed: false,
+        },
+        {
+          roomId: validPayload.roomId,
+          date: new Date(Date.UTC(2099, 6, 11)),
+          totalUnits: 2,
+          availableUnits: 2,
+          closed: false,
+        },
+      ],
+      skipDuplicates: true,
+    });
     expect(tx.roomAvailability.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {
@@ -148,6 +171,9 @@ describe("POST /api/reservas", () => {
           },
         },
       })
+    );
+    expect(tx.roomAvailability.createMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.roomAvailability.updateMany.mock.invocationCallOrder[0]
     );
     expect(tx.reservation.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -210,6 +236,83 @@ describe("POST /api/reservas", () => {
     expect(sendHotelReservationEmail).not.toHaveBeenCalled();
   });
 
+  it("cria registros diários faltantes e decrementa disponibilidade em quarto sem cadastro", async () => {
+    vi.mocked(prisma.hotelRoom.findFirst).mockResolvedValue({
+      ...room,
+      units: 4,
+      availability: [],
+    } as never);
+    const tx = mockReservationTransaction();
+
+    const response = await POST(createRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.ok).toBe(true);
+    expect(tx.roomAvailability.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            totalUnits: 4,
+            availableUnits: 4,
+            closed: false,
+          }),
+          expect.objectContaining({
+            totalUnits: 4,
+            availableUnits: 4,
+            closed: false,
+          }),
+        ],
+        skipDuplicates: true,
+      })
+    );
+    expect(tx.roomAvailability.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          closed: false,
+          availableUnits: {
+            gt: 0,
+          },
+        }),
+        data: {
+          availableUnits: {
+            decrement: 1,
+          },
+        },
+      })
+    );
+  });
+
+  it("bloqueia reserva quando um dia está fechado", async () => {
+    vi.mocked(prisma.hotelRoom.findFirst).mockResolvedValue({
+      ...room,
+      availability: [
+        { date: new Date(Date.UTC(2099, 6, 10)), availableUnits: 2, closed: false },
+        { date: new Date(Date.UTC(2099, 6, 11)), availableUnits: 2, closed: true },
+      ],
+    } as never);
+
+    const response = await POST(createRequest());
+
+    expect(response.status).toBe(400);
+    expect(vi.mocked(prisma.$transaction)).not.toHaveBeenCalled();
+  });
+
+  it("bloqueia reserva quando um dia não tem unidades disponíveis", async () => {
+    vi.mocked(prisma.hotelRoom.findFirst).mockResolvedValue({
+      ...room,
+      availability: [
+        { date: new Date(Date.UTC(2099, 6, 10)), availableUnits: 2, closed: false },
+        { date: new Date(Date.UTC(2099, 6, 11)), availableUnits: 0, closed: false },
+      ],
+    } as never);
+
+    const response = await POST(createRequest());
+
+    expect(response.status).toBe(400);
+    expect(vi.mocked(prisma.$transaction)).not.toHaveBeenCalled();
+  });
+
   it("rejeita hotel despublicado ou inexistente antes de reservar disponibilidade", async () => {
     vi.mocked(prisma.hotelRoom.findFirst).mockResolvedValue(null);
 
@@ -232,6 +335,7 @@ describe("POST /api/reservas", () => {
 
     expect(response.status).toBe(409);
     expect(body.ok).toBe(false);
+    expect(tx.roomAvailability.createMany).toHaveBeenCalledWith(expect.any(Object));
     expect(tx.reservation.create).not.toHaveBeenCalled();
     expect(sendHotelReservationEmail).not.toHaveBeenCalled();
   });

@@ -33,6 +33,7 @@ type HotelAvailabilitySectionProps = {
 type RoomCalendarState = {
   isOpen: boolean;
   isLoading: boolean;
+  loadError: string;
   startDate: string;
   endDate: string;
   availability: AuthorizedRoomAvailability[];
@@ -41,6 +42,7 @@ type RoomCalendarState = {
 };
 
 const MAX_RANGE_DAYS = 180;
+const AVAILABILITY_LOAD_TIMEOUT_MS = 15000;
 
 function buildIntervalPayload(roomId: string, startDate: string, endDate: string) {
   return {
@@ -56,6 +58,7 @@ function getDefaultRoomState(): RoomCalendarState {
   return {
     isOpen: false,
     isLoading: false,
+    loadError: "",
     startDate: range.startDate,
     endDate: range.endDate,
     availability: [],
@@ -110,6 +113,22 @@ function getRoomSummary(
   return `${availableDays} disponíveis · ${occupiedDays} ocupados · ${closedDays} fechados · ${emptyDays} sem cadastro`;
 }
 
+function withAvailabilityLoadTimeout<T>(promise: Promise<T>) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error("Tempo limite ao carregar disponibilidade. Tente novamente."));
+    }, AVAILABILITY_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
+}
+
 async function refreshRoomAvailability(
   hotelId: string,
   roomId: string,
@@ -150,27 +169,46 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
 
   const loadRoomAvailability = useCallback(
     async (roomId: string, startDate: string, endDate: string) => {
-      patchRoomState(roomId, { isLoading: true, feedback: "" });
+      patchRoomState(roomId, { isLoading: true, loadError: "", feedback: "" });
 
       try {
-        const availability = await refreshRoomAvailability(hotelId, roomId, startDate, endDate);
+        const availability = await withAvailabilityLoadTimeout(
+          refreshRoomAvailability(hotelId, roomId, startDate, endDate)
+        );
         patchRoomState(roomId, {
           startDate,
           endDate,
           availability,
           isLoading: false,
+          loadError: "",
         });
       } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Não foi possível carregar a disponibilidade.";
+        const room = roomCards.find((item) => item.id === roomId);
+
+        console.error("[availability/admin/load]", {
+          hotelId,
+          roomId,
+          roomName: room?.name ?? "unknown",
+          month:
+            startDate.slice(0, 7) === endDate.slice(0, 7)
+              ? startDate.slice(0, 7)
+              : `${startDate}..${endDate}`,
+          error: message,
+        });
+
         patchRoomState(roomId, {
           availability: [],
           isLoading: false,
+          loadError: message,
           feedbackType: "error",
           feedback:
             error instanceof Error ? error.message : "Não foi possível carregar a disponibilidade.",
         });
       }
     },
-    [hotelId, patchRoomState]
+    [hotelId, patchRoomState, roomCards]
   );
 
   const handleToggleCalendar = useCallback(
@@ -311,6 +349,18 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
                       <div className="hotel-empty-state admin-history-empty">
                         <strong>Carregando disponibilidade...</strong>
                         <p>Aguarde enquanto o mês selecionado é consultado.</p>
+                      </div>
+                    ) : null}
+                    {!state.isLoading && state.loadError ? (
+                      <div className="hotel-empty-state admin-history-empty" role="alert">
+                        <strong>Falha ao carregar disponibilidade.</strong>
+                        <p>{state.loadError}</p>
+                      </div>
+                    ) : null}
+                    {!state.isLoading && !state.loadError && state.availability.length === 0 ? (
+                      <div className="hotel-empty-state admin-history-empty">
+                        <strong>Sem disponibilidade cadastrada para este mês</strong>
+                        <p>Cadastre dias no calendÃ¡rio para liberar reservas.</p>
                       </div>
                     ) : null}
                     <RoomAvailabilityCalendar

@@ -9,6 +9,7 @@ import {
 } from "@/lib/stay-query";
 
 const room = {
+  units: 2,
   capacity: 3,
   capacityAdults: 2,
   capacityChildren: 1,
@@ -138,7 +139,7 @@ describe("stay-query", () => {
     ).toBe("unavailable");
   });
 
-  it("marca disponibilidade desconhecida quando falta dia configurado", () => {
+  it("marca disponível quando falta dia configurado e usa unidades do quarto como padrão", () => {
     expect(
       getRoomStayAvailabilityStatus(
         {
@@ -150,7 +151,57 @@ describe("stay-query", () => {
         2,
         1
       )
-    ).toBe("unknown");
+    ).toBe("available");
+  });
+
+  it("marca disponível quando quarto com uma unidade não tem disponibilidade cadastrada", () => {
+    expect(
+      getRoomStayAvailabilityStatus(
+        {
+          ...room,
+          units: 1,
+          availability: [],
+        },
+        "2026-07-10",
+        "2026-07-12",
+        2,
+        1
+      )
+    ).toBe("available");
+  });
+
+  it("marca disponível quando quarto com quatro unidades não tem disponibilidade cadastrada", () => {
+    expect(
+      getRoomStayAvailabilityStatus(
+        {
+          ...room,
+          units: 4,
+          availability: [],
+        },
+        "2026-07-10",
+        "2026-07-12",
+        2,
+        1
+      )
+    ).toBe("available");
+  });
+
+  it("bloqueia intervalo misto quando um dia está fechado", () => {
+    expect(
+      getRoomStayAvailabilityStatus(
+        {
+          ...room,
+          availability: [
+            { date: "2026-07-10", availableUnits: 2, closed: false },
+            { date: "2026-07-11", availableUnits: 2, closed: true },
+          ],
+        },
+        "2026-07-10",
+        "2026-07-12",
+        2,
+        1
+      )
+    ).toBe("unavailable");
   });
 
   it("marca disponível quando capacidade e todas as noites estao abertas", () => {

@@ -59,6 +59,7 @@ type HotelRoomRow = {
   capacityAdults: number;
   capacityChildren: number;
   capacity: number;
+  units: number;
   beds: string;
   sizeM2: number | null;
   size: string;
@@ -352,7 +353,7 @@ function getPublicAvailabilityStatus(
   }>
 ): HotelRoomRow["publicAvailabilityStatus"] {
   if (availability.length === 0) {
-    return "unknown";
+    return "available";
   }
 
   return availability.some((entry) => !entry.closed && entry.availableUnits > 0)
@@ -562,6 +563,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
             capacityAdults: room.capacityAdults,
             capacityChildren: room.capacityChildren,
             capacity: room.capacity,
+            units: room.units,
             beds: room.beds,
             sizeM2: room.sizeM2,
             size: room.size,

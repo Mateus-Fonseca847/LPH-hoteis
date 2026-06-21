@@ -13,6 +13,7 @@ const baseRoom: AvailabilityResultRoom = {
   description: "Suite",
   imageUrl: "/suite.webp",
   capacity: 3,
+  units: 1,
   capacityAdults: 2,
   capacityChildren: 1,
   beds: "Queen",
@@ -100,10 +101,13 @@ describe("availability results", () => {
 
     expect(results.map((result) => result.room.id)).toEqual([
       "cheap",
-      "room-1",
       "unknown",
+      "room-1",
       "closed",
     ]);
+    expect(results.find((result) => result.room.id === "unknown")?.availabilityStatus).toBe(
+      "available"
+    );
   });
 
   it("formata labels de preco e disponibilidade", () => {
@@ -125,6 +129,19 @@ describe("availability results", () => {
 
     expect(results[0].availabilityStatus).toBe("unknown");
     expect(results[0].priceEstimate).toBeNull();
+  });
+
+  it("marca quarto sem disponibilidade cadastrada como disponivel no resultado publico", () => {
+    const results = getCompatibleRoomAvailabilityResults({
+      rooms: [{ ...baseRoom, availability: [] }],
+      checkIn: "2026-07-10",
+      checkOut: "2026-07-12",
+      adults: 2,
+      children: 1,
+    });
+
+    expect(results[0].availabilityStatus).toBe("available");
+    expect(results[0].availabilityLabel).toBe("Disponível");
   });
 
   it("descarta quarto com capacidade configurada de forma inválida", () => {
