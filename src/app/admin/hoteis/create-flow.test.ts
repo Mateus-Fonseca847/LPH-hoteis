@@ -460,6 +460,6 @@ describe("fluxo de criação de hotel", () => {
     expect(editPageSource).toContain("HotelAvailabilitySection");
     expect(editPageSource).toContain("HotelEditorForm");
     expect(editPageSource).toContain("experiences");
-    expect(editPageSource).toContain("upload");
+    expect(editPageSource).toContain("images: {");
   });
 });

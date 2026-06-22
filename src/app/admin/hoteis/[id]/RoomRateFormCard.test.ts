@@ -94,4 +94,14 @@ describe("RoomRateFormCard helpers", () => {
     expect(source).toContain("onSuccess:");
     expect(source).toContain("onError:");
   });
+
+  it("exige confirmação antes de remover uma tarifa", () => {
+    const source = readFileSync(new URL("./RoomRateFormCard.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain("removeRoomRateAction");
+    expect(source).toContain("Tem certeza que deseja remover esta tarifa?");
+    expect(source).toContain("Remover tarifa");
+    expect(source).toContain("Cancelar");
+    expect(source).toContain('role="dialog"');
+  });
 });

@@ -4,7 +4,13 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import { createRoomRateAuditLog, type RoomRateAuditSnapshot } from "@/lib/audit/room-rate-audit";
-import { getErrorMessage, NotFoundError, ValidationError } from "@/lib/errors/app-error";
+import {
+  AuthenticationError,
+  AuthorizationError,
+  getErrorMessage,
+  NotFoundError,
+  ValidationError,
+} from "@/lib/errors/app-error";
 import {
   getRequestIpAddress,
   parseHotelRoomRateRouteParams,
@@ -425,6 +431,100 @@ export async function toggleRoomRateActiveAction(
     return {
       status: "error",
       message: getErrorMessage(error, "Não foi possível alterar o status da tarifa."),
+    };
+  }
+}
+
+export async function removeRoomRateAction(
+  hotelId: string,
+  roomId: string,
+  rateId: string
+): Promise<RoomRateActionState> {
+  try {
+    const parsedParams = parseHotelRoomRateRouteParams({ hotelId, roomId, rateId });
+
+    if (!parsedParams.success) {
+      throw new ValidationError(parsedParams.error.issues[0]?.message || "Identificador inválido.");
+    }
+
+    let user: Awaited<ReturnType<typeof requireAuthorizedHotelWrite>>;
+
+    try {
+      user = await requireAuthorizedHotelWrite(parsedParams.data.hotelId);
+    } catch (error) {
+      if (
+        error instanceof AuthenticationError ||
+        error instanceof AuthorizationError ||
+        error instanceof NotFoundError
+      ) {
+        throw new AuthorizationError("Você não tem permissão para remover esta tarifa.");
+      }
+
+      throw error;
+    }
+
+    const room = await prisma.hotelRoom.findFirst({
+      where: {
+        id: parsedParams.data.roomId,
+        hotelId: parsedParams.data.hotelId,
+      },
+      include: {
+        hotel: {
+          select: {
+            id: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    if (!room) {
+      throw new NotFoundError("Tarifa não encontrada.");
+    }
+
+    const rate = await prisma.roomRate.findFirst({
+      where: {
+        id: parsedParams.data.rateId,
+        roomId: room.id,
+      },
+    });
+
+    if (!rate) {
+      throw new NotFoundError("Tarifa não encontrada.");
+    }
+
+    const previousValue = mapRateSnapshot(rate);
+    const ipAddress = await getAuditIpAddress();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.roomRate.delete({
+        where: {
+          id: rate.id,
+        },
+      });
+
+      await createRoomRateAuditLog({
+        tx,
+        userId: user.id,
+        hotelId: room.hotel.id,
+        action: "hotel.room_rate.removed",
+        previousValue,
+        newValue: null,
+        ipAddress,
+      });
+    });
+
+    revalidateRoomRatePaths(room.hotel.id, room.hotel.slug);
+
+    return {
+      status: "success",
+      message: "Tarifa removida com sucesso.",
+      rateId: rate.id,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: getErrorMessage(error, "Não foi possível remover a tarifa."),
     };
   }
 }

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("AdminHotelDetailPage markup", () => {
-  it("carrega edição com autorização, logs e query explícita", () => {
+  it("carrega edição com autorização e query explícita sem exibir histórico", () => {
     const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
     const workspaceSource = readFileSync(
       new URL("../HotelManagementWorkspace.tsx", import.meta.url),
@@ -31,6 +31,9 @@ describe("AdminHotelDetailPage markup", () => {
     expect(source).toContain('canPublish={user.globalRole === "super_admin"}');
     expect(source).not.toContain("HotelPaymentSettingsForm");
     expect(source).not.toContain("Pagamentos");
+    expect(source).not.toContain("Histórico de alterações");
+    expect(source).not.toContain("auditLogs:");
+    expect(source).not.toContain("footerSlot=");
     expect(source).not.toContain("findUniqueOrThrow");
     expect(workspaceSource).toContain("IconBackLink");
     expect(workspaceSource).toContain("ariaLabel={backLabel}");

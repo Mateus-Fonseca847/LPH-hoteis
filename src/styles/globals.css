@@ -5408,11 +5408,14 @@ a.booking-page-link {
 }
 
 .admin-remove-hotel-trigger,
-.admin-remove-hotel-button {
+.admin-remove-hotel-button,
+.admin-remove-rate-trigger,
+.admin-remove-rate-button {
   color: #8f1f1b;
 }
 
-.admin-remove-hotel-button {
+.admin-remove-hotel-button,
+.admin-remove-rate-button {
   background: #8f1f1b;
   color: #fff;
 }

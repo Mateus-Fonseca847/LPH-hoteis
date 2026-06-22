@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 
 import type { RoomRateActionState } from "./room-rate-actions";
-import { createRoomRateAction, updateRoomRateAction } from "./room-rate-actions";
+import {
+  createRoomRateAction,
+  removeRoomRateAction,
+  updateRoomRateAction,
+} from "./room-rate-actions";
 import {
   buildRatePayload,
   EMPTY_RATE_FORM,
@@ -40,7 +44,9 @@ export function RoomRateFormCard({
 }: RoomRateFormCardProps) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState<RateFormErrors>({});
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const removeDialogTitleId = useId();
 
   useEffect(() => {
     setValues(initialValues);
@@ -79,6 +85,27 @@ export function RoomRateFormCard({
         }
       } catch (error) {
         onError(error instanceof Error ? error.message : "Não foi possível concluir a operação.");
+      }
+    });
+  }
+
+  function handleRemove() {
+    if (mode !== "edit" || !rateId) {
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await removeRoomRateAction(hotelId, roomId, rateId);
+
+        if (result.status === "error") {
+          throw new Error(result.message || "Não foi possível remover a tarifa.");
+        }
+
+        setIsRemoveDialogOpen(false);
+        await onSuccess(result);
+      } catch (error) {
+        onError(error instanceof Error ? error.message : "Não foi possível remover a tarifa.");
       }
     });
   }
@@ -236,7 +263,52 @@ export function RoomRateFormCard({
         >
           Cancelar
         </button>
+
+        {mode === "edit" ? (
+          <button
+            type="button"
+            className="admin-secondary-button admin-remove-rate-trigger"
+            onClick={() => setIsRemoveDialogOpen(true)}
+            disabled={isPending}
+          >
+            Remover tarifa
+          </button>
+        ) : null}
       </div>
+
+      {isRemoveDialogOpen ? (
+        <div className="admin-confirmation-modal" role="presentation">
+          <div
+            className="admin-confirmation-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={removeDialogTitleId}
+          >
+            <h2 id={removeDialogTitleId}>Remover tarifa</h2>
+            <p>Tem certeza que deseja remover esta tarifa?</p>
+
+            <div className="admin-confirmation-actions">
+              <button
+                type="button"
+                className="admin-secondary-button"
+                onClick={() => setIsRemoveDialogOpen(false)}
+                disabled={isPending}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="card-cta-button admin-remove-rate-button"
+                onClick={handleRemove}
+                disabled={isPending}
+                autoFocus
+              >
+                {isPending ? "Removendo..." : "Remover tarifa"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

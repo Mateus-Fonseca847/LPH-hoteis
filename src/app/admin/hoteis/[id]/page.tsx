@@ -26,29 +26,6 @@ type AdminHotelDetailPageProps = {
   }>;
 };
 
-function formatAuditAction(action: string) {
-  if (action === "hotel.profile.updated") {
-    return "Perfil atualizado";
-  }
-
-  if (action === "hotel.room_image.uploaded") {
-    return "Imagem de quarto enviada";
-  }
-
-  if (action === "hotel.approval.submitted") {
-    return "Enviado para aprovação";
-  }
-
-  return action;
-}
-
-function formatAuditDate(value: Date) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(value);
-}
-
 function getSafeEditLoadError(error: unknown) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     return {
@@ -283,20 +260,6 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
             size: true,
             priceFrom: true,
             isAvailable: true,
-          },
-        },
-        auditLogs: {
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 12,
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
           },
         },
       },
@@ -581,52 +544,6 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
             }))}
           />
         </div>
-      }
-      footerSlot={
-        <section className="hotel-content-card admin-history-section">
-          <div className="section-heading admin-subsection-heading">
-            <h2>Histórico de alterações</h2>
-          </div>
-
-          {hotel.auditLogs.length === 0 ? (
-            <div className="hotel-empty-state admin-history-empty">
-              <strong>Nenhuma alteração registrada.</strong>
-              <p>
-                Quando este hotel receber atualizações administrativas, o histórico aparecerá aqui.
-              </p>
-            </div>
-          ) : (
-            <div className="admin-history-list">
-              {hotel.auditLogs.map((log) => {
-                const changedFields = Array.isArray(log.changedFields) ? log.changedFields : [];
-
-                return (
-                  <article key={log.id} className="admin-history-item">
-                    <div className="admin-history-item-top">
-                      <div>
-                        <strong>{formatAuditAction(log.action)}</strong>
-                        <p>{log.user.name || log.user.email}</p>
-                      </div>
-                      <span>{formatAuditDate(log.createdAt)}</span>
-                    </div>
-
-                    <div className="admin-history-fields">
-                      {changedFields.length > 0 ? (
-                        changedFields.map((field) => (
-                          <span key={`${log.id}-${String(field)}`} className="admin-history-tag">
-                            {String(field)}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="admin-history-tag">Sem campos detalhados</span>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
       }
     />
   );
