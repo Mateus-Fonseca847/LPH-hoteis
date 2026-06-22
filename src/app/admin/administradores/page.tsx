@@ -22,7 +22,7 @@ export default async function AdminAdministratorsPage() {
     return (
       <AdminAccessDenied
         title="Acesso restrito"
-        description="Somente super_admin pode definir quais hoteis cada hotel_admin gerencia."
+        description="Somente o super administrador pode definir quais hotéis cada administrador do hotel gerencia."
       />
     );
   }

@@ -318,7 +318,7 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
                   <div>
                     <strong>{room.name}</strong>
                     <p>
-                      {capacityLabel} Â· {unitsLabel}
+                      {capacityLabel} · {unitsLabel}
                     </p>
                     <small>
                       {getRoomSummary(state.availability, state.startDate, state.endDate)}
@@ -360,7 +360,7 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
                     {!state.isLoading && !state.loadError && state.availability.length === 0 ? (
                       <div className="hotel-empty-state admin-history-empty">
                         <strong>Sem disponibilidade cadastrada para este mês</strong>
-                        <p>Cadastre dias no calendÃ¡rio para liberar reservas.</p>
+                        <p>Cadastre dias no calendário para liberar reservas.</p>
                       </div>
                     ) : null}
                     <RoomAvailabilityCalendar

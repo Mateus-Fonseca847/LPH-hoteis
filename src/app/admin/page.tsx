@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { AdminAccessDenied } from "./AdminAccessDenied";
 
 function formatRole(role: string) {
-  return role === "super_admin" ? "Super admin" : "Admin de hotel";
+  return role === "super_admin" ? "Super administrador" : "Administrador do hotel";
 }
 
 const overviewCards = [

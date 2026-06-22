@@ -368,9 +368,9 @@ export const hotels: Hotel[] = [
   {
     slug: "hotel-teste-paulista",
     name: "Hotel Teste Paulista",
-    shortDescription: "Hotel urbano generico para validar fluxo publico em Sao Paulo.",
+    shortDescription: "Hotel urbano genérico para validar fluxo público em São Paulo.",
     fullDescription:
-      "O Hotel Teste Paulista foi adicionado como conteúdo de apoio para validar navegacao publica, mapa interativo e pagina de detalhes. Tem perfil executivo, localizacao central e estrutura simples para exercicios de interface.",
+      "O Hotel Teste Paulista foi adicionado como conteúdo de apoio para validar navegação pública, mapa interativo e página de detalhes. Tem perfil executivo, localização central e estrutura simples para exercícios de interface.",
     city: "Sao Paulo",
     state: "SP",
     address: "Rua de Teste, 120 - Bela Vista, Sao Paulo - SP",
@@ -382,14 +382,14 @@ export const hotels: Hotel[] = [
       "https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?auto=format&fit=crop&w=1400&q=80",
       "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1400&q=80",
     ],
-    amenities: ["Wi-Fi", "Cafe da manha", "Recepcao 24h", "Academia", "Sala de reunioes"],
+    amenities: ["Wi-Fi", "Café da manhã", "Recepção 24h", "Academia", "Sala de reuniões"],
     contacts: {
       phone: "(11) 4000-1001",
       email: "reservas+teste-paulista@lph.test",
       whatsapp: "(11) 99100-1001",
     },
     policies: [
-      { title: "Cancelamento", description: "Cancelamento gratuito ate 48 horas antes." },
+      { title: "Cancelamento", description: "Cancelamento gratuito até 48 horas antes." },
       { title: "Check-in", description: "Documento com foto obrigatório na chegada." },
       { title: "Estacionamento", description: "Vagas limitadas mediante disponibilidade." },
     ],
@@ -399,15 +399,15 @@ export const hotels: Hotel[] = [
   {
     slug: "hotel-teste-recife",
     name: "Hotel Teste Recife",
-    shortDescription: "Opcao generica na orla para validar pins e card do mapa.",
+    shortDescription: "Opção genérica na orla para validar pins e card do mapa.",
     fullDescription:
-      "O Hotel Teste Recife existe apenas para testes de navegacao publica. A unidade simula um hotel de lazer com boa localizacao, imagem de capa e dados completos para exercitar listagem, mapa e pagina individual.",
+      "O Hotel Teste Recife existe apenas para testes de navegação pública. A unidade simula um hotel de lazer com boa localização, imagem de capa e dados completos para exercitar listagem, mapa e página individual.",
     city: "Recife",
     state: "PE",
     address: "Avenida Litoral, 450 - Boa Viagem, Recife - PE",
     image:
       "https://images.unsplash.com/photo-1455587734955-081b22074882?auto=format&fit=crop&w=1400&q=80",
-    alt: "Area externa de hotel com piscina",
+    alt: "Área externa de hotel com piscina",
     gallery: [
       "https://images.unsplash.com/photo-1455587734955-081b22074882?auto=format&fit=crop&w=1400&q=80",
       "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=80",
@@ -420,8 +420,8 @@ export const hotels: Hotel[] = [
       whatsapp: "(81) 99200-2002",
     },
     policies: [
-      { title: "Cancelamento", description: "Cancelamento gratuito ate 5 dias antes." },
-      { title: "Cafe da manha", description: "Servico incluso em todas as reservas." },
+      { title: "Cancelamento", description: "Cancelamento gratuito até 5 dias antes." },
+      { title: "Café da manhã", description: "Serviço incluso em todas as reservas." },
       { title: "Horário", description: "Área de lazer aberta até as 22h." },
     ],
     checkIn: "14:00",
@@ -430,9 +430,9 @@ export const hotels: Hotel[] = [
   {
     slug: "hotel-teste-salvador",
     name: "Hotel Teste Salvador",
-    shortDescription: "Hospedagem generica com perfil cultural para testar a pagina publica.",
+    shortDescription: "Hospedagem genérica com perfil cultural para testar a página pública.",
     fullDescription:
-      "O Hotel Teste Salvador foi criado para testar o fluxo entre mapa, pin e detalhes do hotel. O conteúdo representa um hotel boutique com operação enxuta, imagens validas e informacoes suficientes para navegacao completa.",
+      "O Hotel Teste Salvador foi criado para testar o fluxo entre mapa, pin e detalhes do hotel. O conteúdo representa um hotel boutique com operação enxuta, imagens válidas e informações suficientes para navegação completa.",
     city: "Salvador",
     state: "BA",
     address: "Rua do Centro, 88 - Santo Antonio, Salvador - BA",
@@ -444,14 +444,14 @@ export const hotels: Hotel[] = [
       "https://images.unsplash.com/photo-1504609773096-104ff2c73ba4?auto=format&fit=crop&w=1400&q=80",
       "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1400&q=80",
     ],
-    amenities: ["Terraco", "Cafe regional", "Wi-Fi", "Transfer", "Recepcao 24h"],
+    amenities: ["Terraço", "Café regional", "Wi-Fi", "Transfer", "Recepção 24h"],
     contacts: {
       phone: "(71) 4000-3003",
       email: "reservas+teste-salvador@lph.test",
       whatsapp: "(71) 99300-3003",
     },
     policies: [
-      { title: "Cancelamento", description: "Cancelamento gratuito ate 7 dias antes." },
+      { title: "Cancelamento", description: "Cancelamento gratuito até 7 dias antes." },
       { title: "Silêncio", description: "Horário de silêncio nas áreas comuns após 23h." },
       { title: "Crianças", description: "Hospedagem infantil sujeita a categoria escolhida." },
     ],
@@ -461,30 +461,30 @@ export const hotels: Hotel[] = [
   {
     slug: "hotel-teste-brasilia",
     name: "Hotel Teste Brasilia",
-    shortDescription: "Hotel generico de perfil executivo para testar cards e navegacao.",
+    shortDescription: "Hotel genérico de perfil executivo para testar cards e navegação.",
     fullDescription:
-      "O Hotel Teste Brasilia foi incluido para exercitar o fluxo completo do front com um hotel de negocios. Ele cobre capa, galeria, contatos, politicas e localizacao resolvida por cidade e estado.",
+      "O Hotel Teste Brasília foi incluído para exercitar o fluxo completo do front com um hotel de negócios. Ele cobre capa, galeria, contatos, políticas e localização resolvida por cidade e estado.",
     city: "Brasilia",
     state: "DF",
     address: "Setor de Hospedagem, Quadra 5 - Asa Sul, Brasilia - DF",
     image:
       "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1400&q=80",
-    alt: "Lobby de hotel com iluminacao suave",
+    alt: "Lobby de hotel com iluminação suave",
     gallery: [
       "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1400&q=80",
       "https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?auto=format&fit=crop&w=1400&q=80",
       "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1400&q=80",
     ],
-    amenities: ["Coworking", "Cafe da manha", "Wi-Fi premium", "Lavanderia", "Concierge"],
+    amenities: ["Coworking", "Café da manhã", "Wi-Fi premium", "Lavanderia", "Concierge"],
     contacts: {
       phone: "(61) 4000-4004",
       email: "reservas+teste-brasilia@lph.test",
       whatsapp: "(61) 99400-4004",
     },
     policies: [
-      { title: "Cancelamento", description: "Reembolso integral ate 72 horas antes." },
-      { title: "Early check-in", description: "Disponível sob consulta previa." },
-      { title: "Consumo", description: "Extras sao cobrados no check-out." },
+      { title: "Cancelamento", description: "Reembolso integral até 72 horas antes." },
+      { title: "Early check-in", description: "Disponível sob consulta prévia." },
+      { title: "Consumo", description: "Extras são cobrados no check-out." },
     ],
     checkIn: "14:00",
     checkOut: "12:00",
@@ -492,21 +492,21 @@ export const hotels: Hotel[] = [
   {
     slug: "hotel-teste-floripa",
     name: "Hotel Teste Floripa",
-    shortDescription: "Opcao generica em Florianopolis para validar mapa e pagina de hotel.",
+    shortDescription: "Opção genérica em Florianópolis para validar mapa e página de hotel.",
     fullDescription:
-      "O Hotel Teste Floripa fecha o conjunto de dados de apoio para testes. Ele simula uma hospedagem de praia com informacoes completas, visual publico consistente e cidade coberta pelo catalogo interno do mapa.",
+      "O Hotel Teste Floripa fecha o conjunto de dados de apoio para testes. Ele simula uma hospedagem de praia com informações completas, visual público consistente e cidade coberta pelo catálogo interno do mapa.",
     city: "Florianopolis",
     state: "SC",
     address: "Avenida Costeira, 210 - Centro, Florianopolis - SC",
     image:
       "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=80",
-    alt: "Fachada de hotel com area de lazer externa",
+    alt: "Fachada de hotel com área de lazer externa",
     gallery: [
       "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=80",
       "https://images.unsplash.com/photo-1455587734955-081b22074882?auto=format&fit=crop&w=1400&q=80",
       "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1400&q=80",
     ],
-    amenities: ["Piscina", "Rooftop", "Wi-Fi", "Cafe da manha", "Bicicletario"],
+    amenities: ["Piscina", "Rooftop", "Wi-Fi", "Café da manhã", "Bicicletário"],
     contacts: {
       phone: "(48) 4000-5005",
       email: "reservas+teste-floripa@lph.test",

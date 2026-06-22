@@ -26,7 +26,7 @@ async function requireSuperAdminActor() {
   const actor = await requireAuthenticatedRequestUser();
 
   if (actor.globalRole !== "super_admin") {
-    throw new AuthorizationError("Apenas super_admin pode revisar solicitações de acesso.");
+    throw new AuthorizationError("Apenas o super administrador pode revisar solicitações de acesso.");
   }
 
   if (!actor.isActive) {
@@ -220,7 +220,7 @@ export async function approveHotelOwnerSignupRequestAction(
 
     return {
       status: "success",
-      message: "Solicitação aprovada e hotel_admin criado.",
+      message: "Solicitação aprovada e administrador do hotel criado.",
     };
   } catch (error) {
     return {

@@ -80,7 +80,7 @@ export const paymentCardBrandSchema = z.enum(paymentCardBrands, {
 const paymentCardNumberField = z
   .string()
   .transform(sanitizeText)
-  .pipe(z.string().regex(/^\d{4} \d{4} \d{4} \d{4}$/, "Numero do cartao invalido."));
+  .pipe(z.string().regex(/^\d{4} \d{4} \d{4} \d{4}$/, "Número do cartão inválido."));
 
 const paymentExpiryField = z
   .string()

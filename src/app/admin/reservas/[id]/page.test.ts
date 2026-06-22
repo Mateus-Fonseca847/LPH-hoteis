@@ -2,10 +2,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("AdminReservationDetailPage markup", () => {
-  it("mantem apenas status atual, cancelamento e remarcacao nas acoes operacionais", () => {
+  it("mantém apenas status atual, cancelamento e remarcação nas ações operacionais", () => {
     const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
 
-    expect(source).toContain("Acoes operacionais");
+    expect(source).toContain("Ações operacionais");
     expect(source).toContain("prisma.hotelPermission.findMany");
     expect(source).toContain("userId: user.id");
     expect(source).toContain("prisma.reservation.findFirst");

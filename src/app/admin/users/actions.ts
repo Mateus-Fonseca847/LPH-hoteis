@@ -131,7 +131,7 @@ async function requireSuperAdminActor() {
   const actor = await requireAdminActor();
 
   if (actor.globalRole !== "super_admin") {
-    throw new AuthorizationError("Apenas super_admin pode gerenciar acessos de hotéis.");
+    throw new AuthorizationError("Apenas o super administrador pode gerenciar acessos de hotéis.");
   }
 
   return actor;
@@ -219,7 +219,7 @@ function assertCanCreateGlobalRole(
   targetGlobalRole: "super_admin" | "hotel_admin" | "user"
 ) {
   if (targetGlobalRole === "super_admin" && actorGlobalRole !== "super_admin") {
-    throw new AuthorizationError("Apenas super_admin pode criar outro super_admin.");
+    throw new AuthorizationError("Apenas o super administrador pode criar outro super administrador.");
   }
 
   if (!isAdminUser(targetGlobalRole)) {
@@ -278,7 +278,7 @@ async function preventLastSuperAdminDisable(tx: Prisma.TransactionClient, userId
   });
 
   if (otherActiveSuperAdmins === 0) {
-    throw new ConflictError("Não é permitido desativar o último super_admin ativo.");
+    throw new ConflictError("Não é permitido desativar o último super administrador ativo.");
   }
 }
 
@@ -413,7 +413,9 @@ export async function createAdministratorAction(
   try {
     const context = await getScopedActorContext(scopeHotelId);
     if (context.actor.globalRole !== "super_admin") {
-      throw new AuthorizationError("Apenas super_admin pode criar e vincular hotel_admin.");
+      throw new AuthorizationError(
+        "Apenas o super administrador pode criar e vincular administradores do hotel."
+      );
     }
     const parsedPayload = parseElevatedAdminInvitationPayload(payload);
 
@@ -513,7 +515,7 @@ export async function addUserHotelPermissionAction(
   try {
     const context = await getScopedActorContext(scopeHotelId);
     if (context.actor.globalRole !== "super_admin") {
-      throw new AuthorizationError("Apenas super_admin pode conceder acessos de hotéis.");
+      throw new AuthorizationError("Apenas o super administrador pode conceder acessos de hotéis.");
     }
     const parsedPayload = parseHotelPermissionPayload(payload);
 
@@ -596,7 +598,7 @@ export async function updateHotelPermissionAction(
   try {
     const context = await getScopedActorContext(scopeHotelId);
     if (context.actor.globalRole !== "super_admin") {
-      throw new AuthorizationError("Apenas super_admin pode alterar acessos de hotéis.");
+      throw new AuthorizationError("Apenas o super administrador pode alterar acessos de hotéis.");
     }
     const parsedPayload = parseHotelPermissionPayload(payload);
 
@@ -680,7 +682,7 @@ export async function removeUserHotelPermissionAction(
   try {
     const context = await getScopedActorContext(scopeHotelId);
     if (context.actor.globalRole !== "super_admin") {
-      throw new AuthorizationError("Apenas super_admin pode remover acessos de hotéis.");
+      throw new AuthorizationError("Apenas o super administrador pode remover acessos de hotéis.");
     }
     const currentPermission = await ensurePermissionBelongsToHotel(permissionId, context.hotelId);
     const targetUser = await ensureAdminTargetUser(currentPermission.userId);
@@ -745,7 +747,7 @@ export async function toggleAdministrativeUserActiveAction(
     const context = await getScopedActorContext(scopeHotelId);
 
     if (context.actor.globalRole !== "super_admin") {
-      throw new AuthorizationError("Apenas super_admin pode ativar ou desativar usuários.");
+      throw new AuthorizationError("Apenas o super administrador pode ativar ou desativar usuários.");
     }
 
     if (typeof isActive !== "boolean") {

@@ -35,7 +35,7 @@ export function ReviewRequestForm({ approveAction, rejectAction }: ReviewRequest
           <textarea name="reviewNote" maxLength={1000} rows={2} />
         </label>
         <button type="submit" className="card-cta-button admin-edit-button" disabled={isPending}>
-          {isApproving ? "Aprovando..." : "Aprovar e criar hotel_admin"}
+          {isApproving ? "Aprovando..." : "Aprovar e criar administrador"}
         </button>
         {approveState.message ? (
           <p

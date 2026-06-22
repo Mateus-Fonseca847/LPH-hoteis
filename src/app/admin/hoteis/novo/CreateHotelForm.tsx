@@ -238,7 +238,7 @@ export function CreateHotelForm() {
             <strong>Localização no mapa</strong>
             <p>
               O sistema tenta posicionar o hotel pelo par cidade/estado. Depois do primeiro save, o
-              super_admin pode ajustar coordenadas internas na edição.
+              O super administrador pode ajustar coordenadas internas na edição.
             </p>
           </div>
         </div>

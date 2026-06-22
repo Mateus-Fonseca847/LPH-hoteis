@@ -175,7 +175,7 @@ export async function cancelReservationManually(input: ReservationOperationInput
   await assertReservationAdminAccess(input.userId, reservation.hotelId);
 
   if (["cancelled", "expired"].includes(reservation.status)) {
-    throw new ConflictError("Reserva ja esta cancelada ou expirada.");
+    throw new ConflictError("Reserva já está cancelada ou expirada.");
   }
 
   if (reservation.paymentStatus === "paid" || reservation.paymentTransaction?.status === "paid") {
@@ -490,7 +490,7 @@ export async function rescheduleReservationManually(input: RescheduleReservation
   const previousCheckOut = toDateOnly(reservation.checkOut);
 
   if (previousCheckIn === checkIn && previousCheckOut === checkOut) {
-    throw new ValidationError("Informe um novo período para remarcacao.");
+    throw new ValidationError("Informe um novo período para remarcação.");
   }
 
   const nextTotalPriceCents = reservation.nightlyPriceCents * nights;
@@ -569,7 +569,7 @@ export async function rescheduleReservationManually(input: RescheduleReservation
       });
 
       if (availabilityRelease.count !== datesToRelease.length) {
-        throw new ConflictError("Disponibilidade antiga inconsistente para remarcacao.");
+        throw new ConflictError("Disponibilidade antiga inconsistente para remarcação.");
       }
     }
 

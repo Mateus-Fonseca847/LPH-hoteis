@@ -171,14 +171,14 @@ function ReservationRescheduleForm({
         </label>
       </div>
       <label className="admin-form-field">
-        <span>Motivo da remarcacao</span>
+        <span>Motivo da remarcação</span>
         <textarea
           name="reason"
           rows={3}
           minLength={5}
           maxLength={1000}
           required
-          placeholder="Motivo da alteracao de datas"
+          placeholder="Motivo da alteração de datas"
         />
       </label>
       <button type="submit" className="card-cta-button admin-edit-button">
@@ -362,7 +362,7 @@ export default async function AdminReservationDetailPage({
           }`}
         >
           {paymentReconciliation === "success"
-            ? "Reconciliacao executada."
+            ? "Reconciliação executada."
             : "Não foi possível reconciliar o pagamento."}
         </div>
       ) : null}
@@ -499,9 +499,9 @@ export default async function AdminReservationDetailPage({
       <section className="hotel-content-card admin-reservation-detail-card">
         <div className="admin-finance-chart__header">
           <div>
-            <h3>Acoes operacionais</h3>
+            <h3>Ações operacionais</h3>
           </div>
-          <p>Cancelamento e remarcacao exigem motivo e ficam registrados no historico.</p>
+          <p>Cancelamento e remarcação exigem motivo e ficam registrados no histórico.</p>
         </div>
 
         <div className="admin-form-grid admin-form-grid--three">
@@ -522,7 +522,7 @@ export default async function AdminReservationDetailPage({
                   <strong>{reservationStatusLabels[reservation.status]}</strong>
                 </p>
                 <p>
-                  <span>Metodo</span>
+                  <span>Método</span>
                   <strong>{formatPaymentMethod(reservation.paymentMethod)}</strong>
                 </p>
               </div>
@@ -545,7 +545,7 @@ export default async function AdminReservationDetailPage({
       <section className="hotel-content-card admin-reservation-detail-card">
         <div className="admin-finance-chart__header">
           <div>
-            <h3>Histórico basico</h3>
+            <h3>Histórico básico</h3>
           </div>
           <p>Eventos inferidos dos campos gravados na reserva.</p>
         </div>
@@ -568,7 +568,7 @@ export default async function AdminReservationDetailPage({
             <div>
               <h3>Transação financeira</h3>
             </div>
-            <p>Valores registrados para conciliacao interna.</p>
+            <p>Valores registrados para conciliação interna.</p>
           </div>
 
           <div className="admin-audit-meta">
@@ -594,7 +594,7 @@ export default async function AdminReservationDetailPage({
               </strong>
             </p>
             <p>
-              <span>Comissao</span>
+              <span>Comissão</span>
               <strong>
                 {formatCurrency(
                   reservation.paymentTransaction.platformFeeCents,
@@ -603,7 +603,7 @@ export default async function AdminReservationDetailPage({
               </strong>
             </p>
             <p>
-              <span>Liquido hotel</span>
+              <span>Líquido hotel</span>
               <strong>
                 {formatCurrency(
                   reservation.paymentTransaction.hotelNetAmountCents,
@@ -620,7 +620,7 @@ export default async function AdminReservationDetailPage({
           <div>
             <h3>Histórico operacional</h3>
           </div>
-          <p>Auditoria com responsavel, data, motivo e transicao.</p>
+          <p>Auditoria com responsável, data, motivo e transição.</p>
         </div>
 
         {reservation.operationLogs.length ? (
@@ -642,7 +642,7 @@ export default async function AdminReservationDetailPage({
           </div>
         ) : (
           <div className="hotel-empty-state admin-history-empty">
-            <strong>Nenhuma acao operacional registrada.</strong>
+            <strong>Nenhuma ação operacional registrada.</strong>
           </div>
         )}
       </section>
@@ -651,9 +651,9 @@ export default async function AdminReservationDetailPage({
         <section className="hotel-content-card admin-reservation-detail-card">
           <div className="admin-finance-chart__header">
             <div>
-              <h3>Reconciliacoes</h3>
+              <h3>Reconciliações</h3>
             </div>
-            <p>Ultimas tentativas registradas.</p>
+            <p>Últimas tentativas registradas.</p>
           </div>
 
           <div className="admin-history-list">

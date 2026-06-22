@@ -62,7 +62,7 @@ export function SignupForm() {
       const data = (await response.json()) as SignupResponse;
 
       if (!response.ok) {
-        setError(data.error ?? "Não foi possÃ­vel criar a conta.");
+        setError(data.error ?? "Não foi possível criar a conta.");
         return;
       }
 

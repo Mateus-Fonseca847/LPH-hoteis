@@ -168,7 +168,7 @@ export default async function AdminSignupRequestsPage() {
     return (
       <AdminAccessDenied
         title="Acesso restrito"
-        description="Somente super_admin pode revisar solicitações de acesso."
+        description="Somente o super administrador pode revisar solicitações de acesso."
       />
     );
   }

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("SignupPage markup", () => {
-  it("renderiza cadastro comum separado da solicitaÃ§Ã£o de hotel", () => {
+  it("renderiza cadastro comum separado da solicitação de hotel", () => {
     const pageSource = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
     const formSource = readFileSync(new URL("./SignupForm.tsx", import.meta.url), "utf8");
 

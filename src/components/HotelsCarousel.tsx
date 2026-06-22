@@ -169,7 +169,7 @@ export function HotelsCarousel({ hotels }: HotelsCarouselProps) {
   return (
     <section id="journey" className="journey section reveal">
       <div className="hotels-intro">
-        <h2>Conheça nossos hotéis!</h2>
+        <h2>Conheça nossos hotéis</h2>
         <p>
           Uma seleção de hospedagens com conforto, localização estratégica e experiências pensadas
           para viagens memoráveis pelo Brasil.

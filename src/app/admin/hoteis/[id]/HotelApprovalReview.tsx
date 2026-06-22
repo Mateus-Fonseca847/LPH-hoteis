@@ -208,7 +208,7 @@ export function HotelApprovalReview({
       {!canPublish && summary.submittedForApproval && !summary.isPublished ? (
         <div className="admin-editor-banner">
           <strong>Aprovação pendente</strong>
-          <p>Somente super_admin pode aprovar e publicar este hotel.</p>
+          <p>Somente o super administrador pode aprovar e publicar este hotel.</p>
         </div>
       ) : null}
     </section>

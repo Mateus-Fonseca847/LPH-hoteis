@@ -311,7 +311,7 @@ export async function updateHotelProfileAction(
     const hasManualCoordinates = payload.latitude !== null || payload.longitude !== null;
 
     if (payload.isPublished && user.globalRole !== "super_admin") {
-      throw new AuthorizationError("Apenas super_admin pode aprovar ou publicar hoteis.");
+      throw new AuthorizationError("Apenas o super administrador pode aprovar ou publicar hotéis.");
     }
 
     const currentHotel = await prisma.hotel.findUnique({
@@ -625,7 +625,7 @@ export async function approveHotelAction(
     const user = await requireAuthenticatedRequestUser();
 
     if (user.globalRole !== "super_admin") {
-      throw new AuthorizationError("Apenas super_admin pode aprovar e publicar hotéis.");
+      throw new AuthorizationError("Apenas o super administrador pode aprovar e publicar hotéis.");
     }
 
     const safeHotelId = parsedParams.data.hotelId;

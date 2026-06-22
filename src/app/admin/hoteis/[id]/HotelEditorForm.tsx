@@ -754,8 +754,8 @@ export function HotelEditorForm({
         </div>
         {!hasResolvedMapLocation ? (
           <div className="admin-editor-banner">
-            <strong>Este hotel ainda não possui localizacao no mapa.</strong>
-            <p>Revise cidade e estado ou defina coordenadas internas antes da aprovacao.</p>
+            <strong>Este hotel ainda não possui localização no mapa.</strong>
+            <p>Revise cidade e estado ou defina coordenadas internas antes da aprovação.</p>
           </div>
         ) : null}
         <div className="admin-form-grid admin-form-grid--three">

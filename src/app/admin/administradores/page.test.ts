@@ -8,7 +8,7 @@ describe("AdminAdministratorsPage markup", () => {
 
     expect(pageSource).toContain('user.globalRole !== "super_admin"');
     expect(pageSource).toContain(
-      "Somente super_admin pode definir quais hoteis cada hotel_admin gerencia."
+      "Somente super_admin pode definir quais hotéis cada hotel_admin gerencia."
     );
     expect(clientSource).toContain("Adicionar hotel");
     expect(clientSource).toContain("Criar hotel_admin");

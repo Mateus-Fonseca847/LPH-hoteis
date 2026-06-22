@@ -20,7 +20,7 @@ export default function SignupPage() {
           <div className="auth-card">
             <h1>Criar conta</h1>
             <p className="auth-copy">
-              Cadastre-se com e-mail e senha para acessar sua Ã¡rea de usuÃ¡rio.
+              Cadastre-se com e-mail e senha para acessar sua área de usuário.
             </p>
 
             <SignupForm />
