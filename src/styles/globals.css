@@ -6588,7 +6588,8 @@ a.booking-page-link {
 .admin-rates-list,
 .admin-rate-toggles,
 .admin-rate-meta-grid,
-.admin-rate-toolbar {
+.admin-rate-toolbar,
+.admin-rate-compact-row {
   display: grid;
 }
 
@@ -6680,6 +6681,43 @@ a.booking-page-link {
 
 .admin-rate-card {
   grid-template-columns: 1fr;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.admin-rate-compact-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-rate-compact-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.admin-rate-compact-main strong {
+  color: var(--brand);
+  line-height: 1.25;
+}
+
+.admin-rate-compact-main span {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.admin-rate-compact-badge {
+  min-height: 26px;
+  padding: 0 9px;
+  font-size: 0.68rem;
+}
+
+.admin-rate-open-button {
+  min-height: 36px;
+  padding: 0 14px;
 }
 
 .admin-availability-card {
@@ -9001,6 +9039,20 @@ a.booking-page-link {
 }
 
 @media (max-width: 820px) {
+  .admin-rate-compact-row {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .admin-rate-compact-main {
+    gap: 4px;
+    flex-direction: column;
+  }
+
+  .admin-rate-open-button {
+    width: 100%;
+  }
+
   #journey,
   #destinations,
   #details,

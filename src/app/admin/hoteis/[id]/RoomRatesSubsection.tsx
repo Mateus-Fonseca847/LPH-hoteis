@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-import { formatPriceLabel, formatRatePeriod, getRateFormValues } from "./room-rate-form-helpers";
+import { formatPriceLabel, getRateFormValues } from "./room-rate-form-helpers";
 import { RoomRateFormCard } from "./RoomRateFormCard";
 import type { AuthorizedRoomRate, RoomRateActionState } from "./room-rate-actions";
-import { listRoomRatesAction, toggleRoomRateActiveAction } from "./room-rate-actions";
+import { listRoomRatesAction } from "./room-rate-actions";
 
 type RoomRatesSubsectionProps = {
   hotelId: string;
@@ -19,7 +19,6 @@ export function RoomRatesSubsection({ hotelId, roomId }: RoomRatesSubsectionProp
   const [feedbackType, setFeedbackType] = useState<"success" | "error">("success");
   const [isCreating, setIsCreating] = useState(false);
   const [editingRateId, setEditingRateId] = useState<string | null>(null);
-  const [pendingRateId, setPendingRateId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   async function refreshRates() {
@@ -90,32 +89,6 @@ export function RoomRatesSubsection({ hotelId, roomId }: RoomRatesSubsectionProp
     setFeedback(message);
   }
 
-  function runRateTask(task: () => Promise<RoomRateActionState>, rateId: string) {
-    setFeedback("");
-    setPendingRateId(rateId);
-
-    startTransition(async () => {
-      try {
-        const result = await task();
-
-        if (result.status === "error") {
-          throw new Error(result.message || "Não foi possível concluir a operação.");
-        }
-
-        await refreshRates();
-        setFeedbackType("success");
-        setFeedback(result.message);
-      } catch (error) {
-        setFeedbackType("error");
-        setFeedback(
-          error instanceof Error ? error.message : "Não foi possível concluir a operação."
-        );
-      } finally {
-        setPendingRateId(null);
-      }
-    });
-  }
-
   return (
     <section className="admin-room-panel admin-room-panel--inline">
       <div className="admin-rooms-header">
@@ -184,24 +157,35 @@ export function RoomRatesSubsection({ hotelId, roomId }: RoomRatesSubsectionProp
             <div className="admin-rates-list">
               {rates.map((rate) => {
                 const isEditing = editingRateId === rate.id;
-                const isRatePending = pendingRateId === rate.id;
 
                 return (
                   <article key={rate.id} className="admin-room-card admin-rate-card">
                     <div className="admin-room-card-body">
-                      <div className="admin-room-card-top">
-                        <div>
+                      <div className="admin-rate-compact-row">
+                        <div className="admin-rate-compact-main">
                           <strong>{rate.name}</strong>
-                          <p>{formatPriceLabel(rate.priceCents)}</p>
+                          <span>{formatPriceLabel(rate.priceCents)}</span>
                         </div>
 
                         <span
-                          className={`admin-room-badge ${
+                          className={`admin-room-badge admin-rate-compact-badge ${
                             rate.isActive ? "is-active" : "is-inactive"
                           }`}
                         >
                           {rate.isActive ? "Ativa" : "Inativa"}
                         </span>
+
+                        <button
+                          type="button"
+                          className="admin-secondary-button admin-rate-open-button"
+                          onClick={() => {
+                            setIsCreating(false);
+                            setEditingRateId((current) => (current === rate.id ? null : rate.id));
+                          }}
+                          disabled={isPending}
+                        >
+                          {isEditing ? "Fechar tarifa" : "Abrir tarifa"}
+                        </button>
                       </div>
 
                       {isEditing ? (
@@ -217,76 +201,7 @@ export function RoomRatesSubsection({ hotelId, roomId }: RoomRatesSubsectionProp
                           onError={handleRateFormError}
                           onCancel={() => setEditingRateId(null)}
                         />
-                      ) : (
-                        <>
-                          <p className="admin-room-description">{rate.description}</p>
-
-                          <div className="admin-rate-meta-grid">
-                            <span>
-                              <strong>Período</strong>
-                              <small>{formatRatePeriod(rate)}</small>
-                            </span>
-                            <span>
-                              <strong>Mín. noites</strong>
-                              <small>{rate.minNights}</small>
-                            </span>
-                            <span>
-                              <strong>Hóspedes</strong>
-                              <small>{rate.maxGuests}</small>
-                            </span>
-                            <span>
-                              <strong>Reembolso</strong>
-                              <small>{rate.refundable ? "Sim" : "Não"}</small>
-                            </span>
-                            <span>
-                              <strong>Café</strong>
-                              <small>{rate.breakfastIncluded ? "Incluso" : "Não incluso"}</small>
-                            </span>
-                            <span>
-                              <strong>Status</strong>
-                              <small>{rate.isActive ? "Ativa" : "Inativa"}</small>
-                            </span>
-                          </div>
-
-                          <div className="admin-room-actions">
-                            <button
-                              type="button"
-                              className="admin-secondary-button"
-                              onClick={() => {
-                                setIsCreating(false);
-                                setEditingRateId(rate.id);
-                              }}
-                              disabled={isPending}
-                            >
-                              Editar
-                            </button>
-
-                            <button
-                              type="button"
-                              className="admin-secondary-button"
-                              onClick={() =>
-                                runRateTask(
-                                  () =>
-                                    toggleRoomRateActiveAction(
-                                      hotelId,
-                                      roomId,
-                                      rate.id,
-                                      !rate.isActive
-                                    ),
-                                  rate.id
-                                )
-                              }
-                              disabled={isPending}
-                            >
-                              {isRatePending
-                                ? "Atualizando..."
-                                : rate.isActive
-                                  ? "Desativar"
-                                  : "Ativar"}
-                            </button>
-                          </div>
-                        </>
-                      )}
+                      ) : null}
                     </div>
                   </article>
                 );
