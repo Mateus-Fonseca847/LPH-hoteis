@@ -96,9 +96,10 @@ function getRoomSummary(
   endDate: string
 ) {
   const rangeDays = getDateRangeDays(startDate, endDate);
+  const defaultDays = Math.max(rangeDays - availability.length, 0);
 
   if (availability.length === 0) {
-    return `${rangeDays} dias sem cadastro.`;
+    return "Dias sem regra específica usam a disponibilidade padrão do quarto.";
   }
 
   const closedDays = availability.filter((entry) => entry.closed).length;
@@ -108,9 +109,7 @@ function getRoomSummary(
   const availableDays = availability.filter(
     (entry) => !entry.closed && entry.availableUnits > 0
   ).length;
-  const emptyDays = Math.max(rangeDays - availability.length, 0);
-
-  return `${availableDays} disponíveis · ${occupiedDays} ocupados · ${closedDays} fechados · ${emptyDays} sem cadastro`;
+  return `${availableDays} disponíveis · ${occupiedDays} ocupados · ${closedDays} fechados · ${defaultDays} padrão`;
 }
 
 function withAvailabilityLoadTimeout<T>(promise: Promise<T>) {
@@ -359,8 +358,8 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
                     ) : null}
                     {!state.isLoading && !state.loadError && state.availability.length === 0 ? (
                       <div className="hotel-empty-state admin-history-empty">
-                        <strong>Sem disponibilidade cadastrada para este mês</strong>
-                        <p>Cadastre dias no calendário para liberar reservas.</p>
+                        <strong>Disponibilidade padrão do quarto ativa</strong>
+                        <p>Dias sem regra específica usam a disponibilidade padrão do quarto.</p>
                       </div>
                     ) : null}
                     <RoomAvailabilityCalendar

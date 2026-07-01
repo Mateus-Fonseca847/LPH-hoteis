@@ -10,7 +10,7 @@ export type CalendarSavePayload = {
   note?: string;
 };
 
-export type AvailabilityStatus = "none" | "available" | "occupied" | "closed";
+export type AvailabilityStatus = "available_by_default" | "available" | "occupied" | "closed";
 export type AvailabilityMode = "available" | "occupied" | "closed";
 
 export const DAY_MS = 86400000;
@@ -75,7 +75,7 @@ export function resolveAvailabilityStatus(
   entry: AuthorizedRoomAvailability | undefined
 ): AvailabilityStatus {
   if (!entry) {
-    return "none";
+    return "available_by_default";
   }
 
   if (entry.closed) {
@@ -83,6 +83,35 @@ export function resolveAvailabilityStatus(
   }
 
   return entry.availableUnits > 0 ? "available" : "occupied";
+}
+
+export function getDefaultRoomUnits(units: number) {
+  return Number.isInteger(units) && units > 0 ? units : 1;
+}
+
+export function normalizeCalendarDayAvailability(
+  entry: AuthorizedRoomAvailability | undefined,
+  roomUnits: number
+) {
+  const status = resolveAvailabilityStatus(entry);
+
+  if (!entry) {
+    const defaultUnits = getDefaultRoomUnits(roomUnits);
+
+    return {
+      status,
+      totalUnits: defaultUnits,
+      availableUnits: defaultUnits,
+      isDefault: true,
+    };
+  }
+
+  return {
+    status,
+    totalUnits: entry.totalUnits,
+    availableUnits: entry.availableUnits,
+    isDefault: false,
+  };
 }
 
 export function selectCalendarRange(

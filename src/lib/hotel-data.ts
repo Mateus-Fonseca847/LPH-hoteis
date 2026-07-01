@@ -194,6 +194,8 @@ const databaseUrl = process.env.DATABASE_URL?.trim();
 const canUseDevelopmentFallback =
   process.env.NODE_ENV === "development" && process.env.ALLOW_LOCAL_HOTEL_DATA_FALLBACK === "true";
 const isNextProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+const PUBLIC_AVAILABILITY_WINDOW_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 let warnedUnavailableDb = false;
 let schemaSupportPromise: Promise<boolean> | null = null;
@@ -346,19 +348,40 @@ function mapFallbackHotel(hotel: FallbackHotel): HotelPageData {
   };
 }
 
-function getPublicAvailabilityStatus(
+function getDateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+export function getPublicAvailabilityStatus(
   availability: Array<{
+    date: Date;
     closed: boolean;
     availableUnits: number;
-  }>
-): HotelRoomRow["publicAvailabilityStatus"] {
-  if (availability.length === 0) {
+  }>,
+  fromDate = new Date()
+): "available" | "unavailable" | "unknown" {
+  if (availability.some((entry) => !entry.closed && entry.availableUnits > 0)) {
     return "available";
   }
 
-  return availability.some((entry) => !entry.closed && entry.availableUnits > 0)
-    ? "available"
-    : "unavailable";
+  const startDate = new Date(
+    Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth(), fromDate.getUTCDate())
+  );
+  const blockedDates = new Set(
+    availability
+      .filter((entry) => entry.closed || entry.availableUnits < 1)
+      .map((entry) => getDateKey(entry.date))
+  );
+
+  for (let index = 0; index < PUBLIC_AVAILABILITY_WINDOW_DAYS; index += 1) {
+    const date = new Date(startDate.getTime() + index * DAY_MS);
+
+    if (!blockedDates.has(getDateKey(date))) {
+      return "available";
+    }
+  }
+
+  return "unavailable";
 }
 
 async function fetchPublishedHotels(): Promise<PublishedHotelCard[]> {
@@ -455,6 +478,12 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
 
   try {
     const now = new Date();
+    const availabilityWindowStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    );
+    const availabilityWindowEnd = new Date(
+      availabilityWindowStart.getTime() + (PUBLIC_AVAILABILITY_WINDOW_DAYS - 1) * DAY_MS
+    );
     const publicHotelWhere = await getPublicHotelWhere();
     const hotel = await prisma.hotel.findFirst({
       where: {
@@ -513,7 +542,8 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
             availability: {
               where: {
                 date: {
-                  gte: now,
+                  gte: availabilityWindowStart,
+                  lte: availabilityWindowEnd,
                 },
               },
               orderBy: {
@@ -578,7 +608,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
                 : null,
             isAvailable: room.isAvailable,
             isActive: room.isActive,
-            publicAvailabilityStatus: getPublicAvailabilityStatus(room.availability),
+            publicAvailabilityStatus: getPublicAvailabilityStatus(room.availability, now),
             availability: room.availability.map((entry) => ({
               date: entry.date.toISOString().slice(0, 10),
               availableUnits: entry.availableUnits,

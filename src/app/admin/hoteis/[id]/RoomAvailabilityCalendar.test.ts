@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCalendarSavePayload,
   getCalendarDays,
+  normalizeCalendarDayAvailability,
   resolveAvailabilityStatus,
   selectCalendarRange,
   shiftCalendarMonth,
@@ -55,7 +56,7 @@ describe("RoomAvailabilityCalendar", () => {
     expect(source).toContain('{">"}');
     expect(source).not.toContain(">Mês anterior<");
     expect(source).not.toContain(">Próximo mês<");
-    expect(source).toContain("`is-${status}`");
+    expect(source).toContain('status === "available_by_default" ? "is-available" : `is-${status}`');
     expect(source).toContain("room-availability-calendar__day-spacer");
     expect(source).toContain("Salvar período");
     expect(source).toContain("Liberar período");
@@ -71,7 +72,7 @@ describe("RoomAvailabilityCalendar", () => {
     const styles = readFileSync(new URL("../../../../styles/globals.css", import.meta.url), "utf8");
 
     expect(source).toContain("room-availability-calendar__legend");
-    expect(source).toContain("Sem cadastro");
+    expect(source).toContain("Padrão");
     expect(source).toContain("Disponível");
     expect(source).toContain("Ocupado");
     expect(source).toContain("Fechado");
@@ -174,10 +175,44 @@ describe("RoomAvailabilityCalendar", () => {
   });
 
   it("resolve status visual dos dias", () => {
-    expect(resolveAvailabilityStatus(undefined)).toBe("none");
+    expect(resolveAvailabilityStatus(undefined)).toBe("available_by_default");
     expect(resolveAvailabilityStatus(availability[0])).toBe("available");
     expect(resolveAvailabilityStatus(availability[1])).toBe("occupied");
     expect(resolveAvailabilityStatus(availability[2])).toBe("closed");
+  });
+
+  it("normaliza dia sem registro como disponivel por padrao", () => {
+    expect(normalizeCalendarDayAvailability(undefined, 1)).toMatchObject({
+      status: "available_by_default",
+      totalUnits: 1,
+      availableUnits: 1,
+      isDefault: true,
+    });
+    expect(normalizeCalendarDayAvailability(undefined, 4)).toMatchObject({
+      status: "available_by_default",
+      totalUnits: 4,
+      availableUnits: 4,
+      isDefault: true,
+    });
+  });
+
+  it("preserva ocupado, fechado e disponivel cadastrados", () => {
+    expect(normalizeCalendarDayAvailability(availability[0], 4)).toMatchObject({
+      status: "available",
+      totalUnits: 2,
+      availableUnits: 1,
+      isDefault: false,
+    });
+    expect(normalizeCalendarDayAvailability(availability[1], 4)).toMatchObject({
+      status: "occupied",
+      availableUnits: 0,
+      isDefault: false,
+    });
+    expect(normalizeCalendarDayAvailability(availability[2], 4)).toMatchObject({
+      status: "closed",
+      availableUnits: 0,
+      isDefault: false,
+    });
   });
 
   it("usa unidades do quarto como total ao liberar periodo", () => {

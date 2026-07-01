@@ -98,4 +98,34 @@ describe("hotel data during Next build", () => {
       })
     );
   });
+
+  it("trata dias sem RoomAvailability como disponibilidade publica padrao", async () => {
+    vi.doMock("next/cache", () => ({
+      unstable_cache: (callback: unknown) => callback,
+    }));
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {},
+    }));
+
+    const { getPublicAvailabilityStatus } = await import("@/lib/hotel-data");
+    const fromDate = new Date(Date.UTC(2026, 6, 1));
+
+    expect(getPublicAvailabilityStatus([], fromDate)).toBe("available");
+    expect(
+      getPublicAvailabilityStatus(
+        [{ date: new Date(Date.UTC(2026, 6, 1)), closed: true, availableUnits: 0 }],
+        fromDate
+      )
+    ).toBe("available");
+    expect(
+      getPublicAvailabilityStatus(
+        Array.from({ length: 30 }, (_, index) => ({
+          date: new Date(Date.UTC(2026, 6, 1 + index)),
+          closed: false,
+          availableUnits: 0,
+        })),
+        fromDate
+      )
+    ).toBe("unavailable");
+  });
 });

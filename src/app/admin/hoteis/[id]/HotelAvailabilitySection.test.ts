@@ -21,11 +21,12 @@ describe("HotelAvailabilitySection", () => {
     expect(source).toContain("Cadastre um quarto antes de definir disponibilidade.");
   });
 
-  it("mostra resumo mensal por quarto incluindo dias sem cadastro", () => {
+  it("mostra resumo mensal por quarto incluindo dias padrão", () => {
     expect(source).toContain("disponíveis");
     expect(source).toContain("ocupados");
     expect(source).toContain("fechados");
-    expect(source).toContain("sem cadastro");
+    expect(source).toContain("padrão");
+    expect(source).toContain("Dias sem regra específica usam a disponibilidade padrão do quarto.");
   });
 
   it("passa o roomId correto para cada calendário", () => {

@@ -12,7 +12,7 @@ import {
   formatCalendarDate,
   getCalendarDays,
   getMonthRange,
-  resolveAvailabilityStatus,
+  normalizeCalendarDayAvailability,
   selectCalendarRange,
   shiftCalendarMonth,
   toUtcDate,
@@ -238,7 +238,7 @@ export function RoomAvailabilityCalendar({
       </div>
 
       <div className="room-availability-calendar__legend" aria-label="Legenda de disponibilidade">
-        <span className="is-empty">Sem cadastro</span>
+        <span className="is-available">Padrão</span>
         <span className="is-available">Disponível</span>
         <span className="is-occupied">Ocupado</span>
         <span className="is-closed">Fechado</span>
@@ -265,11 +265,12 @@ export function RoomAvailabilityCalendar({
 
           const date = day.date;
           const entry = availabilityByDate.get(date);
-          const status = resolveAvailabilityStatus(entry);
+          const dayAvailability = normalizeCalendarDayAvailability(entry, roomUnits);
+          const status = dayAvailability.status;
           const isSelected = isInSelectedRange(date, selectedRange);
           const className = [
             "room-availability-calendar__day",
-            `is-${status}`,
+            status === "available_by_default" ? "is-available" : `is-${status}`,
             day.inMonth ? "" : "is-outside-month",
             date === today ? "is-today" : "",
             isSelected ? "is-selected" : "",
@@ -287,13 +288,11 @@ export function RoomAvailabilityCalendar({
             >
               <span>{Number(date.slice(8, 10))}</span>
               <small>
-                {status === "available"
-                  ? `${entry?.availableUnits}/${entry?.totalUnits}`
+                {status === "available" || status === "available_by_default"
+                  ? `${dayAvailability.availableUnits}/${dayAvailability.totalUnits}`
                   : status === "occupied"
                     ? "0 un."
-                    : status === "closed"
-                      ? "Fechado"
-                      : "Sem cadastro"}
+                    : "Fechado"}
               </small>
             </button>
           );
