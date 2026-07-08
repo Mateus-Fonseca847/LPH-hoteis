@@ -1,5 +1,6 @@
 ﻿import { z } from "zod";
 
+import { getZodErrorMessage } from "@/lib/errorMessages";
 import { canonicalizeBedsValue, canonicalizeRoomAmenityLabels } from "@/lib/room-options";
 
 function sanitizeText(value: string) {
@@ -163,7 +164,7 @@ export function parseCreateHotelRoomPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados do quarto."),
     };
   }
 
@@ -179,7 +180,7 @@ export function parseUpdateHotelRoomPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados do quarto."),
     };
   }
 

@@ -219,7 +219,9 @@ function assertCanCreateGlobalRole(
   targetGlobalRole: "super_admin" | "hotel_admin" | "user"
 ) {
   if (targetGlobalRole === "super_admin" && actorGlobalRole !== "super_admin") {
-    throw new AuthorizationError("Apenas o super administrador pode criar outro super administrador.");
+    throw new AuthorizationError(
+      "Apenas o super administrador pode criar outro super administrador."
+    );
   }
 
   if (!isAdminUser(targetGlobalRole)) {
@@ -747,7 +749,9 @@ export async function toggleAdministrativeUserActiveAction(
     const context = await getScopedActorContext(scopeHotelId);
 
     if (context.actor.globalRole !== "super_admin") {
-      throw new AuthorizationError("Apenas o super administrador pode ativar ou desativar usuários.");
+      throw new AuthorizationError(
+        "Apenas o super administrador pode ativar ou desativar usuários."
+      );
     }
 
     if (typeof isActive !== "boolean") {

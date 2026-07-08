@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState, useTransition } from "react";
 
+import { getClientErrorMessage } from "@/lib/client-error-messages";
 import type { RoomRateActionState } from "./room-rate-actions";
 import {
   createRoomRateAction,
@@ -84,7 +85,7 @@ export function RoomRateFormCard({
           setValues(EMPTY_RATE_FORM);
         }
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Não foi possível concluir a operação.");
+        onError(getClientErrorMessage(error, "Não foi possível concluir a operação."));
       }
     });
   }
@@ -105,7 +106,7 @@ export function RoomRateFormCard({
         setIsRemoveDialogOpen(false);
         await onSuccess(result);
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Não foi possível remover a tarifa.");
+        onError(getClientErrorMessage(error, "Não foi possível remover a tarifa."));
       }
     });
   }

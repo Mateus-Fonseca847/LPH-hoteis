@@ -15,6 +15,7 @@ import {
   ValidationError,
   getErrorMessage,
 } from "@/lib/errors/app-error";
+import { getZodErrorMessage } from "@/lib/errorMessages";
 import { resolveHotelMapLocation } from "@/lib/hotel-location";
 import { getRequestIpAddress } from "@/lib/hotel-write";
 import { prisma } from "@/lib/prisma";
@@ -73,9 +74,20 @@ class CreateHotelTechnicalError extends Error {
 const removeAllowedRoles: HotelRole[] = [HotelRole.owner, HotelRole.admin];
 
 const galleryImageSchema = z.object({
-  url: z.string().trim().url("Informe URLs válidas na galeria.").max(500),
-  alt: z.string().trim().min(2, "Informe texto alternativo para a galeria.").max(140),
-  position: z.number().int().min(0),
+  url: z
+    .string()
+    .trim()
+    .url("Informe URLs válidas na galeria.")
+    .max(500, "URL da galeria muito longa."),
+  alt: z
+    .string()
+    .trim()
+    .min(2, "Informe texto alternativo para a galeria.")
+    .max(140, "Texto alternativo deve ter no máximo 140 caracteres."),
+  position: z
+    .number({ error: "Posição da imagem inválida." })
+    .int("Posição da imagem inválida.")
+    .min(0, "Posição da imagem inválida."),
 });
 
 const galleryImagesSchema = z
@@ -132,8 +144,16 @@ const localUploadImagePathRegex =
 
 const createHotelSchema = z
   .object({
-    name: z.string().trim().min(3, "Informe o nome do hotel.").max(120),
-    city: z.string().trim().min(2, "Informe a cidade.").max(80),
+    name: z
+      .string()
+      .trim()
+      .min(3, "Informe o nome do hotel.")
+      .max(120, "O nome pode ter no máximo 120 caracteres."),
+    city: z
+      .string()
+      .trim()
+      .min(2, "Informe a cidade.")
+      .max(80, "Cidade deve ter no máximo 80 caracteres."),
     state: z
       .string()
       .trim()
@@ -144,13 +164,17 @@ const createHotelSchema = z
       .string()
       .trim()
       .min(10, "Informe uma descrição curta com pelo menos 10 caracteres.")
-      .max(220),
+      .max(220, "A descrição curta pode ter no máximo 220 caracteres."),
     fullDescription: z
       .string()
       .trim()
       .min(30, "Informe uma descrição completa com pelo menos 30 caracteres.")
-      .max(4000),
-    address: z.string().trim().min(8, "Informe o endereço.").max(180),
+      .max(4000, "A descrição completa pode ter no máximo 4000 caracteres."),
+    address: z
+      .string()
+      .trim()
+      .min(8, "Informe o endereço.")
+      .max(180, "Endereço deve ter no máximo 180 caracteres."),
     phone: z
       .string()
       .trim()
@@ -162,14 +186,31 @@ const createHotelSchema = z
       .regex(/^\+?[0-9()\-.\s]{8,24}$/, "WhatsApp inválido."),
     galleryImages: z.array(galleryImageSchema).max(20, "Informe no máximo 20 imagens."),
     amenities: z
-      .array(z.string().trim().min(2, "Informe comodidades válidas.").max(80))
+      .array(
+        z
+          .string()
+          .trim()
+          .min(2, "Informe comodidades válidas.")
+          .max(80, "Comodidade deve ter no máximo 80 caracteres.")
+      )
       .max(30, "Informe no máximo 30 comodidades."),
     policies: z
       .array(
         z.object({
-          title: z.string().trim().min(2, "Informe o título da política.").max(80),
-          description: z.string().trim().min(3, "Informe a descrição da política.").max(600),
-          position: z.number().int().min(0),
+          title: z
+            .string()
+            .trim()
+            .min(2, "Informe o título da política.")
+            .max(80, "Título da política deve ter no máximo 80 caracteres."),
+          description: z
+            .string()
+            .trim()
+            .min(3, "Informe a descrição da política.")
+            .max(600, "Descrição da política deve ter no máximo 600 caracteres."),
+          position: z
+            .number({ error: "Posição da política inválida." })
+            .int("Posição da política inválida.")
+            .min(0, "Posição da política inválida."),
         })
       )
       .max(20, "Informe no máximo 20 políticas."),
@@ -554,15 +595,15 @@ function getCreateHotelErrorMessage(error: unknown) {
     case "COVER_UPLOAD_FAILED":
       return "Falha ao enviar imagem de capa.";
     case "IMAGE_STORAGE_NOT_CONFIGURED":
-      return "Storage de imagens não configurado.";
+      return "Não foi possível salvar a imagem. Tente novamente.";
     case "FORBIDDEN":
       return "Você não tem permissão para criar hotéis.";
     case "DATABASE_UNAVAILABLE":
-      return "Erro ao salvar hotel. Verifique as configurações do banco.";
+      return "Não foi possível salvar o hotel. Tente novamente.";
     case "DATABASE_SCHEMA_MISMATCH":
-      return "Erro ao salvar hotel. Verifique as configurações do banco.";
+      return "Não foi possível salvar o hotel. Tente novamente.";
     case "DATABASE_RELATION_FAILED":
-      return "Erro ao salvar hotel. Verifique as configurações do banco.";
+      return "Não foi possível salvar o hotel. Tente novamente.";
     case "VALIDATION_ERROR":
       return getErrorMessage(error, "Dados inválidos.");
     case "UNEXPECTED_ERROR":
@@ -642,7 +683,7 @@ export async function createHotelAction(
         missingFields: formDiagnostics.missingFields,
         received: formDiagnostics.values,
       });
-      throw new ValidationError(parsedPayload.error.issues[0]?.message || "Dados inválidos.");
+      throw new ValidationError(getZodErrorMessage(parsedPayload.error, "Dados inválidos."));
     }
 
     const payload = parsedPayload.data;
@@ -709,9 +750,7 @@ export async function createHotelAction(
       console.warn("[admin/hoteis/create] Gallery validation failed.", {
         issues: parsedGalleryImages.error.issues,
       });
-      throw new ValidationError(
-        parsedGalleryImages.error.issues[0]?.message || "Galeria inválida."
-      );
+      throw new ValidationError(getZodErrorMessage(parsedGalleryImages.error, "Galeria inválida."));
     }
 
     const galleryImages = parsedGalleryImages.data;

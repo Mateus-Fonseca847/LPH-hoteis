@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { getClientErrorMessage } from "@/lib/client-error-messages";
 import type { AuthorizedHotelRoom, HotelRoomActionState } from "./room-actions";
 import {
   createHotelRoomAction,
@@ -532,9 +533,7 @@ function RoomFormCard({
       setImageUploadFeedback("Imagens do quarto enviadas com sucesso.");
     } catch (error) {
       setImageUploadFeedbackType("error");
-      setImageUploadFeedback(
-        error instanceof Error ? error.message : "Falha ao enviar imagem do quarto."
-      );
+      setImageUploadFeedback(getClientErrorMessage(error, "Falha ao enviar imagem do quarto."));
     } finally {
       setIsUploadingImage(false);
     }
@@ -955,9 +954,7 @@ export function HotelRoomsSection({ hotelId, initialRooms }: HotelRoomsSectionPr
         setFeedback(result.message);
       } catch (error) {
         setFeedbackType("error");
-        setFeedback(
-          error instanceof Error ? error.message : "Não foi possível concluir a operação."
-        );
+        setFeedback(getClientErrorMessage(error, "Não foi possível concluir a operação."));
       } finally {
         setPendingRoomId(null);
       }

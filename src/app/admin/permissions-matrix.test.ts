@@ -68,9 +68,11 @@ describe("admin permission matrix", () => {
     expect(reservaActions).toContain("requireHotelAdminAccess(user.id, reservation.hotelId)");
     expect(reservaOps).toContain("await requireHotelAdminAccess(userId, hotelId)");
     expect(hotelActions).toContain('user.globalRole !== "super_admin"');
-    expect(hotelActions).toContain("Apenas super_admin pode aprovar e publicar");
+    expect(hotelActions).toContain("Apenas o super administrador pode aprovar e publicar");
     expect(userActions).toContain("requireSuperAdminActor");
-    expect(userActions).toContain("Apenas super_admin pode criar e vincular hotel_admin.");
+    expect(userActions).toContain(
+      "Apenas o super administrador pode criar e vincular administradores do hotel."
+    );
     expect(signupActions).toContain('actor.globalRole !== "super_admin"');
   });
 });

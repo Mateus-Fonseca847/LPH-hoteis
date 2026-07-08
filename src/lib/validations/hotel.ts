@@ -4,6 +4,7 @@ import {
   HOTEL_EXPERIENCE_CATEGORIES,
   HOTEL_EXPERIENCE_PREFERENCES,
 } from "@/lib/hotel-experience-options";
+import { getZodErrorMessage } from "@/lib/errorMessages";
 import { getCanonicalAmenityLabel } from "@/lib/hotel-amenities";
 
 const allowedHotelFormKeys = new Set([
@@ -443,7 +444,7 @@ export function parseHotelFormData(formData: FormData) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados do hotel."),
     };
   }
 
@@ -502,7 +503,7 @@ export function parseHotelUploadFormData(formData: FormData) {
   if (!parsedFlags.success) {
     return {
       success: false as const,
-      error: parsedFlags.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(parsedFlags.error, "Verifique os dados do upload."),
     };
   }
 

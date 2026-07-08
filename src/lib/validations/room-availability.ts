@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { getZodErrorMessage } from "@/lib/errorMessages";
+
 const MAX_BULK_RANGE_DAYS = 180;
 
 function sanitizeMultilineText(value: string) {
@@ -168,7 +170,7 @@ export function parseCreateRoomAvailabilityPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados da disponibilidade."),
     };
   }
 
@@ -184,7 +186,7 @@ export function parseUpdateRoomAvailabilityPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados da disponibilidade."),
     };
   }
 
@@ -200,7 +202,7 @@ export function parseBulkRoomAvailabilityPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados da disponibilidade."),
     };
   }
 
@@ -216,7 +218,7 @@ export function parseRoomAvailabilityIntervalPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados da disponibilidade."),
     };
   }
 

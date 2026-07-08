@@ -15,7 +15,7 @@ describe("AdminSignupRequestsPage markup", () => {
     expect(pageSource).toContain("CNPJ do hotel");
     expect(pageSource).toContain("formatCnpj(request.hotelDocument)");
     expect(pageSource).not.toContain("passwordHash: true");
-    expect(formSource).toContain("Aprovar e criar hotel_admin");
+    expect(formSource).toContain("Aprovar e criar administrador");
     expect(formSource).toContain("Rejeitar solicitação");
   });
 });

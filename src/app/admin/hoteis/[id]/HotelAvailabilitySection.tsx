@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 
+import { getClientErrorMessage } from "@/lib/client-error-messages";
 import {
   listRoomAvailabilityAction,
   saveRoomAvailabilityRangeAction,
@@ -182,8 +183,10 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
           loadError: "",
         });
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Não foi possível carregar a disponibilidade.";
+        const message = getClientErrorMessage(
+          error,
+          "Não foi possível carregar a disponibilidade."
+        );
         const room = roomCards.find((item) => item.id === roomId);
 
         console.error("[availability/admin/load]", {
@@ -202,8 +205,7 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
           isLoading: false,
           loadError: message,
           feedbackType: "error",
-          feedback:
-            error instanceof Error ? error.message : "Não foi possível carregar a disponibilidade.",
+          feedback: message,
         });
       }
     },

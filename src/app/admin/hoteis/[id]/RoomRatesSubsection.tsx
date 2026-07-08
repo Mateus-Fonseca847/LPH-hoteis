@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 
+import { getClientErrorMessage } from "@/lib/client-error-messages";
 import { formatPriceLabel, getRateFormValues } from "./room-rate-form-helpers";
 import { RoomRateFormCard } from "./RoomRateFormCard";
 import type { AuthorizedRoomRate, RoomRateActionState } from "./room-rate-actions";
@@ -77,9 +78,7 @@ export function RoomRatesSubsection({ hotelId, roomId }: RoomRatesSubsectionProp
         setEditingRateId(null);
       } catch (error) {
         setFeedbackType("error");
-        setFeedback(
-          error instanceof Error ? error.message : "Não foi possível atualizar a lista de tarifas."
-        );
+        setFeedback(getClientErrorMessage(error, "Não foi possível atualizar a lista de tarifas."));
       }
     });
   }

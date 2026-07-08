@@ -772,7 +772,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Storage de imagens não configurado.",
+      message: "Não foi possível salvar a imagem. Tente novamente.",
       errorCode: "IMAGE_STORAGE_NOT_CONFIGURED",
     });
     expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -820,7 +820,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Erro ao salvar hotel. Verifique as configurações do banco.",
+      message: "Não foi possível salvar o hotel. Tente novamente.",
       errorCode: "DATABASE_UNAVAILABLE",
     });
   });
@@ -845,7 +845,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Erro ao salvar hotel. Verifique as configurações do banco.",
+      message: "Não foi possível salvar o hotel. Tente novamente.",
       errorCode: "DATABASE_SCHEMA_MISMATCH",
     });
   });
@@ -870,7 +870,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Erro ao salvar hotel. Verifique as configurações do banco.",
+      message: "Não foi possível salvar o hotel. Tente novamente.",
       errorCode: "DATABASE_RELATION_FAILED",
     });
   });
@@ -892,7 +892,7 @@ describe("createHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Erro ao salvar hotel. Verifique as configurações do banco.",
+      message: "Não foi possível salvar o hotel. Tente novamente.",
       errorCode: "DATABASE_RELATION_FAILED",
     });
     expect(consoleErrorSpy).toHaveBeenCalledWith(

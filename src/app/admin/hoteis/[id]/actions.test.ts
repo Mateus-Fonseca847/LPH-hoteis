@@ -258,7 +258,7 @@ describe("approveHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Apenas super_admin pode aprovar e publicar hotéis.",
+      message: "Apenas o super administrador pode aprovar e publicar hotéis.",
     });
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });

@@ -5782,6 +5782,10 @@ a.booking-page-link {
   line-height: 1.5;
 }
 
+.admin-character-counter {
+  justify-self: end;
+}
+
 .admin-form-error--block {
   padding: 14px 16px;
   border-radius: 16px;
@@ -5815,6 +5819,13 @@ a.booking-page-link {
 .admin-form-field select:focus {
   border-color: rgba(6, 41, 79, 0.28);
   box-shadow: 0 0 0 4px rgba(6, 41, 79, 0.08);
+}
+
+.admin-form-field input[aria-invalid="true"],
+.admin-form-field textarea[aria-invalid="true"],
+.admin-form-field select[aria-invalid="true"] {
+  border-color: #b42318;
+  box-shadow: 0 0 0 4px rgba(180, 35, 24, 0.1);
 }
 
 .admin-create-hotel-form {

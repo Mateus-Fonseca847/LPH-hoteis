@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { getZodErrorMessage } from "@/lib/errorMessages";
+
 function sanitizeText(value: string) {
   return value
     .replace(/[\u0000-\u001F\u007F]+/g, " ")
@@ -101,7 +103,7 @@ export function parseAdminUserPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados do administrador."),
     };
   }
 
@@ -117,7 +119,7 @@ export function parseElevatedAdminUserPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados do administrador."),
     };
   }
 
@@ -133,7 +135,7 @@ export function parseHotelPermissionPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados da permissão."),
     };
   }
 
@@ -149,7 +151,7 @@ export function parseAdminInvitationPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados do convite."),
     };
   }
 
@@ -165,7 +167,7 @@ export function parseElevatedAdminInvitationPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Payload inválido.",
+      error: getZodErrorMessage(result.error, "Verifique os dados do convite."),
     };
   }
 

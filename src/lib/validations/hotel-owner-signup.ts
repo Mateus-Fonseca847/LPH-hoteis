@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isValidCnpj, normalizeCnpj } from "@/lib/cnpj";
+import { getZodErrorMessage, getZodIssueMessage } from "@/lib/errorMessages";
 
 const BRAZILIAN_STATES = new Set([
   "AC",
@@ -95,7 +96,10 @@ export const hotelOwnerSignupPayloadSchema = z
         .length(14, "Informe um CNPJ válido no formato 00.000.000/0000-00.")
         .refine(isValidCnpj, "Informe um CNPJ válido no formato 00.000.000/0000-00.")
     ),
-    message: z.preprocess(sanitizeOptionalText, z.string().max(1000).optional()),
+    message: z.preprocess(
+      sanitizeOptionalText,
+      z.string().max(1000, "Mensagem deve ter no máximo 1000 caracteres.").optional()
+    ),
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirme a senha.").max(200, "Senha muito longa."),
   })
@@ -113,10 +117,10 @@ export function parseHotelOwnerSignupPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Dados de solicitação inválidos.",
+      error: getZodErrorMessage(result.error, "Dados de solicitação inválidos."),
       issues: result.error.issues.map((issue) => ({
         path: issue.path.join("."),
-        message: issue.message,
+        message: getZodIssueMessage(issue),
       })),
     };
   }

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 
+import { getClientErrorMessage } from "@/lib/client-error-messages";
 import type { AccessibleAdministrator, AdminUserActionState } from "../users/actions";
 import {
   addUserHotelPermissionAction,
@@ -210,9 +211,7 @@ export function AdminUsersClient({
         setFeedback(result.message || successFallback);
       } catch (error) {
         setFeedbackType("error");
-        setFeedback(
-          error instanceof Error ? error.message : "Não foi possível concluir a operação."
-        );
+        setFeedback(getClientErrorMessage(error, "Não foi possível concluir a operação."));
       } finally {
         setPendingKey(null);
       }
@@ -245,9 +244,7 @@ export function AdminUsersClient({
         setFeedback(result.message || "Administrador do hotel criado com sucesso.");
       } catch (error) {
         setFeedbackType("error");
-        setFeedback(
-          error instanceof Error ? error.message : "Não foi possível criar o administrador."
-        );
+        setFeedback(getClientErrorMessage(error, "Não foi possível criar o administrador."));
       } finally {
         setPendingKey(null);
       }
@@ -259,7 +256,8 @@ export function AdminUsersClient({
       <div className="section-heading admin-section-heading">
         <h1>Administradores</h1>
         <p className="admin-rooms-copy">
-          Defina quais hotéis cada administrador do hotel pode gerenciar e revise os vínculos existentes.
+          Defina quais hotéis cada administrador do hotel pode gerenciar e revise os vínculos
+          existentes.
         </p>
       </div>
 

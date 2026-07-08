@@ -26,7 +26,9 @@ async function requireSuperAdminActor() {
   const actor = await requireAuthenticatedRequestUser();
 
   if (actor.globalRole !== "super_admin") {
-    throw new AuthorizationError("Apenas o super administrador pode revisar solicitações de acesso.");
+    throw new AuthorizationError(
+      "Apenas o super administrador pode revisar solicitações de acesso."
+    );
   }
 
   if (!actor.isActive) {
