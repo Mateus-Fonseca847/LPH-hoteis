@@ -11,8 +11,8 @@ const immutableAssetHeaders = [
   { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
 ];
 
-function getStorageRemotePattern() {
-  const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL?.trim();
+export function getRemotePatternFromUrl(value: string | undefined) {
+  const publicBaseUrl = value?.trim();
 
   if (!publicBaseUrl) {
     return null;
@@ -36,7 +36,49 @@ function getStorageRemotePattern() {
   }
 }
 
-const storageRemotePattern = getStorageRemotePattern();
+function getUniqueRemotePatterns(
+  patterns: NonNullable<NonNullable<NextConfig["images"]>["remotePatterns"]>
+) {
+  const seen = new Set<string>();
+
+  return patterns.filter((pattern) => {
+    const key = [
+      pattern.protocol,
+      pattern.hostname,
+      pattern.port ?? "",
+      pattern.pathname ?? "",
+    ].join("|");
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+export function buildImageRemotePatterns(env = process.env) {
+  const storageRemotePattern = getRemotePatternFromUrl(env.S3_PUBLIC_BASE_URL);
+  const nextPublicStorageRemotePattern = getRemotePatternFromUrl(env.NEXT_PUBLIC_STORAGE_BASE_URL);
+
+  return getUniqueRemotePatterns([
+    {
+      protocol: "https",
+      hostname: "images.unsplash.com",
+    },
+    {
+      protocol: "https",
+      hostname: "**.public.blob.vercel-storage.com",
+    },
+    {
+      protocol: "https",
+      hostname: "blob.vercel-storage.com",
+    },
+    ...(storageRemotePattern ? [storageRemotePattern] : []),
+    ...(nextPublicStorageRemotePattern ? [nextPublicStorageRemotePattern] : []),
+  ]);
+}
 
 const nextConfig: NextConfig = {
   compress: true,
@@ -47,13 +89,7 @@ const nextConfig: NextConfig = {
     deviceSizes: [360, 390, 430, 640, 768, 1024, 1280, 1440, 1920],
     imageSizes: [32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 60 * 60 * 24 * 30,
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-      },
-      ...(storageRemotePattern ? [storageRemotePattern] : []),
-    ],
+    remotePatterns: buildImageRemotePatterns(),
   },
   async headers() {
     return [

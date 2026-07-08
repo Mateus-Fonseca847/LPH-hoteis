@@ -90,7 +90,7 @@ describe("createReservationPayloadSchema", () => {
       })
     ).toEqual({
       success: false,
-      error: "Numero do cartao invalido.",
+      error: "Número do cartão inválido.",
     });
 
     expect(

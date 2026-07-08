@@ -105,9 +105,6 @@ function hasText(value: string | null | undefined) {
 }
 
 async function getHotelApprovalReadiness(hotelId: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   const hotel = await prisma.hotel.findUnique({
     where: {
       id: hotelId,
@@ -116,6 +113,7 @@ async function getHotelApprovalReadiness(hotelId: string) {
       id: true,
       slug: true,
       isPublished: true,
+      isArchived: true,
       name: true,
       shortDescription: true,
       fullDescription: true,
@@ -163,27 +161,12 @@ async function getHotelApprovalReadiness(hotelId: string) {
             },
             take: 1,
           },
-          availability: {
-            where: {
-              date: {
-                gte: today,
-              },
-              closed: false,
-              availableUnits: {
-                gt: 0,
-              },
-            },
-            select: {
-              id: true,
-            },
-            take: 1,
-          },
         },
       },
     },
   });
 
-  if (!hotel) {
+  if (!hotel || hotel.isArchived) {
     throw new NotFoundError("Hotel não encontrado.");
   }
 
@@ -215,21 +198,6 @@ async function getHotelApprovalReadiness(hotelId: string) {
     missing.push("rates");
   }
 
-  if (!hotel.rooms.some((room) => room.availability.length > 0)) {
-    missing.push("availability");
-  }
-
-  if (
-    !resolveHotelMapLocation({
-      city: hotel.city,
-      state: hotel.state,
-      latitude: hotel.latitude,
-      longitude: hotel.longitude,
-    })
-  ) {
-    missing.push("mapLocation");
-  }
-
   return {
     hotel,
     missing,
@@ -254,16 +222,14 @@ function getApprovalErrorMessage(missing: string[]) {
     policies: "politicas",
     rooms: "quarto",
     rates: "tarifa",
-    availability: "disponibilidade futura",
-    mapLocation: "localização no mapa",
   };
 
   if (missing.includes("contactEmail")) {
     return "Este hotel precisa de um e-mail de contato valido antes de ser aprovado.";
   }
 
-  if (missing.some((item) => ["rooms", "rates", "availability"].includes(item))) {
-    return "Complete quartos, tarifas e disponibilidade antes de enviar para aprovação.";
+  if (missing.some((item) => ["rooms", "rates"].includes(item))) {
+    return "Complete quartos e tarifas antes de enviar para aprovação.";
   }
 
   return `Complete antes de enviar para aprovação: ${missing.map((item) => labels[item] ?? item).join(", ")}.`;
@@ -276,10 +242,6 @@ function getPublishErrorMessage(missing: string[]) {
 
   if (missing.includes("rates")) {
     return "Cadastre pelo menos uma tarifa ativa antes de publicar.";
-  }
-
-  if (missing.includes("availability")) {
-    return "Defina disponibilidade antes de publicar.";
   }
 
   return getApprovalErrorMessage(missing);
@@ -310,7 +272,7 @@ export async function updateHotelProfileAction(
     const hasManualCoordinates = payload.latitude !== null || payload.longitude !== null;
 
     if (payload.isPublished && user.globalRole !== "super_admin") {
-      throw new AuthorizationError("Apenas super_admin pode aprovar ou publicar hoteis.");
+      throw new AuthorizationError("Apenas o super administrador pode aprovar ou publicar hotéis.");
     }
 
     const currentHotel = await prisma.hotel.findUnique({
@@ -339,7 +301,7 @@ export async function updateHotelProfileAction(
       },
     });
 
-    if (!currentHotel) {
+    if (!currentHotel || currentHotel.isArchived) {
       throw new NotFoundError("Hotel não encontrado.");
     }
 
@@ -624,7 +586,7 @@ export async function approveHotelAction(
     const user = await requireAuthenticatedRequestUser();
 
     if (user.globalRole !== "super_admin") {
-      throw new AuthorizationError("Apenas super_admin pode aprovar e publicar hotéis.");
+      throw new AuthorizationError("Apenas o super administrador pode aprovar e publicar hotéis.");
     }
 
     const safeHotelId = parsedParams.data.hotelId;

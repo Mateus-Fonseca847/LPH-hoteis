@@ -13,6 +13,7 @@ const baseRoom: AvailabilityResultRoom = {
   description: "Suite",
   imageUrl: "/suite.webp",
   capacity: 3,
+  units: 1,
   capacityAdults: 2,
   capacityChildren: 1,
   beds: "Queen",
@@ -100,10 +101,13 @@ describe("availability results", () => {
 
     expect(results.map((result) => result.room.id)).toEqual([
       "cheap",
-      "room-1",
       "unknown",
+      "room-1",
       "closed",
     ]);
+    expect(results.find((result) => result.room.id === "unknown")?.availabilityStatus).toBe(
+      "available"
+    );
   });
 
   it("formata labels de preco e disponibilidade", () => {
@@ -125,6 +129,19 @@ describe("availability results", () => {
 
     expect(results[0].availabilityStatus).toBe("unknown");
     expect(results[0].priceEstimate).toBeNull();
+  });
+
+  it("marca quarto sem disponibilidade cadastrada como disponivel no resultado publico", () => {
+    const results = getCompatibleRoomAvailabilityResults({
+      rooms: [{ ...baseRoom, availability: [] }],
+      checkIn: "2026-07-10",
+      checkOut: "2026-07-12",
+      adults: 2,
+      children: 1,
+    });
+
+    expect(results[0].availabilityStatus).toBe("available");
+    expect(results[0].availabilityLabel).toBe("Disponível");
   });
 
   it("descarta quarto com capacidade configurada de forma inválida", () => {
@@ -149,5 +166,102 @@ describe("availability results", () => {
     });
 
     expect(results.map((result) => result.room.id)).toEqual(["room-1", "sem-tarifa"]);
+  });
+
+  it("marcar período ocupado bloqueia reserva via availableUnits igual a zero", () => {
+    const results = getCompatibleRoomAvailabilityResults({
+      rooms: [
+        {
+          ...baseRoom,
+          availability: [
+            { date: "2026-07-10", availableUnits: 0, closed: false },
+            { date: "2026-07-11", availableUnits: 0, closed: false },
+          ],
+        },
+      ],
+      checkIn: "2026-07-10",
+      checkOut: "2026-07-12",
+      adults: 2,
+      children: 1,
+    });
+
+    expect(results[0].availabilityStatus).toBe("unavailable");
+  });
+
+  it("marcar fechado bloqueia reserva via closed true", () => {
+    const results = getCompatibleRoomAvailabilityResults({
+      rooms: [
+        {
+          ...baseRoom,
+          availability: [
+            { date: "2026-07-10", availableUnits: 1, closed: true },
+            { date: "2026-07-11", availableUnits: 1, closed: false },
+          ],
+        },
+      ],
+      checkIn: "2026-07-10",
+      checkOut: "2026-07-12",
+      adults: 2,
+      children: 1,
+    });
+
+    expect(results[0].availabilityStatus).toBe("unavailable");
+  });
+
+  it("liberar período volta a permitir disponibilidade com tarifa compatível", () => {
+    const results = getCompatibleRoomAvailabilityResults({
+      rooms: [
+        {
+          ...baseRoom,
+          availability: [
+            { date: "2026-07-10", availableUnits: 2, closed: false },
+            { date: "2026-07-11", availableUnits: 2, closed: false },
+          ],
+        },
+      ],
+      checkIn: "2026-07-10",
+      checkOut: "2026-07-12",
+      adults: 2,
+      children: 1,
+    });
+
+    expect(results[0].availabilityStatus).toBe("available");
+    expect(results[0].priceEstimate?.totalPriceCents).toBe(70000);
+  });
+
+  it("alterar disponibilidade de um quarto não afeta outro quarto", () => {
+    const results = getCompatibleRoomAvailabilityResults({
+      rooms: [
+        {
+          ...baseRoom,
+          id: "ocupado",
+          name: "Ocupado",
+          availability: [
+            { date: "2026-07-10", availableUnits: 0, closed: false },
+            { date: "2026-07-11", availableUnits: 0, closed: false },
+          ],
+        },
+        {
+          ...baseRoom,
+          id: "liberado",
+          name: "Liberado",
+          availability: [
+            { date: "2026-07-10", availableUnits: 1, closed: false },
+            { date: "2026-07-11", availableUnits: 1, closed: false },
+          ],
+        },
+      ],
+      checkIn: "2026-07-10",
+      checkOut: "2026-07-12",
+      adults: 2,
+      children: 1,
+    });
+
+    expect(results.find((result) => result.room.id === "ocupado")?.availabilityStatus).toBe(
+      "unavailable"
+    );
+    expect(results.find((result) => result.room.id === "liberado")?.availabilityStatus).toBe(
+      "available"
+    );
   });
 });

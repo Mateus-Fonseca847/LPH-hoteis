@@ -1,4 +1,4 @@
-import { HotelRole } from "@prisma/client";
+import { HotelRole, Prisma } from "@prisma/client";
 import Link from "next/link";
 
 import { ImageWithFallback } from "@/components/ImageWithFallback";
@@ -7,9 +7,12 @@ import {
   getHotelCompletenessSelect,
 } from "@/lib/admin/hotel-completeness";
 import { AdminAccessError, requireAdminRouteSession } from "@/lib/auth";
+import { getActiveHotelWhere, hasHotelArchiveFields } from "@/lib/hotel-archive";
 import { prisma } from "@/lib/prisma";
 
 import { AdminAccessDenied } from "../AdminAccessDenied";
+import { removeHotelAction } from "./actions";
+import { RemoveHotelButton } from "./RemoveHotelButton";
 
 type AdminHotelListItem = {
   city: string;
@@ -20,6 +23,7 @@ type AdminHotelListItem = {
   isPublished: boolean;
   name: string;
   permissionRole: string | null;
+  canRemove: boolean;
   state: string;
 };
 
@@ -35,6 +39,30 @@ function formatPermissionRole(role: string | null) {
   };
 
   return labels[role] ?? role;
+}
+
+function getSafeListError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return {
+      name: error.name,
+      code: error.code,
+      message: error.message,
+      meta: error.meta,
+      isMissingFieldOrMigration: error.code === "P2022" || error.code === "P2021",
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+    };
+  }
+
+  return {
+    name: "UnknownError",
+    message: String(error),
+  };
 }
 
 export default async function AdminHotelsPage() {
@@ -54,70 +82,121 @@ export default async function AdminHotelsPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const completenessSelect = getHotelCompletenessSelect(today);
+  const supportsArchiveFilter = await hasHotelArchiveFields();
+  const activeHotelWhere = await getActiveHotelWhere();
 
-  if (user.globalRole === "super_admin") {
-    hotels = await prisma.hotel
-      .findMany({
-        select: {
-          id: true,
-          city: true,
-          state: true,
-          isPublished: true,
-          ...completenessSelect,
-        },
-        orderBy: [{ city: "asc" }, { name: "asc" }],
-      })
-      .then((items) =>
-        items.map((hotel) => {
-          const completeness = calculateHotelCompleteness(hotel);
+  console.info("[admin/hoteis/list] Loading hotels.", {
+    userId: user.id,
+    globalRole: user.globalRole,
+    step: "start",
+    filters: {
+      supportsArchiveFilter,
+      activeHotelWhere,
+    },
+  });
 
-          return {
-            ...hotel,
-            completenessPending: completeness.pending,
-            completenessPercentage: completeness.percentage,
-            permissionRole: null,
-          };
-        })
-      );
-  } else {
-    hotels = await prisma.hotelPermission
-      .findMany({
-        where: {
-          userId: user.id,
-          role: {
-            in: [HotelRole.owner, HotelRole.admin, HotelRole.editor],
+  try {
+    if (user.globalRole === "super_admin") {
+      console.info("[admin/hoteis/list] Querying super_admin hotels.", {
+        userId: user.id,
+        globalRole: user.globalRole,
+        step: "super_admin-query",
+        filters: activeHotelWhere,
+      });
+
+      hotels = await prisma.hotel
+        .findMany({
+          select: {
+            id: true,
+            city: true,
+            state: true,
+            isPublished: true,
+            ...completenessSelect,
           },
+          where: activeHotelWhere,
+          orderBy: [{ city: "asc" }, { name: "asc" }],
+        })
+        .then((items) =>
+          items.map((hotel) => {
+            const completeness = calculateHotelCompleteness(hotel);
+
+            return {
+              ...hotel,
+              completenessPending: completeness.pending,
+              completenessPercentage: completeness.percentage,
+              permissionRole: null,
+              canRemove: true,
+            };
+          })
+        );
+    } else {
+      const hotelPermissionWhere = {
+        userId: user.id,
+        role: {
+          in: [HotelRole.owner, HotelRole.admin, HotelRole.editor],
         },
-        select: {
-          role: true,
-          hotel: {
-            select: {
-              id: true,
-              city: true,
-              state: true,
-              isPublished: true,
-              ...completenessSelect,
+        ...(supportsArchiveFilter ? { hotel: activeHotelWhere } : {}),
+      };
+
+      console.info("[admin/hoteis/list] Querying scoped hotel_admin hotels.", {
+        userId: user.id,
+        globalRole: user.globalRole,
+        step: "hotel_admin-query",
+        filters: hotelPermissionWhere,
+      });
+
+      hotels = await prisma.hotelPermission
+        .findMany({
+          where: hotelPermissionWhere,
+          select: {
+            role: true,
+            hotel: {
+              select: {
+                id: true,
+                city: true,
+                state: true,
+                isPublished: true,
+                ...completenessSelect,
+              },
             },
           },
-        },
-        orderBy: {
-          hotel: {
-            name: "asc",
+          orderBy: {
+            hotel: {
+              name: "asc",
+            },
           },
-        },
-      })
-      .then((items) =>
-        items.map(({ role, hotel }) => {
-          const completeness = calculateHotelCompleteness(hotel);
-
-          return {
-            ...hotel,
-            completenessPending: completeness.pending,
-            completenessPercentage: completeness.percentage,
-            permissionRole: role,
-          };
         })
-      );
+        .then((items) =>
+          items.map(({ role, hotel }) => {
+            const completeness = calculateHotelCompleteness(hotel);
+
+            return {
+              ...hotel,
+              completenessPending: completeness.pending,
+              completenessPercentage: completeness.percentage,
+              permissionRole: role,
+              canRemove: role === HotelRole.owner || role === HotelRole.admin,
+            };
+          })
+        );
+    }
+
+    console.info("[admin/hoteis/list] Hotels loaded.", {
+      userId: user.id,
+      globalRole: user.globalRole,
+      step: "done",
+      count: hotels.length,
+    });
+  } catch (error) {
+    console.error("[admin/hoteis/list] Failed to load hotels.", {
+      userId: user.id,
+      globalRole: user.globalRole,
+      step: user.globalRole === "super_admin" ? "super_admin-query" : "hotel_admin-query",
+      filters: user.globalRole === "super_admin" ? activeHotelWhere : { supportsArchiveFilter },
+      error: getSafeListError(error),
+    });
+
+    throw error;
   }
 
   return (
@@ -164,12 +243,21 @@ export default async function AdminHotelsPage() {
                 )}
               </div>
 
-              <Link
-                href={`/admin/hoteis/${hotel.id}`}
-                className="card-cta-button admin-edit-button"
-              >
-                Editar
-              </Link>
+              <div className="admin-hotel-card-actions">
+                <Link
+                  href={`/admin/hoteis/${hotel.id}`}
+                  className="card-cta-button admin-edit-button"
+                >
+                  Editar
+                </Link>
+
+                {hotel.canRemove ? (
+                  <RemoveHotelButton
+                    action={removeHotelAction.bind(null, hotel.id)}
+                    hotelName={hotel.name}
+                  />
+                ) : null}
+              </div>
             </article>
           ))}
         </div>

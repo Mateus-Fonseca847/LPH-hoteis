@@ -1,68 +1,49 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState } from "react";
 
+import { getClientErrorMessage } from "@/lib/client-error-messages";
 import {
   listRoomAvailabilityAction,
   saveRoomAvailabilityRangeAction,
   type AuthorizedRoomAvailability,
   type RoomAvailabilityActionState,
 } from "./room-availability-actions";
+import { RoomAvailabilityCalendar } from "./RoomAvailabilityCalendar";
 import {
-  bulkRoomAvailabilityPayloadSchema,
-  roomAvailabilityIntervalPayloadSchema,
-} from "@/lib/validations/room-availability";
+  getMonthRange,
+  toUtcDate,
+  type CalendarSavePayload,
+} from "./RoomAvailabilityCalendarLogic";
+
+type HotelAvailabilityRoom = {
+  id: string;
+  name: string;
+  units: number;
+  capacityAdults: number;
+  capacityChildren: number;
+  capacity: number;
+  isActive: boolean;
+};
 
 type HotelAvailabilitySectionProps = {
   hotelId: string;
-  rooms: {
-    id: string;
-    name: string;
-  }[];
+  rooms: HotelAvailabilityRoom[];
 };
 
-type AvailabilityFormValues = {
+type RoomCalendarState = {
+  isOpen: boolean;
+  isLoading: boolean;
+  loadError: string;
   startDate: string;
   endDate: string;
-  totalUnits: string;
-  availableUnits: string;
-  closed: boolean;
-  note: string;
+  availability: AuthorizedRoomAvailability[];
+  feedback: string;
+  feedbackType: "success" | "error";
 };
 
-type AvailabilityFormErrors = Partial<Record<keyof AvailabilityFormValues, string>> & {
-  general?: string;
-};
-
-const DAY_MS = 86400000;
-
-function formatDateInput(value: Date) {
-  return value.toISOString().slice(0, 10);
-}
-
-function getInitialDateRange() {
-  const start = new Date();
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 13);
-
-  return {
-    startDate: formatDateInput(start),
-    endDate: formatDateInput(end),
-  };
-}
-
-function getEmptyForm(): AvailabilityFormValues {
-  const dates = getInitialDateRange();
-
-  return {
-    startDate: dates.startDate,
-    endDate: dates.endDate,
-    totalUnits: "1",
-    availableUnits: "1",
-    closed: false,
-    note: "",
-  };
-}
+const MAX_RANGE_DAYS = 180;
+const AVAILABILITY_LOAD_TIMEOUT_MS = 15000;
 
 function buildIntervalPayload(roomId: string, startDate: string, endDate: string) {
   return {
@@ -72,74 +53,83 @@ function buildIntervalPayload(roomId: string, startDate: string, endDate: string
   };
 }
 
-function buildBulkPayload(roomId: string, values: AvailabilityFormValues) {
+function getDefaultRoomState(): RoomCalendarState {
+  const range = getMonthRange(new Date().toISOString().slice(0, 7));
+
   return {
-    roomId,
-    startDate: values.startDate,
-    endDate: values.endDate,
-    totalUnits: Number(values.totalUnits),
-    availableUnits: Number(values.availableUnits),
-    closed: values.closed,
-    note: values.note.trim() || undefined,
+    isOpen: false,
+    isLoading: false,
+    loadError: "",
+    startDate: range.startDate,
+    endDate: range.endDate,
+    availability: [],
+    feedback: "",
+    feedbackType: "success",
   };
 }
 
-function mapIssuesToErrors(issues: { path: PropertyKey[]; message: string }[]) {
-  const nextErrors: AvailabilityFormErrors = {};
+function getDateRangeDays(startDate: string, endDate: string) {
+  const start = toUtcDate(startDate).getTime();
+  const end = toUtcDate(endDate).getTime();
 
-  for (const issue of issues) {
-    const field = issue.path[0];
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
+    return 0;
+  }
 
-    if (typeof field === "string" && !(field in nextErrors)) {
-      nextErrors[field as keyof AvailabilityFormErrors] = issue.message;
+  return Math.floor((end - start) / 86400000) + 1;
+}
+
+function getAvailabilitySuccessMessage(payload: CalendarSavePayload) {
+  if (payload.closed) {
+    return "Período fechado para reservas.";
+  }
+
+  if (payload.availableUnits < 1) {
+    return "Período marcado como ocupado.";
+  }
+
+  return "Período liberado para reservas.";
+}
+
+function getRoomSummary(
+  availability: AuthorizedRoomAvailability[],
+  startDate: string,
+  endDate: string
+) {
+  const rangeDays = getDateRangeDays(startDate, endDate);
+  const defaultDays = Math.max(rangeDays - availability.length, 0);
+
+  if (availability.length === 0) {
+    return "Dias sem regra específica usam a disponibilidade padrão do quarto.";
+  }
+
+  const closedDays = availability.filter((entry) => entry.closed).length;
+  const occupiedDays = availability.filter(
+    (entry) => !entry.closed && entry.availableUnits < 1
+  ).length;
+  const availableDays = availability.filter(
+    (entry) => !entry.closed && entry.availableUnits > 0
+  ).length;
+  return `${availableDays} disponíveis · ${occupiedDays} ocupados · ${closedDays} fechados · ${defaultDays} padrão`;
+}
+
+function withAvailabilityLoadTimeout<T>(promise: Promise<T>) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error("Tempo limite ao carregar disponibilidade. Tente novamente."));
+    }, AVAILABILITY_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
     }
-  }
-
-  return nextErrors;
+  });
 }
 
-function validateInterval(roomId: string, startDate: string, endDate: string) {
-  const result = roomAvailabilityIntervalPayloadSchema.safeParse(
-    buildIntervalPayload(roomId, startDate, endDate)
-  );
-
-  if (result.success) {
-    return {};
-  }
-
-  return mapIssuesToErrors(result.error.issues);
-}
-
-function validateBulk(roomId: string, values: AvailabilityFormValues) {
-  const result = bulkRoomAvailabilityPayloadSchema.safeParse(buildBulkPayload(roomId, values));
-
-  if (result.success) {
-    return {};
-  }
-
-  return mapIssuesToErrors(result.error.issues);
-}
-
-function formatAvailabilityDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-  }).format(new Date(`${value}T00:00:00.000Z`));
-}
-
-function getRangeLabel(startDate: string, endDate: string) {
-  const startTime = new Date(`${startDate}T00:00:00.000Z`).getTime();
-  const endTime = new Date(`${endDate}T00:00:00.000Z`).getTime();
-
-  if (Number.isNaN(startTime) || Number.isNaN(endTime) || endTime < startTime) {
-    return "Ajuste as datas";
-  }
-
-  const diffDays = Math.floor((endTime - startTime) / DAY_MS) + 1;
-
-  return `${diffDays} dia${diffDays > 1 ? "s" : ""}`;
-}
-
-async function refreshAvailabilityList(
+async function refreshRoomAvailability(
   hotelId: string,
   roomId: string,
   startDate: string,
@@ -159,122 +149,139 @@ async function refreshAvailabilityList(
 }
 
 export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySectionProps) {
-  const roomOptions = useMemo(
-    () => rooms.map((room) => ({ id: room.id, name: room.name })),
-    [rooms]
+  const roomCards = useMemo(() => rooms, [rooms]);
+  const [roomStates, setRoomStates] = useState<Record<string, RoomCalendarState>>({});
+
+  const getRoomState = useCallback(
+    (roomId: string) => roomStates[roomId] ?? getDefaultRoomState(),
+    [roomStates]
   );
-  const [selectedRoomId, setSelectedRoomId] = useState(roomOptions[0]?.id ?? "");
-  const [form, setForm] = useState<AvailabilityFormValues>(() => getEmptyForm());
-  const [errors, setErrors] = useState<AvailabilityFormErrors>({});
-  const [feedback, setFeedback] = useState("");
-  const [feedbackType, setFeedbackType] = useState<"success" | "error">("success");
-  const [availability, setAvailability] = useState<AuthorizedRoomAvailability[]>([]);
-  const [isLoadingAvailability, setIsLoadingAvailability] = useState(Boolean(roomOptions[0]?.id));
-  const [isPending, startTransition] = useTransition();
 
-  const intervalErrors = selectedRoomId
-    ? validateInterval(selectedRoomId, form.startDate, form.endDate)
-    : {};
-  const hasIntervalErrors = Object.keys(intervalErrors).length > 0;
-  const displayedAvailability = hasIntervalErrors ? [] : availability;
+  const patchRoomState = useCallback((roomId: string, patch: Partial<RoomCalendarState>) => {
+    setRoomStates((current) => ({
+      ...current,
+      [roomId]: {
+        ...(current[roomId] ?? getDefaultRoomState()),
+        ...patch,
+      },
+    }));
+  }, []);
 
-  useEffect(() => {
-    if (!selectedRoomId || hasIntervalErrors) {
-      return;
-    }
-
-    let isMounted = true;
-    const loadAvailability = async () => {
-      setIsLoadingAvailability(true);
+  const loadRoomAvailability = useCallback(
+    async (roomId: string, startDate: string, endDate: string) => {
+      patchRoomState(roomId, { isLoading: true, loadError: "", feedback: "" });
 
       try {
-        const rows = await refreshAvailabilityList(
-          hotelId,
-          selectedRoomId,
-          form.startDate,
-          form.endDate
+        const availability = await withAvailabilityLoadTimeout(
+          refreshRoomAvailability(hotelId, roomId, startDate, endDate)
         );
-
-        if (!isMounted) {
-          return;
-        }
-
-        setAvailability(rows);
+        patchRoomState(roomId, {
+          startDate,
+          endDate,
+          availability,
+          isLoading: false,
+          loadError: "",
+        });
       } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        setFeedbackType("error");
-        setFeedback(
-          error instanceof Error ? error.message : "Não foi possível carregar a disponibilidade."
+        const message = getClientErrorMessage(
+          error,
+          "Não foi possível carregar a disponibilidade."
         );
-        setAvailability([]);
-      } finally {
-        if (isMounted) {
-          setIsLoadingAvailability(false);
-        }
-      }
-    };
+        const room = roomCards.find((item) => item.id === roomId);
 
-    void loadAvailability();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [form.endDate, form.startDate, hasIntervalErrors, hotelId, selectedRoomId]);
-
-  const handleChange = (field: keyof AvailabilityFormValues, value: string | boolean) => {
-    setForm((current) => ({ ...current, [field]: value }));
-    setErrors((current) => ({ ...current, [field]: undefined, general: undefined }));
-  };
-
-  const handleSave = () => {
-    if (!selectedRoomId) {
-      setErrors({ general: "Selecione um quarto para continuar." });
-      return;
-    }
-
-    const nextErrors = validateBulk(selectedRoomId, form);
-    setErrors(nextErrors);
-
-    if (Object.keys(nextErrors).length > 0) {
-      setFeedback("");
-      return;
-    }
-
-    setFeedback("");
-
-    startTransition(async () => {
-      try {
-        const result: RoomAvailabilityActionState = await saveRoomAvailabilityRangeAction(
+        console.error("[availability/admin/load]", {
           hotelId,
-          selectedRoomId,
-          buildBulkPayload(selectedRoomId, form)
-        );
+          roomId,
+          roomName: room?.name ?? "unknown",
+          month:
+            startDate.slice(0, 7) === endDate.slice(0, 7)
+              ? startDate.slice(0, 7)
+              : `${startDate}..${endDate}`,
+          error: message,
+        });
 
-        if (result.status === "error") {
-          throw new Error(result.message || "Não foi possível salvar a disponibilidade.");
-        }
-
-        const rows = await refreshAvailabilityList(
-          hotelId,
-          selectedRoomId,
-          form.startDate,
-          form.endDate
-        );
-
-        setAvailability(rows);
-        setFeedbackType("success");
-        setFeedback(result.message);
-      } catch (error) {
-        setFeedbackType("error");
-        setFeedback(
-          error instanceof Error ? error.message : "Não foi possível salvar a disponibilidade."
-        );
+        patchRoomState(roomId, {
+          availability: [],
+          isLoading: false,
+          loadError: message,
+          feedbackType: "error",
+          feedback: message,
+        });
       }
-    });
-  };
+    },
+    [hotelId, patchRoomState, roomCards]
+  );
+
+  const handleToggleCalendar = useCallback(
+    (roomId: string) => {
+      const state = getRoomState(roomId);
+      const nextIsOpen = !state.isOpen;
+
+      patchRoomState(roomId, { isOpen: nextIsOpen, feedback: "" });
+
+      if (nextIsOpen && state.availability.length === 0) {
+        void loadRoomAvailability(roomId, state.startDate, state.endDate);
+      }
+    },
+    [getRoomState, loadRoomAvailability, patchRoomState]
+  );
+
+  const handleVisibleRangeChange = useCallback(
+    (roomId: string, startDate: string, endDate: string) => {
+      const state = getRoomState(roomId);
+
+      if (state.startDate === startDate && state.endDate === endDate) {
+        return;
+      }
+
+      void loadRoomAvailability(roomId, startDate, endDate);
+    },
+    [getRoomState, loadRoomAvailability]
+  );
+
+  const handleCalendarSave = useCallback(
+    async (payload: CalendarSavePayload): Promise<RoomAvailabilityActionState> => {
+      if (getDateRangeDays(payload.startDate, payload.endDate) > MAX_RANGE_DAYS) {
+        const errorResult = {
+          status: "error" as const,
+          message: "Selecione um período de até 180 dias.",
+        };
+
+        patchRoomState(payload.roomId, {
+          feedbackType: "error",
+          feedback: errorResult.message,
+        });
+
+        return errorResult;
+      }
+
+      const result = await saveRoomAvailabilityRangeAction(hotelId, payload.roomId, payload);
+
+      if (result.status === "success") {
+        const state = getRoomState(payload.roomId);
+        const availability = await refreshRoomAvailability(
+          hotelId,
+          payload.roomId,
+          state.startDate,
+          state.endDate
+        );
+
+        patchRoomState(payload.roomId, {
+          availability,
+          feedbackType: "success",
+          feedback: getAvailabilitySuccessMessage(payload),
+        });
+      } else {
+        patchRoomState(payload.roomId, {
+          feedbackType: "error",
+          feedback: result.message || "Não foi possível salvar a disponibilidade.",
+        });
+      }
+
+      return result;
+    },
+    [getRoomState, hotelId, patchRoomState]
+  );
 
   return (
     <section className="hotel-content-card admin-form-section admin-availability-section">
@@ -282,210 +289,108 @@ export function HotelAvailabilitySection({ hotelId, rooms }: HotelAvailabilitySe
         <div className="section-heading admin-subsection-heading">
           <h2>Disponibilidade</h2>
           <p className="admin-rooms-copy">
-            Defina o estoque do quarto por período. O salvamento em lote aplica os mesmos valores a
-            todas as datas selecionadas.
+            Controle a disponibilidade de cada quarto pelo calendário. Selecione a data inicial e
+            final do período.
           </p>
         </div>
       </div>
 
-      <div className="admin-availability-toolbar">
-        <label className="admin-form-field admin-rate-room-select">
-          <span>Quarto</span>
-          <select
-            value={selectedRoomId}
-            onChange={(event) => {
-              setSelectedRoomId(event.target.value);
-              setFeedback("");
-              setErrors({});
-            }}
-            disabled={roomOptions.length === 0 || isPending}
-          >
-            {roomOptions.length === 0 ? (
-              <option value="">Nenhum quarto disponível</option>
-            ) : (
-              roomOptions.map((room) => (
-                <option key={room.id} value={room.id}>
-                  {room.name}
-                </option>
-              ))
-            )}
-          </select>
-        </label>
-      </div>
-
-      {feedback ? (
-        <p
-          className={`admin-editor-feedback ${feedbackType === "success" ? "is-success" : "is-error"}`}
-          role={feedbackType === "error" ? "alert" : "status"}
-        >
-          {feedback}
-        </p>
-      ) : null}
-
-      {roomOptions.length === 0 ? (
+      {roomCards.length === 0 ? (
         <div className="hotel-empty-state admin-history-empty">
           <strong>Nenhum quarto cadastrado.</strong>
           <p>Cadastre um quarto antes de definir disponibilidade.</p>
         </div>
       ) : (
-        <>
-          <div className="admin-room-panel">
-            {errors.general ? (
-              <p className="admin-form-error admin-form-error--block">{errors.general}</p>
-            ) : null}
+        <div className="admin-availability-room-list">
+          {roomCards.map((room) => {
+            const state = getRoomState(room.id);
+            const capacityLabel =
+              room.capacityAdults || room.capacityChildren
+                ? `${room.capacityAdults} adulto${room.capacityAdults === 1 ? "" : "s"} · ${
+                    room.capacityChildren
+                  } criança${room.capacityChildren === 1 ? "" : "s"}`
+                : `${room.capacity} hóspede${room.capacity === 1 ? "" : "s"}`;
 
-            <div className="admin-form-grid admin-form-grid--three">
-              <label className="admin-form-field">
-                <span>Data inicial</span>
-                <input
-                  type="date"
-                  value={form.startDate}
-                  onChange={(event) => handleChange("startDate", event.target.value)}
-                  aria-invalid={Boolean(errors.startDate || intervalErrors.startDate)}
-                />
-                {errors.startDate || intervalErrors.startDate ? (
-                  <small className="admin-form-error">
-                    {errors.startDate || intervalErrors.startDate}
-                  </small>
-                ) : null}
-              </label>
+            const unitsLabel = `${room.units} unidade${room.units === 1 ? "" : "s"}`;
 
-              <label className="admin-form-field">
-                <span>Data final</span>
-                <input
-                  type="date"
-                  value={form.endDate}
-                  onChange={(event) => handleChange("endDate", event.target.value)}
-                  aria-invalid={Boolean(errors.endDate || intervalErrors.endDate)}
-                />
-                {errors.endDate || intervalErrors.endDate ? (
-                  <small className="admin-form-error">
-                    {errors.endDate || intervalErrors.endDate}
-                  </small>
-                ) : null}
-              </label>
-
-              <label className="admin-form-field">
-                <span>Intervalo</span>
-                <input value={getRangeLabel(form.startDate, form.endDate)} readOnly />
-                <small>Limite máximo: 180 dias por ação.</small>
-              </label>
-
-              <label className="admin-form-field">
-                <span>Unidades totais</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.totalUnits}
-                  onChange={(event) => handleChange("totalUnits", event.target.value)}
-                  aria-invalid={Boolean(errors.totalUnits)}
-                />
-                {errors.totalUnits ? (
-                  <small className="admin-form-error">{errors.totalUnits}</small>
-                ) : null}
-              </label>
-
-              <label className="admin-form-field">
-                <span>Unidades disponíveis</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.availableUnits}
-                  onChange={(event) => handleChange("availableUnits", event.target.value)}
-                  aria-invalid={Boolean(errors.availableUnits)}
-                />
-                {errors.availableUnits ? (
-                  <small className="admin-form-error">{errors.availableUnits}</small>
-                ) : null}
-              </label>
-
-              <label className="admin-toggle-field admin-toggle-field--boxed">
-                <input
-                  type="checkbox"
-                  checked={form.closed}
-                  onChange={(event) => handleChange("closed", event.target.checked)}
-                />
-                <span>Fechado no período</span>
-              </label>
-
-              <label className="admin-form-field admin-form-field--full">
-                <span>Observação interna</span>
-                <textarea
-                  rows={4}
-                  value={form.note}
-                  onChange={(event) => handleChange("note", event.target.value)}
-                  aria-invalid={Boolean(errors.note)}
-                />
-                {errors.note ? <small className="admin-form-error">{errors.note}</small> : null}
-              </label>
-            </div>
-
-            <div className="admin-room-actions">
-              <button
-                type="button"
-                className="card-cta-button admin-edit-button"
-                onClick={handleSave}
-                disabled={isPending || !selectedRoomId}
-              >
-                {isPending ? "Salvando..." : "Salvar em lote"}
-              </button>
-            </div>
-          </div>
-
-          {isLoadingAvailability ? (
-            <div className="hotel-empty-state admin-history-empty">
-              <strong>Carregando disponibilidade...</strong>
-              <p>Aguarde enquanto o período selecionado é consultado.</p>
-            </div>
-          ) : displayedAvailability.length === 0 ? (
-            <div className="hotel-empty-state admin-history-empty">
-              <strong>Nenhuma disponibilidade cadastrada.</strong>
-              <p>Use o formulário acima para preencher este período.</p>
-            </div>
-          ) : (
-            <div className="admin-availability-list">
-              {displayedAvailability.map((entry) => (
-                <article key={entry.id} className="admin-room-card admin-availability-card">
-                  <div className="admin-room-card-body">
-                    <div className="admin-room-card-top">
-                      <div>
-                        <strong>{formatAvailabilityDate(entry.date)}</strong>
-                        <p>
-                          {entry.closed
-                            ? "Fechado para venda"
-                            : `${entry.availableUnits} de ${entry.totalUnits} unidades disponíveis`}
-                        </p>
-                      </div>
-
-                      <span
-                        className={`admin-room-badge ${entry.closed ? "is-inactive" : "is-active"}`}
-                      >
-                        {entry.closed ? "Fechado" : "Aberto"}
-                      </span>
-                    </div>
-
-                    <div className="admin-rate-meta-grid admin-availability-meta-grid">
-                      <span>
-                        <strong>Total</strong>
-                        <small>{entry.totalUnits}</small>
-                      </span>
-                      <span>
-                        <strong>Disponíveis</strong>
-                        <small>{entry.availableUnits}</small>
-                      </span>
-                      <span>
-                        <strong>Status</strong>
-                        <small>{entry.closed ? "Fechado" : "Aberto"}</small>
-                      </span>
-                    </div>
-
-                    {entry.note ? <p className="admin-availability-note">{entry.note}</p> : null}
+            return (
+              <article className="admin-availability-room-card" key={room.id}>
+                <div className="admin-availability-room-card__header">
+                  <div>
+                    <strong>{room.name}</strong>
+                    <p>
+                      {capacityLabel} · {unitsLabel}
+                    </p>
+                    <small>
+                      {getRoomSummary(state.availability, state.startDate, state.endDate)}
+                    </small>
                   </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </>
+                  <div className="admin-availability-room-card__actions">
+                    <span
+                      className={`admin-room-badge ${room.isActive ? "is-active" : "is-inactive"}`}
+                    >
+                      {room.isActive ? "Ativo" : "Inativo"}
+                    </span>
+                    <button
+                      type="button"
+                      className="admin-secondary-button"
+                      onClick={() => handleToggleCalendar(room.id)}
+                    >
+                      {state.isOpen ? "Fechar calendário" : "Abrir calendário"}
+                    </button>
+                  </div>
+                </div>
+
+                {state.isOpen ? (
+                  <div className="admin-availability-room-card__calendar">
+                    <p className="admin-availability-room-card__hint">
+                      Controle a disponibilidade deste quarto pelo calendário.
+                    </p>
+                    {state.isLoading ? (
+                      <div className="hotel-empty-state admin-history-empty">
+                        <strong>Carregando disponibilidade...</strong>
+                        <p>Aguarde enquanto o mês selecionado é consultado.</p>
+                      </div>
+                    ) : null}
+                    {!state.isLoading && state.loadError ? (
+                      <div className="hotel-empty-state admin-history-empty" role="alert">
+                        <strong>Falha ao carregar disponibilidade.</strong>
+                        <p>{state.loadError}</p>
+                      </div>
+                    ) : null}
+                    {!state.isLoading && !state.loadError && state.availability.length === 0 ? (
+                      <div className="hotel-empty-state admin-history-empty">
+                        <strong>Disponibilidade padrão do quarto ativa</strong>
+                        <p>Dias sem regra específica usam a disponibilidade padrão do quarto.</p>
+                      </div>
+                    ) : null}
+                    <RoomAvailabilityCalendar
+                      hotelId={hotelId}
+                      roomId={room.id}
+                      roomName={room.name}
+                      defaultUnits={room.units}
+                      availability={state.availability}
+                      onVisibleRangeChange={(startDate, endDate) =>
+                        handleVisibleRangeChange(room.id, startDate, endDate)
+                      }
+                      onSavePeriod={handleCalendarSave}
+                    />
+                    {state.feedback ? (
+                      <p
+                        className={`admin-editor-feedback ${
+                          state.feedbackType === "success" ? "is-success" : "is-error"
+                        }`}
+                        role={state.feedbackType === "error" ? "alert" : "status"}
+                      >
+                        {state.feedback}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
       )}
     </section>
   );

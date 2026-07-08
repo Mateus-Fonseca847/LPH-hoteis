@@ -10,6 +10,7 @@ import { IconBackLink } from "@/components/IconBackLink";
 import { HotelPageActions } from "@/components/HotelPageActions";
 import { HotelRegionDetailsSection } from "@/components/HotelRegionDetailsSection";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { RoomImageCarousel } from "@/components/RoomImageCarousel";
 import { getHotelPageData } from "@/lib/hotel-data";
 import { getMercadoPagoCheckoutReturnNotice } from "@/lib/payments/checkout-return";
 import { parseBedsValue, ROOM_BED_OPTIONS } from "@/lib/room-options";
@@ -524,20 +525,13 @@ export default async function HotelPage({ params, searchParams }: HotelPageProps
                 {hotel.rooms.map((room) => (
                   <article id={`quarto-${room.id}`} key={room.id} className="hotel-room-card">
                     <div className="hotel-room-media">
-                      {room.imageUrl ? (
-                        <ImageWithFallback
-                          src={room.imageUrl}
-                          alt={`Quarto ${room.name}`}
-                          fallbackLabel={`Imagem indisponível do quarto ${room.name}`}
-                          fill
-                          sizes="(max-width: 900px) 100vw, 280px"
-                          unoptimized
-                        />
-                      ) : (
-                        <div className="hotel-image-placeholder" role="img" aria-label={room.name}>
-                          {room.name}
-                        </div>
-                      )}
+                      <RoomImageCarousel
+                        images={room.images}
+                        fallbackImageUrl={room.imageUrl}
+                        roomName={room.name}
+                        fallbackLabel={`Imagem indisponível do quarto ${room.name}`}
+                        sizes="(max-width: 900px) 100vw, 280px"
+                      />
                     </div>
                     <div className="hotel-room-body">
                       <div className="hotel-room-header">

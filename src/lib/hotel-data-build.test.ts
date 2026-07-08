@@ -32,4 +32,100 @@ describe("hotel data during Next build", () => {
     expect(queryRaw).not.toHaveBeenCalled();
     expect(findMany).not.toHaveBeenCalled();
   });
+
+  it("deduplica hoteis reais e nao soma fallback quando o banco responde", async () => {
+    const queryRaw = vi.fn(async () =>
+      ["slug", "name", "city", "state", "coverImageUrl", "isPublished", "phone"].map(
+        (column_name) => ({ column_name })
+      )
+    );
+    const findMany = vi.fn(async () => [
+      {
+        id: "hotel-1",
+        slug: "pousada-casa-mare",
+        name: "Pousada Casa Mare",
+        shortDescription: "Pousada publicada",
+        city: "Paraty",
+        state: "RJ",
+        coverImageUrl: "/casa-mare.webp",
+      },
+      {
+        id: "hotel-2",
+        slug: "pousada-casa-mare",
+        name: "Pousada Casa Mare duplicada",
+        shortDescription: "Duplicada",
+        city: "Paraty",
+        state: "RJ",
+        coverImageUrl: "/casa-mare-2.webp",
+      },
+    ]);
+
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DATABASE_URL", "postgresql://valid.example/lph");
+    vi.stubEnv("NEXT_PHASE", "");
+
+    vi.doMock("next/cache", () => ({
+      unstable_cache: (callback: unknown) => callback,
+    }));
+    vi.doMock("@/lib/hotel-archive", () => ({
+      getPublicHotelWhere: vi.fn(async () => ({ isPublished: true })),
+    }));
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        $queryRaw: queryRaw,
+        hotel: {
+          findMany,
+        },
+      },
+    }));
+
+    const { getPublishedHotels } = await import("@/lib/hotel-data");
+
+    await expect(getPublishedHotels()).resolves.toEqual([
+      expect.objectContaining({
+        id: "hotel-1",
+        slug: "pousada-casa-mare",
+      }),
+    ]);
+    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          coverImageUrl: true,
+          images: expect.any(Object),
+          rooms: expect.any(Object),
+        }),
+      })
+    );
+  });
+
+  it("trata dias sem RoomAvailability como disponibilidade publica padrao", async () => {
+    vi.doMock("next/cache", () => ({
+      unstable_cache: (callback: unknown) => callback,
+    }));
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {},
+    }));
+
+    const { getPublicAvailabilityStatus } = await import("@/lib/hotel-data");
+    const fromDate = new Date(Date.UTC(2026, 6, 1));
+
+    expect(getPublicAvailabilityStatus([], fromDate)).toBe("available");
+    expect(
+      getPublicAvailabilityStatus(
+        [{ date: new Date(Date.UTC(2026, 6, 1)), closed: true, availableUnits: 0 }],
+        fromDate
+      )
+    ).toBe("available");
+    expect(
+      getPublicAvailabilityStatus(
+        Array.from({ length: 30 }, (_, index) => ({
+          date: new Date(Date.UTC(2026, 6, 1 + index)),
+          closed: false,
+          availableUnits: 0,
+        })),
+        fromDate
+      )
+    ).toBe("unavailable");
+  });
 });

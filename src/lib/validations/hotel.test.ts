@@ -116,7 +116,7 @@ describe("hotel form image URLs", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error).toContain("e-mail de contato valido");
+      expect(result.error).toContain("e-mail de contato válido");
     }
   });
 

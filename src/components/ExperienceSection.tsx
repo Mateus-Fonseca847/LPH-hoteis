@@ -14,6 +14,8 @@ import {
 import type { PublishedHotelCard } from "@/lib/hotel-data";
 import {
   getProfileExperienceMatches,
+  getProfileRecommendationHotelImage,
+  isUsableImageUrl,
   type ProfileExperienceMatch,
   type ProfileTouristAttraction,
 } from "@/lib/profile-recommendations";
@@ -67,11 +69,31 @@ type Recommendation = {
 };
 
 type ExperienceVisualImageProps = {
-  src: string;
+  src: string | null;
   alt: string;
   sizes: string;
   priority?: boolean;
 };
+
+function isNextImageCompatibleExperienceSource(src: string) {
+  if (src.startsWith("/")) {
+    return true;
+  }
+
+  try {
+    const url = new URL(src);
+    const hostname = url.hostname.toLowerCase();
+
+    return (
+      url.protocol === "https:" &&
+      (hostname === "images.unsplash.com" ||
+        hostname === "blob.vercel-storage.com" ||
+        hostname.endsWith(".public.blob.vercel-storage.com"))
+    );
+  } catch {
+    return false;
+  }
+}
 
 const MODAL_FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -813,23 +835,39 @@ function ExperienceVisualImage({ src, alt, sizes, priority = false }: Experience
     src: string;
     status: "loaded" | "error";
   } | null>(null);
-  const currentImageState = imageState?.src === src ? imageState.status : "loading";
+  const imageSrc = isUsableImageUrl(src) ? src.trim() : null;
+  const currentImageState = imageState?.src === imageSrc ? imageState.status : "loading";
+  const imageClassName = `experience-image ${currentImageState === "loaded" ? "is-loaded" : ""}`;
 
   return (
     <>
-      <div className="experience-image-fallback" aria-hidden="true">
-        <span>{currentImageState === "error" ? "Imagem indisponível" : "Carregando imagem"}</span>
-      </div>
-      <Image
-        className={`experience-image ${currentImageState === "loaded" ? "is-loaded" : ""}`}
-        src={src}
-        alt={alt}
-        fill
-        sizes={sizes}
-        priority={priority}
-        onLoad={() => setImageState({ src, status: "loaded" })}
-        onError={() => setImageState({ src, status: "error" })}
-      />
+      <div className="experience-image-fallback" aria-hidden="true" />
+      {imageSrc &&
+      currentImageState !== "error" &&
+      isNextImageCompatibleExperienceSource(imageSrc) ? (
+        <Image
+          className={imageClassName}
+          src={imageSrc}
+          alt={alt}
+          fill
+          sizes={sizes}
+          priority={priority}
+          onLoad={() => setImageState({ src: imageSrc, status: "loaded" })}
+          onError={() => setImageState({ src: imageSrc, status: "error" })}
+        />
+      ) : imageSrc && currentImageState !== "error" ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          className={imageClassName}
+          src={imageSrc}
+          alt={alt}
+          sizes={sizes}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          onLoad={() => setImageState({ src: imageSrc, status: "loaded" })}
+          onError={() => setImageState({ src: imageSrc, status: "error" })}
+        />
+      ) : null}
     </>
   );
 }
@@ -1294,7 +1332,7 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
     const content = (
       <>
         <ExperienceVisualImage
-          src={destination.image}
+          src={match?.experienceImage ?? destination.image}
           alt={destination.alt}
           sizes={imageSizes}
           priority={variant === "featured"}
@@ -1375,37 +1413,41 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
 
             {selectedExperience.hotels.length > 0 ? (
               <div className="experience-hotels-list">
-                {selectedExperience.hotels.map(({ hotel, proximityLabel }) => (
-                  <article className="experience-hotel-option" key={hotel.slug}>
-                    <div className="experience-hotel-option__media">
-                      {hotel.coverImageUrl ? (
-                        <ImageWithFallback
-                          src={hotel.coverImageUrl}
-                          alt={`Vista de ${hotel.name} em ${hotel.city}, ${hotel.state}`}
-                          fallbackLabel={`Imagem indisponível de ${hotel.name}`}
-                          fill
-                          sizes="(max-width: 720px) 92vw, 220px"
-                        />
-                      ) : (
-                        <span>{hotel.name}</span>
-                      )}
-                    </div>
-                    <div className="experience-hotel-option__body">
-                      <span>{proximityLabel}</span>
-                      <strong>{hotel.name}</strong>
-                      <p>
-                        {hotel.shortDescription ||
-                          `${hotel.city}, ${hotel.state} · hospedagem compatível com este destino.`}
-                      </p>
-                      <Link
-                        className="card-cta-button experience-hotel-option__link"
-                        href={`/hoteis/${hotel.slug}`}
-                      >
-                        Ver hotel
-                      </Link>
-                    </div>
-                  </article>
-                ))}
+                {selectedExperience.hotels.map(({ hotel, proximityLabel }) => {
+                  const hotelImageUrl = getProfileRecommendationHotelImage(hotel);
+
+                  return (
+                    <article className="experience-hotel-option" key={hotel.slug}>
+                      <div className="experience-hotel-option__media">
+                        {hotelImageUrl ? (
+                          <ImageWithFallback
+                            src={hotelImageUrl}
+                            alt={`Vista de ${hotel.name} em ${hotel.city}, ${hotel.state}`}
+                            fallbackLabel={`Imagem indisponível de ${hotel.name}`}
+                            fill
+                            sizes="(max-width: 720px) 92vw, 220px"
+                          />
+                        ) : (
+                          <span>{hotel.name}</span>
+                        )}
+                      </div>
+                      <div className="experience-hotel-option__body">
+                        <span>{proximityLabel}</span>
+                        <strong>{hotel.name}</strong>
+                        <p>
+                          {hotel.shortDescription ||
+                            `${hotel.city}, ${hotel.state} · hospedagem compatível com este destino.`}
+                        </p>
+                        <Link
+                          className="card-cta-button experience-hotel-option__link"
+                          href={`/hoteis/${hotel.slug}`}
+                        >
+                          Ver hotel
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <div className="experience-hotels-empty" role="status">
@@ -1457,12 +1499,8 @@ export function ExperienceSection({ hotels }: ExperienceSectionProps) {
               >
                 <div className="experience-recommendation-card__image">
                   <ExperienceVisualImage
-                    src={recommendation.image}
-                    alt={
-                      recommendation.hotel
-                        ? `${recommendation.hotel.name} em ${recommendation.hotel.city}`
-                        : recommendation.experience.alt
-                    }
+                    src={recommendation.experienceImage}
+                    alt={recommendation.experience.alt}
                     sizes="(max-width: 720px) 100vw, (max-width: 1180px) 50vw, 33vw"
                   />
                 </div>

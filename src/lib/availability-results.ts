@@ -12,7 +12,14 @@ export type AvailabilityResultRoom = {
   name: string;
   description: string;
   imageUrl: string;
+  images?: Array<{
+    id: string;
+    url: string;
+    alt: string;
+    position: number;
+  }>;
   capacity: number;
+  units?: number;
   capacityAdults: number;
   capacityChildren: number;
   beds: string;

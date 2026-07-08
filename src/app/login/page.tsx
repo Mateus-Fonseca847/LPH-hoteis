@@ -49,12 +49,21 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               Entre com e-mail e senha para acessar a área autenticada da plataforma.
             </p>
             <LoginForm />
-            <p className="auth-footer-link">
-              Ainda não tenho conta{" "}
-              <Link href="/cadastro" className="auth-inline-link">
+            <div className="auth-footer-link">
+              <Link href="/esqueci-senha" className="auth-inline-link">
+                Esqueci minha senha
+              </Link>
+            </div>
+            <div className="auth-footer-link">
+              <Link href="/criar-conta" className="auth-inline-link">
                 Criar conta
               </Link>
-            </p>
+            </div>
+            <div className="auth-footer-link">
+              <Link href="/cadastro" className="auth-inline-link">
+                Solicitar acesso de hotel
+              </Link>
+            </div>
           </div>
         </section>
       </main>

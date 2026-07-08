@@ -3,6 +3,10 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export type StayDateInput = Date | string;
 
 export type RoomCapacitySnapshot = {
+  id?: string;
+  units?: number;
+  totalUnits?: number;
+  unitCount?: number;
   capacity: number;
   capacityAdults: number;
   capacityChildren: number;
@@ -145,6 +149,48 @@ export function getStayDates(checkIn: StayDateInput, checkOut: StayDateInput) {
   });
 }
 
+function getRoomDefaultUnits(room: RoomCapacitySnapshot) {
+  const unitCount = room.units ?? room.totalUnits ?? room.unitCount ?? 1;
+
+  return Number.isInteger(unitCount) && unitCount > 0 ? unitCount : 1;
+}
+
+function logPublicAvailabilityCheck({
+  roomId,
+  checkIn,
+  checkOut,
+  expectedNights,
+  recordsFound,
+  missingDays,
+  closedDays,
+  noUnitDays,
+  status,
+}: {
+  roomId: string;
+  checkIn: StayDateInput;
+  checkOut: StayDateInput;
+  expectedNights: number;
+  recordsFound: number;
+  missingDays: number;
+  closedDays: number;
+  noUnitDays: number;
+  status: StayAvailabilityStatus;
+}) {
+  console.info("[availability/public/check]", {
+    roomId,
+    period: {
+      checkIn: checkIn instanceof Date ? checkIn.toISOString().slice(0, 10) : checkIn,
+      checkOut: checkOut instanceof Date ? checkOut.toISOString().slice(0, 10) : checkOut,
+    },
+    expectedNights,
+    recordsFound,
+    missingDays,
+    closedDays,
+    noUnitDays,
+    status,
+  });
+}
+
 export function getRoomStayAvailabilityStatus(
   room: RoomCapacitySnapshot & {
     availability?: RoomAvailabilitySnapshot[];
@@ -154,37 +200,46 @@ export function getRoomStayAvailabilityStatus(
   adults: number,
   children: number
 ): StayAvailabilityStatus {
-  if (!canRoomAccommodateGuests(room, adults, children)) {
-    return "unavailable";
-  }
-
   const stayDates = getStayDates(checkIn, checkOut);
   const availability = room.availability ?? [];
-
-  if (availability.length === 0) {
-    return "unknown";
-  }
-
   const availabilityByDate = new Map(
     availability.map((entry) => [
       new Date(toUtcDateOnly(entry.date)).toISOString().slice(0, 10),
       entry,
     ])
   );
+  const periodAvailability = stayDates
+    .map((date) => availabilityByDate.get(date))
+    .filter((entry): entry is RoomAvailabilitySnapshot => Boolean(entry));
+  const missingDays = Math.max(stayDates.length - periodAvailability.length, 0);
+  const closedDays = periodAvailability.filter((entry) => entry.closed).length;
+  const noUnitDays = periodAvailability.filter((entry) => entry.availableUnits < 1).length;
+  const defaultUnits = getRoomDefaultUnits(room);
+  const logStatus = (status: StayAvailabilityStatus) => {
+    logPublicAvailabilityCheck({
+      roomId: room.id ?? "unknown",
+      checkIn,
+      checkOut,
+      expectedNights: stayDates.length,
+      recordsFound: periodAvailability.length,
+      missingDays,
+      closedDays,
+      noUnitDays,
+      status,
+    });
 
-  for (const date of stayDates) {
-    const dayAvailability = availabilityByDate.get(date);
+    return status;
+  };
 
-    if (!dayAvailability) {
-      return "unknown";
-    }
-
-    if (dayAvailability.closed || dayAvailability.availableUnits < 1) {
-      return "unavailable";
-    }
+  if (!canRoomAccommodateGuests(room, adults, children)) {
+    return logStatus("unavailable");
   }
 
-  return "available";
+  if (closedDays > 0 || noUnitDays > 0) {
+    return logStatus("unavailable");
+  }
+
+  return logStatus(defaultUnits > 0 ? "available" : "unavailable");
 }
 
 export function getRoomStayPriceEstimate(

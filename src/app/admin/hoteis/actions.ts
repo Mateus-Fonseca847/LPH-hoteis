@@ -11,12 +11,15 @@ import { requireAuthenticatedRequestUser } from "@/lib/auth";
 import {
   ConflictError,
   AuthorizationError,
+  NotFoundError,
   ValidationError,
   getErrorMessage,
 } from "@/lib/errors/app-error";
+import { getZodErrorMessage } from "@/lib/errorMessages";
 import { resolveHotelMapLocation } from "@/lib/hotel-location";
 import { getRequestIpAddress } from "@/lib/hotel-write";
 import { prisma } from "@/lib/prisma";
+import { generateSlugFromName } from "@/lib/slug";
 import { storeHotelImageFile } from "@/lib/uploads/hotel-images";
 import { hotelContactEmailSchema } from "@/lib/validations/hotel";
 
@@ -25,6 +28,11 @@ export type CreateHotelState = {
   message: string;
   hotelId?: string;
   errorCode?: CreateHotelErrorCode;
+};
+
+export type RemoveHotelState = {
+  status: "idle" | "success" | "error";
+  message: string;
 };
 
 type CreateHotelErrorCode =
@@ -63,10 +71,23 @@ class CreateHotelTechnicalError extends Error {
   }
 }
 
+const removeAllowedRoles: HotelRole[] = [HotelRole.owner, HotelRole.admin];
+
 const galleryImageSchema = z.object({
-  url: z.string().trim().url("Informe URLs válidas na galeria.").max(500),
-  alt: z.string().trim().min(2, "Informe texto alternativo para a galeria.").max(140),
-  position: z.number().int().min(0),
+  url: z
+    .string()
+    .trim()
+    .url("Informe URLs válidas na galeria.")
+    .max(500, "URL da galeria muito longa."),
+  alt: z
+    .string()
+    .trim()
+    .min(2, "Informe texto alternativo para a galeria.")
+    .max(140, "Texto alternativo deve ter no máximo 140 caracteres."),
+  position: z
+    .number({ error: "Posição da imagem inválida." })
+    .int("Posição da imagem inválida.")
+    .min(0, "Posição da imagem inválida."),
 });
 
 const galleryImagesSchema = z
@@ -76,7 +97,6 @@ const galleryImagesSchema = z
 
 const requiredCreateHotelFields = [
   "name",
-  "slug",
   "city",
   "state",
   "shortDescription",
@@ -89,36 +109,72 @@ const requiredCreateHotelFields = [
   "checkOutTime",
 ] as const;
 
+const brazilianStateCodes = new Set([
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
+]);
+
 const localUploadImagePathRegex =
   /^\/uploads\/hotels\/[a-zA-Z0-9_-]{1,191}\/[a-zA-Z0-9][a-zA-Z0-9._-]{0,220}\.(?:jpg|jpeg|png|webp)$/i;
 
 const createHotelSchema = z
   .object({
-    name: z.string().trim().min(3, "Informe o nome do hotel.").max(120),
-    slug: z
+    name: z
       .string()
       .trim()
-      .toLowerCase()
-      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use um slug com letras, números e hífens.")
-      .min(3, "Slug deve ter pelo menos 3 caracteres.")
-      .max(80),
-    city: z.string().trim().min(2, "Informe a cidade.").max(80),
+      .min(3, "Informe o nome do hotel.")
+      .max(120, "O nome pode ter no máximo 120 caracteres."),
+    city: z
+      .string()
+      .trim()
+      .min(2, "Informe a cidade.")
+      .max(80, "Cidade deve ter no máximo 80 caracteres."),
     state: z
       .string()
       .trim()
       .toUpperCase()
-      .regex(/^[A-Z]{2}$/, "Estado deve ter 2 letras."),
+      .regex(/^[A-Z]{2}$/, "Estado deve ter 2 letras.")
+      .refine((value) => brazilianStateCodes.has(value), "Informe uma UF válida."),
     shortDescription: z
       .string()
       .trim()
       .min(10, "Informe uma descrição curta com pelo menos 10 caracteres.")
-      .max(220),
+      .max(220, "A descrição curta pode ter no máximo 220 caracteres."),
     fullDescription: z
       .string()
       .trim()
       .min(30, "Informe uma descrição completa com pelo menos 30 caracteres.")
-      .max(4000),
-    address: z.string().trim().min(8, "Informe o endereço.").max(180),
+      .max(4000, "A descrição completa pode ter no máximo 4000 caracteres."),
+    address: z
+      .string()
+      .trim()
+      .min(8, "Informe o endereço.")
+      .max(180, "Endereço deve ter no máximo 180 caracteres."),
     phone: z
       .string()
       .trim()
@@ -130,14 +186,31 @@ const createHotelSchema = z
       .regex(/^\+?[0-9()\-.\s]{8,24}$/, "WhatsApp inválido."),
     galleryImages: z.array(galleryImageSchema).max(20, "Informe no máximo 20 imagens."),
     amenities: z
-      .array(z.string().trim().min(2, "Informe comodidades válidas.").max(80))
+      .array(
+        z
+          .string()
+          .trim()
+          .min(2, "Informe comodidades válidas.")
+          .max(80, "Comodidade deve ter no máximo 80 caracteres.")
+      )
       .max(30, "Informe no máximo 30 comodidades."),
     policies: z
       .array(
         z.object({
-          title: z.string().trim().min(2, "Informe o título da política.").max(80),
-          description: z.string().trim().min(3, "Informe a descrição da política.").max(600),
-          position: z.number().int().min(0),
+          title: z
+            .string()
+            .trim()
+            .min(2, "Informe o título da política.")
+            .max(80, "Título da política deve ter no máximo 80 caracteres."),
+          description: z
+            .string()
+            .trim()
+            .min(3, "Informe a descrição da política.")
+            .max(600, "Descrição da política deve ter no máximo 600 caracteres."),
+          position: z
+            .number({ error: "Posição da política inválida." })
+            .int("Posição da política inválida.")
+            .min(0, "Posição da política inválida."),
         })
       )
       .max(20, "Informe no máximo 20 políticas."),
@@ -240,7 +313,6 @@ function parseCreateHotelFormData(formData: FormData) {
 
   return createHotelSchema.safeParse({
     name,
-    slug: String(formData.get("slug") ?? ""),
     city: String(formData.get("city") ?? ""),
     state: String(formData.get("state") ?? ""),
     shortDescription: String(formData.get("shortDescription") ?? ""),
@@ -255,6 +327,29 @@ function parseCreateHotelFormData(formData: FormData) {
     checkInTime: String(formData.get("checkInTime") ?? ""),
     checkOutTime: String(formData.get("checkOutTime") ?? ""),
   });
+}
+
+async function generateUniqueHotelSlug(name: string) {
+  const baseSlug = generateSlugFromName(name).slice(0, 80).replace(/-$/g, "");
+
+  for (let suffix = 1; suffix <= 100; suffix += 1) {
+    const suffixText = suffix === 1 ? "" : `-${suffix}`;
+    const slug = `${baseSlug.slice(0, 80 - suffixText.length).replace(/-$/g, "")}${suffixText}`;
+    const existingHotel = await prisma.hotel.findUnique({
+      where: {
+        slug,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingHotel) {
+      return slug;
+    }
+  }
+
+  return `${baseSlug.slice(0, 67).replace(/-$/g, "")}-${randomUUID().slice(0, 12)}`;
 }
 
 function getCoverImageFile(formData: FormData) {
@@ -323,7 +418,6 @@ function getFormDataDiagnostics(formData: FormData) {
       coverImage.present || coverImageUrl ? missingFields : [...missingFields, "coverImage"],
     values: {
       name: String(formData.get("name") ?? "").trim(),
-      slug: String(formData.get("slug") ?? "").trim(),
       city: String(formData.get("city") ?? "").trim(),
       state: String(formData.get("state") ?? "").trim(),
       hasShortDescription: Boolean(String(formData.get("shortDescription") ?? "").trim()),
@@ -418,26 +512,6 @@ function logCreateHotelError(error: unknown, context: CreateHotelLogContext) {
   });
 }
 
-function getCreateHotelPrismaErrorMessage(error: Prisma.PrismaClientKnownRequestError) {
-  if (error.code === "P2002") {
-    const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : "";
-
-    return target.includes("slug")
-      ? "Já existe um hotel com este slug."
-      : "Já existe um cadastro com dados únicos repetidos.";
-  }
-
-  if (error.code === "P2021" || error.code === "P2022") {
-    return "Falha de schema do banco. Verifique se as migrations foram aplicadas.";
-  }
-
-  if (error.code === "P2003") {
-    return "Falha ao vincular dados relacionados do hotel.";
-  }
-
-  return "Falha ao salvar hotel, galeria, comodidades ou políticas.";
-}
-
 function getCreateHotelErrorCode(error: unknown): CreateHotelErrorCode {
   if (error instanceof AuthorizationError) {
     return "FORBIDDEN";
@@ -452,7 +526,7 @@ function getCreateHotelErrorCode(error: unknown): CreateHotelErrorCode {
       return "CONTACT_EMAIL_REQUIRED";
     }
 
-    if (error.message === "Informe um e-mail de contato valido.") {
+    if (error.message === "Informe um e-mail de contato válido.") {
       return "CONTACT_EMAIL_INVALID";
     }
 
@@ -460,7 +534,7 @@ function getCreateHotelErrorCode(error: unknown): CreateHotelErrorCode {
       return "NAME_REQUIRED";
     }
 
-    if (error.message === "Envie uma imagem de capa ou informe a URL da capa.") {
+    if (error.message === "Informe uma imagem de capa ou URL pública.") {
       return "COVER_IMAGE_REQUIRED";
     }
 
@@ -517,21 +591,19 @@ function getCreateHotelErrorMessage(error: unknown) {
     case "DUPLICATE_SLUG":
       return "Já existe um hotel com este slug.";
     case "COVER_IMAGE_REQUIRED":
-      return "Envie uma imagem de capa ou informe a URL da capa.";
+      return "Informe uma imagem de capa ou URL pública.";
     case "COVER_UPLOAD_FAILED":
       return "Falha ao enviar imagem de capa.";
     case "IMAGE_STORAGE_NOT_CONFIGURED":
-      return "Storage de imagens não configurado.";
+      return "Não foi possível salvar a imagem. Tente novamente.";
     case "FORBIDDEN":
       return "Você não tem permissão para criar hotéis.";
     case "DATABASE_UNAVAILABLE":
-      return "Banco de dados indisponível. Tente novamente em instantes.";
+      return "Não foi possível salvar o hotel. Tente novamente.";
     case "DATABASE_SCHEMA_MISMATCH":
-      return "Falha de schema do banco. Verifique se as migrations foram aplicadas.";
+      return "Não foi possível salvar o hotel. Tente novamente.";
     case "DATABASE_RELATION_FAILED":
-      return error instanceof Prisma.PrismaClientKnownRequestError
-        ? getCreateHotelPrismaErrorMessage(error)
-        : "Falha ao salvar hotel, galeria, comodidades ou políticas.";
+      return "Não foi possível salvar o hotel. Tente novamente.";
     case "VALIDATION_ERROR":
       return getErrorMessage(error, "Dados inválidos.");
     case "UNEXPECTED_ERROR":
@@ -541,13 +613,14 @@ function getCreateHotelErrorMessage(error: unknown) {
 
 function buildCreatedHotelAuditValue(
   payload: z.infer<typeof createHotelSchema>,
+  slug: string,
   coverImageUrl: string,
   galleryImages: z.infer<typeof createHotelSchema>["galleryImages"],
   resolvedLocation: ReturnType<typeof resolveHotelMapLocation>
 ) {
   return {
     name: payload.name,
-    slug: payload.slug,
+    slug,
     shortDescription: payload.shortDescription,
     fullDescription: payload.fullDescription,
     city: payload.city,
@@ -610,30 +683,15 @@ export async function createHotelAction(
         missingFields: formDiagnostics.missingFields,
         received: formDiagnostics.values,
       });
-      throw new ValidationError(parsedPayload.error.issues[0]?.message || "Dados inválidos.");
+      throw new ValidationError(getZodErrorMessage(parsedPayload.error, "Dados inválidos."));
     }
 
     const payload = parsedPayload.data;
     const coverImageFile = getCoverImageFile(formData);
     const submittedCoverImageUrl = getCreateCoverImageUrl(formData);
     const coverAlt = String(formData.get("coverAlt") ?? "");
-    logContext.step = "slug-check";
-    const existingSlug = await prisma.hotel.findUnique({
-      where: {
-        slug: payload.slug,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (existingSlug) {
-      console.warn("[admin/hoteis/create] Duplicate slug.", {
-        slug: payload.slug,
-        existingHotelId: existingSlug.id,
-      });
-      throw new ConflictError("Já existe um hotel com este slug.");
-    }
+    logContext.step = "slug-generation";
+    const slug = await generateUniqueHotelSlug(payload.name);
 
     const hotelId = randomUUID();
     logContext.step = "cover-upload";
@@ -680,7 +738,7 @@ export async function createHotelAction(
       console.warn("[admin/hoteis/create] Missing cover image.", {
         missingFields: formDiagnostics.missingFields,
       });
-      throw new ValidationError("Envie uma imagem de capa ou informe a URL da capa.");
+      throw new ValidationError("Informe uma imagem de capa ou URL pública.");
     }
 
     logContext.step = "gallery-validation";
@@ -692,9 +750,7 @@ export async function createHotelAction(
       console.warn("[admin/hoteis/create] Gallery validation failed.", {
         issues: parsedGalleryImages.error.issues,
       });
-      throw new ValidationError(
-        parsedGalleryImages.error.issues[0]?.message || "Galeria inválida."
-      );
+      throw new ValidationError(getZodErrorMessage(parsedGalleryImages.error, "Galeria inválida."));
     }
 
     const galleryImages = parsedGalleryImages.data;
@@ -707,7 +763,7 @@ export async function createHotelAction(
     const ipAddress = getRequestIpAddress(requestHeaders);
     console.info("[admin/hoteis/create] Persisting hotel draft.", {
       hotelId,
-      slug: payload.slug,
+      slug,
       globalRole: user.globalRole,
       galleryImagesCount: galleryImages.length,
       amenitiesCount: payload.amenities.length,
@@ -722,7 +778,7 @@ export async function createHotelAction(
           data: {
             id: hotelId,
             name: payload.name,
-            slug: payload.slug,
+            slug,
             shortDescription: payload.shortDescription,
             fullDescription: payload.fullDescription,
             city: payload.city,
@@ -760,7 +816,7 @@ export async function createHotelAction(
           },
         });
 
-        await tx.hotelPermission.upsert({
+        const permission = await tx.hotelPermission.upsert({
           where: {
             userId_hotelId: {
               userId: user.id,
@@ -775,6 +831,16 @@ export async function createHotelAction(
             hotelId: createdHotel.id,
             role: HotelRole.owner,
           },
+        });
+
+        console.info("[admin/hoteis/create] HotelPermission ensured for creator.", {
+          userId: user.id,
+          globalRole: user.globalRole,
+          step: "hotel-permission",
+          hotelId: createdHotel.id,
+          permissionId: permission?.id,
+          role: permission?.role ?? HotelRole.owner,
+          hotelPermissionEnsured: true,
         });
 
         await tx.hotelAuditLog.create({
@@ -807,6 +873,7 @@ export async function createHotelAction(
             previousValue: Prisma.JsonNull,
             newValue: buildCreatedHotelAuditValue(
               payload,
+              slug,
               storedCoverImageUrl,
               galleryImages,
               resolvedLocation
@@ -835,8 +902,11 @@ export async function createHotelAction(
       });
 
     console.info("[admin/hoteis/create] Hotel draft created.", {
+      userId: user.id,
+      globalRole: user.globalRole,
+      step: "done",
       hotelId: hotel.id,
-      slug: payload.slug,
+      slug,
     });
 
     revalidatePath("/admin");
@@ -857,6 +927,149 @@ export async function createHotelAction(
       status: "error",
       message,
       errorCode: getCreateHotelErrorCode(error),
+    };
+  }
+}
+
+export async function removeHotelAction(
+  hotelId: string,
+  _previousState: RemoveHotelState,
+  _formData: FormData
+): Promise<RemoveHotelState> {
+  void _previousState;
+  void _formData;
+
+  try {
+    const safeHotelId = z.string().trim().min(1).parse(hotelId);
+    const user = await requireAuthenticatedRequestUser();
+
+    if (
+      !user.isActive ||
+      (user.globalRole !== "super_admin" && user.globalRole !== "hotel_admin")
+    ) {
+      throw new AuthorizationError("Você não tem permissão para remover este hotel.");
+    }
+
+    const hotel = await prisma.hotel.findUnique({
+      where: {
+        id: safeHotelId,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        isPublished: true,
+        isArchived: true,
+        reservations: {
+          select: {
+            id: true,
+          },
+          take: 1,
+        },
+        permissions: {
+          where: {
+            userId: user.id,
+            role: {
+              in: removeAllowedRoles,
+            },
+          },
+          select: {
+            id: true,
+            role: true,
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!hotel) {
+      throw new NotFoundError("Hotel não encontrado.");
+    }
+
+    if (hotel.isArchived) {
+      return {
+        status: "success",
+        message: "Hotel removido com sucesso.",
+      };
+    }
+
+    if (user.globalRole === "hotel_admin" && hotel.permissions.length === 0) {
+      throw new AuthorizationError("Você não tem permissão para remover este hotel.");
+    }
+
+    if (hotel.reservations.length > 0) {
+      throw new ConflictError("Não é possível remover hotel com reservas vinculadas.");
+    }
+
+    const requestHeaders = await headers();
+    const ipAddress = getRequestIpAddress(requestHeaders);
+    const archivedAt = new Date();
+
+    await prisma.$transaction(async (tx) => {
+      const reservation = await tx.reservation.findFirst({
+        where: {
+          hotelId: safeHotelId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (reservation) {
+        throw new ConflictError("Não é possível remover hotel com reservas vinculadas.");
+      }
+
+      await tx.hotel.update({
+        where: {
+          id: safeHotelId,
+        },
+        data: {
+          isArchived: true,
+          isPublished: false,
+          archivedAt,
+          archivedById: user.id,
+        },
+      });
+
+      await tx.hotelAuditLog.create({
+        data: {
+          userId: user.id,
+          hotelId: safeHotelId,
+          action: "hotel.archived",
+          changedFields: ["isArchived", "isPublished", "archivedAt", "archivedById"],
+          previousValue: {
+            isArchived: false,
+            isPublished: hotel.isPublished,
+            archivedAt: null,
+            archivedById: null,
+          },
+          newValue: {
+            isArchived: true,
+            isPublished: false,
+            archivedAt: archivedAt.toISOString(),
+            archivedById: user.id,
+          },
+          ipAddress,
+        },
+      });
+    });
+
+    revalidatePath("/");
+    revalidatePath("/admin");
+    revalidatePath("/admin/hoteis");
+    revalidatePath(`/admin/hoteis/${safeHotelId}`);
+    revalidatePath(`/hoteis/${hotel.slug}`);
+    revalidatePath("/buscar");
+    revalidatePath("/mapa");
+
+    return {
+      status: "success",
+      message: "Hotel removido com sucesso.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: getErrorMessage(error, "Não foi possível remover o hotel."),
     };
   }
 }

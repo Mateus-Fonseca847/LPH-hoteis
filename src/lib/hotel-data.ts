@@ -5,16 +5,29 @@ import {
   getHotelBySlug,
   type Hotel as FallbackHotel,
 } from "@/data/hotels";
+import { getPublicHotelWhere } from "@/lib/hotel-archive";
 import { prisma } from "@/lib/prisma";
-import { PUBLIC_HOTEL_WHERE } from "@/lib/public-hotel";
+import { dedupePublicHotels } from "@/lib/public-hotel-dedupe";
 
 export type PublishedHotelCard = {
+  id: string;
   slug: string;
   name: string;
   shortDescription?: string;
   city: string;
   state: string;
   coverImageUrl: string;
+  images: Array<{
+    url: string;
+    position: number;
+  }>;
+  rooms: Array<{
+    imageUrl: string;
+    images: Array<{
+      url: string;
+      position: number;
+    }>;
+  }>;
 };
 
 type HotelImageRow = {
@@ -42,9 +55,11 @@ type HotelRoomRow = {
   name: string;
   description: string;
   imageUrl: string;
+  images: HotelImageRow[];
   capacityAdults: number;
   capacityChildren: number;
   capacity: number;
+  units: number;
   beds: string;
   sizeM2: number | null;
   size: string;
@@ -179,6 +194,8 @@ const databaseUrl = process.env.DATABASE_URL?.trim();
 const canUseDevelopmentFallback =
   process.env.NODE_ENV === "development" && process.env.ALLOW_LOCAL_HOTEL_DATA_FALLBACK === "true";
 const isNextProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+const PUBLIC_AVAILABILITY_WINDOW_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 let warnedUnavailableDb = false;
 let schemaSupportPromise: Promise<boolean> | null = null;
@@ -220,11 +237,17 @@ function shouldSkipDatabaseDuringBuild() {
 }
 
 function getFallbackPublishedHotels() {
-  return canUseDevelopmentFallback ? fallbackHotels.map(mapFallbackCard) : [];
+  return canUseDevelopmentFallback
+    ? dedupePublicHotels(fallbackHotels.map(mapFallbackCard), "home/hotels")
+    : [];
 }
 
 function getFallbackHotelSlugs() {
-  return canUseDevelopmentFallback ? fallbackHotels.map((hotel) => hotel.slug) : [];
+  return canUseDevelopmentFallback
+    ? dedupePublicHotels(fallbackHotels.map(mapFallbackCard), "home/hotels").map(
+        (hotel) => hotel.slug
+      )
+    : [];
 }
 
 function getFallbackHotelPageData(slug: string) {
@@ -273,12 +296,15 @@ async function hasCompatibleHotelSchema() {
 
 function mapFallbackCard(hotel: FallbackHotel): PublishedHotelCard {
   return {
+    id: `fallback-${hotel.slug}`,
     slug: hotel.slug,
     name: hotel.name,
     shortDescription: hotel.shortDescription,
     city: hotel.city,
     state: hotel.state,
     coverImageUrl: hotel.image,
+    images: hotel.gallery.map((url, position) => ({ url, position })),
+    rooms: [],
   };
 }
 
@@ -322,19 +348,40 @@ function mapFallbackHotel(hotel: FallbackHotel): HotelPageData {
   };
 }
 
-function getPublicAvailabilityStatus(
+function getDateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+export function getPublicAvailabilityStatus(
   availability: Array<{
+    date: Date;
     closed: boolean;
     availableUnits: number;
-  }>
-): HotelRoomRow["publicAvailabilityStatus"] {
-  if (availability.length === 0) {
-    return "unknown";
+  }>,
+  fromDate = new Date()
+): "available" | "unavailable" | "unknown" {
+  if (availability.some((entry) => !entry.closed && entry.availableUnits > 0)) {
+    return "available";
   }
 
-  return availability.some((entry) => !entry.closed && entry.availableUnits > 0)
-    ? "available"
-    : "unavailable";
+  const startDate = new Date(
+    Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth(), fromDate.getUTCDate())
+  );
+  const blockedDates = new Set(
+    availability
+      .filter((entry) => entry.closed || entry.availableUnits < 1)
+      .map((entry) => getDateKey(entry.date))
+  );
+
+  for (let index = 0; index < PUBLIC_AVAILABILITY_WINDOW_DAYS; index += 1) {
+    const date = new Date(startDate.getTime() + index * DAY_MS);
+
+    if (!blockedDates.has(getDateKey(date))) {
+      return "available";
+    }
+  }
+
+  return "unavailable";
 }
 
 async function fetchPublishedHotels(): Promise<PublishedHotelCard[]> {
@@ -343,18 +390,52 @@ async function fetchPublishedHotels(): Promise<PublishedHotelCard[]> {
   }
 
   try {
-    return await prisma.hotel.findMany({
-      where: PUBLIC_HOTEL_WHERE,
+    const publicHotelWhere = await getPublicHotelWhere();
+
+    const hotels = await prisma.hotel.findMany({
+      where: publicHotelWhere,
       select: {
+        id: true,
         slug: true,
         name: true,
         shortDescription: true,
         city: true,
         state: true,
         coverImageUrl: true,
+        images: {
+          orderBy: {
+            position: "asc",
+          },
+          select: {
+            url: true,
+            position: true,
+          },
+        },
+        rooms: {
+          where: {
+            isActive: true,
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+          select: {
+            imageUrl: true,
+            images: {
+              orderBy: {
+                position: "asc",
+              },
+              select: {
+                url: true,
+                position: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [{ city: "asc" }, { name: "asc" }],
     });
+
+    return dedupePublicHotels(hotels, "home/hotels");
   } catch (error) {
     return handleDatabaseFallback(error, getFallbackPublishedHotels());
   }
@@ -375,14 +456,16 @@ export async function getHotelSlugs(): Promise<string[]> {
   }
 
   try {
+    const publicHotelWhere = await getPublicHotelWhere();
+
     const hotels = await prisma.hotel.findMany({
-      where: PUBLIC_HOTEL_WHERE,
+      where: publicHotelWhere,
       select: {
         slug: true,
       },
     });
 
-    return hotels.map((hotel) => hotel.slug);
+    return dedupePublicHotels(hotels, "home/hotels").map((hotel) => hotel.slug);
   } catch (error) {
     return handleDatabaseFallback(error, getFallbackHotelSlugs());
   }
@@ -395,10 +478,17 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
 
   try {
     const now = new Date();
+    const availabilityWindowStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    );
+    const availabilityWindowEnd = new Date(
+      availabilityWindowStart.getTime() + (PUBLIC_AVAILABILITY_WINDOW_DAYS - 1) * DAY_MS
+    );
+    const publicHotelWhere = await getPublicHotelWhere();
     const hotel = await prisma.hotel.findFirst({
       where: {
         slug,
-        ...PUBLIC_HOTEL_WHERE,
+        ...publicHotelWhere,
       },
       include: {
         images: {
@@ -414,6 +504,17 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
             createdAt: "asc",
           },
           include: {
+            images: {
+              orderBy: {
+                position: "asc",
+              },
+              select: {
+                id: true,
+                url: true,
+                alt: true,
+                position: true,
+              },
+            },
             rates: {
               where: {
                 isActive: true,
@@ -441,7 +542,8 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
             availability: {
               where: {
                 date: {
-                  gte: now,
+                  gte: availabilityWindowStart,
+                  lte: availabilityWindowEnd,
                 },
               },
               orderBy: {
@@ -477,9 +579,21 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
             name: room.name,
             description: room.description,
             imageUrl: room.imageUrl,
+            images:
+              room.images.length > 0
+                ? room.images
+                : [
+                    {
+                      id: `${room.id}-legacy-image`,
+                      url: room.imageUrl,
+                      alt: `Imagem do quarto ${room.name}`,
+                      position: 0,
+                    },
+                  ],
             capacityAdults: room.capacityAdults,
             capacityChildren: room.capacityChildren,
             capacity: room.capacity,
+            units: room.units,
             beds: room.beds,
             sizeM2: room.sizeM2,
             size: room.size,
@@ -494,7 +608,7 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
                 : null,
             isAvailable: room.isAvailable,
             isActive: room.isActive,
-            publicAvailabilityStatus: getPublicAvailabilityStatus(room.availability),
+            publicAvailabilityStatus: getPublicAvailabilityStatus(room.availability, now),
             availability: room.availability.map((entry) => ({
               date: entry.date.toISOString().slice(0, 10),
               availableUnits: entry.availableUnits,
@@ -532,10 +646,11 @@ export async function getHotelPageData(slug: string): Promise<HotelPageData | nu
     console.warn(`[hotel-data] Retrying hotel detail without rooms for slug "${slug}": ${message}`);
 
     try {
+      const publicHotelWhere = await getPublicHotelWhere();
       const hotel = await prisma.hotel.findFirst({
         where: {
           slug,
-          ...PUBLIC_HOTEL_WHERE,
+          ...publicHotelWhere,
         },
         include: {
           images: {

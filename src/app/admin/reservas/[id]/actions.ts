@@ -10,6 +10,7 @@ import {
   updatePendingReservationPaymentStatusManually,
 } from "@/lib/admin/reservation-operations";
 import { requireHotelAdminAccess } from "@/lib/auth/authorization";
+import { getErrorMessage } from "@/lib/errors/app-error";
 import { syncMercadoPagoPayment } from "@/lib/payments/mercado-pago-reconciliation";
 import { prisma } from "@/lib/prisma";
 
@@ -110,7 +111,7 @@ export async function reservationOperationAction(formData: FormData) {
     }
   } catch (error) {
     status = "error";
-    message = error instanceof Error ? error.message : "Operação não concluída.";
+    message = getErrorMessage(error, "Operação não concluída.");
   }
 
   revalidatePath(`/admin/reservas/${reservationId}`);

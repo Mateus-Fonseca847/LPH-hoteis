@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 
-import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { RoomImageCarousel } from "@/components/RoomImageCarousel";
 import {
   getCompatibleRoomAvailabilityResults,
   type AvailabilityResultRoom,
@@ -336,7 +336,7 @@ function AvailabilityFlowStepper({
     "Escolha do quarto",
     "Dados do hóspede",
     "Pagamento",
-    "Confirmacao",
+    "Confirmação",
   ] as const;
 
   return (
@@ -520,7 +520,7 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
     setPaymentFormErrors(paymentErrors);
 
     if (Object.keys(paymentErrors).length > 0) {
-      setReservationError("Verifique os dados do cartao para enviar a solicitacao.");
+      setReservationError("Verifique os dados do cartão para enviar a solicitação.");
       return;
     }
 
@@ -630,7 +630,7 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
               </button>
             </div>
 
-            <div className="availability-calendar-grid" role="grid" aria-label="Calendario">
+            <div className="availability-calendar-grid" role="grid" aria-label="Calendário">
               {WEEKDAYS.map((weekday) => (
                 <span key={weekday} className="availability-calendar-grid__weekday">
                   {weekday}
@@ -678,7 +678,7 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
           <aside className="availability-search-summary">
             <div className="availability-flow-panel-heading">
               <h3>Datas e viajantes</h3>
-              <span>Escolha o período e a ocupacao</span>
+              <span>Escolha o período e a ocupação</span>
             </div>
 
             <div className="availability-results-summary">
@@ -765,18 +765,13 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
                       .join(" ")}
                   >
                     <div className="availability-room-card__media">
-                      {room.imageUrl ? (
-                        <ImageWithFallback
-                          src={room.imageUrl}
-                          alt={`Quarto ${room.name}`}
-                          fallbackLabel={`Imagem indisponível do quarto ${room.name}`}
-                          fill
-                          sizes="(max-width: 560px) 100vw, 180px"
-                          unoptimized
-                        />
-                      ) : (
-                        <span>{room.name}</span>
-                      )}
+                      <RoomImageCarousel
+                        images={room.images}
+                        fallbackImageUrl={room.imageUrl}
+                        roomName={room.name}
+                        fallbackLabel={`Imagem indisponível do quarto ${room.name}`}
+                        sizes="(max-width: 560px) 100vw, 180px"
+                      />
                     </div>
                     <div className="availability-room-card__content">
                       <div className="availability-room-card__header">
@@ -797,7 +792,7 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
                       <div className="hotel-room-meta availability-room-card__meta">
                         <span>{capacityLabel}</span>
                         <span>{room.beds}</span>
-                        <span>{room.sizeM2 ? `${room.sizeM2} mÂ²` : room.size}</span>
+                        <span>{room.sizeM2 ? `${room.sizeM2} m²` : room.size}</span>
                       </div>
                       <div className="availability-room-card__footer">
                         <div>
@@ -823,7 +818,7 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
                               href={roomDetailsHref}
                               className="availability-room-card__details-link"
                             >
-                              Ver pagina do quarto
+                              Ver página do quarto
                             </a>
                           ) : null}
 
@@ -1016,7 +1011,7 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
                   <strong>{selectedRoomResult.room.name}</strong>
                 </div>
                 <div>
-                  <span>Periodo</span>
+                  <span>Período</span>
                   <strong>
                     {formatDateLabel(checkIn)} a {formatDateLabel(checkOut)}
                   </strong>
@@ -1212,7 +1207,7 @@ export function BookingFlow({ hotelSlug, hotelId, hotelName, roomName, rooms }: 
         <section className="availability-confirmation-step">
           <div className="availability-results-header">
             <div className="availability-flow-panel-heading">
-              <h3>Confirmacao</h3>
+              <h3>Confirmação</h3>
               <span>O hotel dara continuidade ao atendimento</span>
             </div>
           </div>

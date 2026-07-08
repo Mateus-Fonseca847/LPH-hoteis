@@ -91,6 +91,37 @@ function buildDateRange(startDate: string, endDate: string) {
   return dates;
 }
 
+function getRangeDayCount(startDate: string, endDate: string) {
+  return buildDateRange(startDate, endDate).length;
+}
+
+function getAvailabilityMonthLabel(startDate: string, endDate: string) {
+  const startMonth = startDate.slice(0, 7);
+  const endMonth = endDate.slice(0, 7);
+
+  return startMonth === endMonth ? startMonth : `${startDate}..${endDate}`;
+}
+
+function getAvailabilityStats(
+  rows: Array<{
+    date: Date;
+    closed: boolean;
+    availableUnits: number;
+  }>,
+  startDate: string,
+  endDate: string
+) {
+  const rangeDays = getRangeDayCount(startDate, endDate);
+  const uniqueDates = new Set(rows.map((row) => row.date.toISOString().slice(0, 10)));
+
+  return {
+    recordsFound: rows.length,
+    missingDays: Math.max(rangeDays - uniqueDates.size, 0),
+    closedDays: rows.filter((row) => row.closed).length,
+    zeroAvailableDays: rows.filter((row) => row.availableUnits === 0).length,
+  };
+}
+
 async function getAuditIpAddress() {
   const requestHeaders = await headers();
   return getRequestIpAddress(requestHeaders);
@@ -132,7 +163,13 @@ async function getAuthorizedRoomContext(hotelId: string, roomId: string) {
   };
 }
 
-function assertAvailabilityLimits(totalUnits: number, availableUnits: number) {
+function assertAvailabilityLimits(totalUnits: number, availableUnits: number, roomUnits: number) {
+  if (totalUnits > roomUnits || availableUnits > roomUnits) {
+    throw new ValidationError(
+      "As unidades disponíveis não podem ser maiores que as unidades do quarto."
+    );
+  }
+
   if (availableUnits > totalUnits) {
     throw new ValidationError(
       "Unidades disponíveis não podem ser maiores que o total de unidades."
@@ -178,6 +215,19 @@ export async function listRoomAvailabilityAction(
         date: "asc",
       },
     });
+    const stats = getAvailabilityStats(
+      availability,
+      parsedPayload.data.startDate,
+      parsedPayload.data.endDate
+    );
+
+    console.info("[availability/admin/load]", {
+      hotelId: parsedParams.data.hotelId,
+      roomId: room.id,
+      roomName: room.name,
+      month: getAvailabilityMonthLabel(parsedPayload.data.startDate, parsedPayload.data.endDate),
+      ...stats,
+    });
 
     return {
       status: "success" as const,
@@ -185,6 +235,12 @@ export async function listRoomAvailabilityAction(
       availability: availability.map(formatAvailabilityRow),
     };
   } catch (error) {
+    console.error("[availability/admin/load]", {
+      hotelId,
+      roomId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+
     return {
       status: "error" as const,
       message: getErrorMessage(error, "Não foi possível carregar a disponibilidade."),
@@ -249,13 +305,13 @@ export async function saveRoomAvailabilityRangeAction(
           parsedPayload.data.totalUnits ??
           existing?.totalUnits ??
           parsedPayload.data.availableUnits ??
-          0;
+          room.units;
         const availableUnits =
           parsedPayload.data.availableUnits ?? existing?.availableUnits ?? totalUnits;
         const closed = parsedPayload.data.closed ?? existing?.closed ?? false;
         const note = parsedPayload.data.note ?? existing?.note ?? null;
 
-        assertAvailabilityLimits(totalUnits, availableUnits);
+        assertAvailabilityLimits(totalUnits, availableUnits, room.units);
 
         const row = await tx.roomAvailability.upsert({
           where: {
@@ -298,6 +354,36 @@ export async function saveRoomAvailabilityRangeAction(
       });
     });
 
+    const savedAvailability = await prisma.roomAvailability.findMany({
+      where: {
+        roomId: room.id,
+        date: {
+          gte: dates[0],
+          lte: dates[dates.length - 1],
+        },
+      },
+      orderBy: {
+        date: "asc",
+      },
+      select: {
+        date: true,
+        closed: true,
+        availableUnits: true,
+      },
+    });
+
+    console.info("[availability/admin/save]", {
+      hotelId: hotel.id,
+      roomId: room.id,
+      roomName: room.name,
+      month: getAvailabilityMonthLabel(parsedPayload.data.startDate, parsedPayload.data.endDate),
+      ...getAvailabilityStats(
+        savedAvailability,
+        parsedPayload.data.startDate,
+        parsedPayload.data.endDate
+      ),
+    });
+
     revalidateRoomAvailabilityPaths(hotel.id, hotel.slug);
 
     return {
@@ -305,6 +391,12 @@ export async function saveRoomAvailabilityRangeAction(
       message: "Disponibilidade salva com sucesso.",
     };
   } catch (error) {
+    console.error("[availability/admin/save]", {
+      hotelId,
+      roomId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+
     return {
       status: "error",
       message: getErrorMessage(error, "Não foi possível salvar a disponibilidade."),

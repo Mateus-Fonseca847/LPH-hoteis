@@ -58,6 +58,7 @@ img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .image-fallback-frame__placeholder {
@@ -1315,6 +1316,10 @@ a.booking-page-link {
 
 .availability-room-card__media {
   position: relative;
+  align-self: start;
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  height: auto;
   min-height: 150px;
   overflow: hidden;
   border-radius: 16px;
@@ -1322,6 +1327,57 @@ a.booking-page-link {
 
 .availability-room-card__media img {
   object-fit: cover;
+  object-position: center;
+}
+
+.room-image-carousel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+}
+
+.room-image-carousel__button,
+.room-image-carousel__indicator {
+  position: absolute;
+  z-index: 2;
+  border: 0;
+  color: #fff;
+  background: rgba(6, 41, 79, 0.72);
+  box-shadow: 0 10px 20px rgba(6, 41, 79, 0.18);
+}
+
+.room-image-carousel__button {
+  top: 50%;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 999px;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.room-image-carousel__button--prev {
+  left: 10px;
+}
+
+.room-image-carousel__button--next {
+  right: 10px;
+}
+
+.room-image-carousel__button span {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.room-image-carousel__indicator {
+  right: 10px;
+  bottom: 10px;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .availability-room-card__content {
@@ -1499,6 +1555,10 @@ a.booking-page-link {
 
 .availability-confirmation-room__media {
   position: relative;
+  align-self: start;
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  height: auto;
   min-height: 150px;
   overflow: hidden;
   border-radius: 16px;
@@ -1506,6 +1566,7 @@ a.booking-page-link {
 
 .availability-confirmation-room__media img {
   object-fit: cover;
+  object-position: center;
 }
 
 .availability-confirmation-room span,
@@ -2950,6 +3011,10 @@ a.booking-page-link {
 }
 
 .experience-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   opacity: 0;
   transition:
@@ -5335,6 +5400,63 @@ a.booking-page-link {
   padding: 0 20px;
 }
 
+.admin-hotel-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-remove-hotel-trigger,
+.admin-remove-hotel-button,
+.admin-remove-rate-trigger,
+.admin-remove-rate-button {
+  color: #8f1f1b;
+}
+
+.admin-remove-hotel-button,
+.admin-remove-rate-button {
+  background: #8f1f1b;
+  color: #fff;
+}
+
+.admin-confirmation-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(10, 16, 24, 0.44);
+}
+
+.admin-confirmation-dialog {
+  display: grid;
+  gap: 16px;
+  width: min(520px, 100%);
+  padding: 24px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.admin-confirmation-dialog h2,
+.admin-confirmation-dialog p {
+  margin: 0;
+}
+
+.admin-confirmation-dialog p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.admin-confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .admin-gallery-card {
   display: grid;
   gap: 22px;
@@ -5439,6 +5561,11 @@ a.booking-page-link {
   background: rgba(230, 194, 0, 0.12);
 }
 
+.admin-editor-banner--info {
+  border-color: rgba(6, 41, 79, 0.14);
+  background: rgba(6, 41, 79, 0.06);
+}
+
 .admin-editor-banner strong,
 .admin-editor-feedback {
   font-weight: 800;
@@ -5446,6 +5573,12 @@ a.booking-page-link {
 
 .admin-editor-banner p {
   margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.admin-editor-banner ul {
+  margin: 12px 0 0;
+  padding-left: 20px;
   color: var(--muted);
 }
 
@@ -5660,6 +5793,10 @@ a.booking-page-link {
   line-height: 1.5;
 }
 
+.admin-character-counter {
+  justify-self: end;
+}
+
 .admin-form-error--block {
   padding: 14px 16px;
   border-radius: 16px;
@@ -5695,6 +5832,13 @@ a.booking-page-link {
   box-shadow: 0 0 0 4px rgba(6, 41, 79, 0.08);
 }
 
+.admin-form-field input[aria-invalid="true"],
+.admin-form-field textarea[aria-invalid="true"],
+.admin-form-field select[aria-invalid="true"] {
+  border-color: #b42318;
+  box-shadow: 0 0 0 4px rgba(180, 35, 24, 0.1);
+}
+
 .admin-create-hotel-form {
   gap: 24px;
 }
@@ -5711,6 +5855,13 @@ a.booking-page-link {
 
 .admin-create-hotel-submit {
   background: #147a4d;
+}
+
+.admin-create-hotel-form .admin-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 .admin-create-hotel-submit:hover:not(:disabled),
@@ -6132,7 +6283,10 @@ a.booking-page-link {
 
 .admin-room-card-media {
   position: relative;
-  min-height: 220px;
+  align-self: start;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  height: auto;
   border-radius: 20px;
   overflow: hidden;
   background: rgba(6, 41, 79, 0.05);
@@ -6142,6 +6296,7 @@ a.booking-page-link {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .admin-room-card-body {
@@ -6473,7 +6628,8 @@ a.booking-page-link {
 .admin-rates-list,
 .admin-rate-toggles,
 .admin-rate-meta-grid,
-.admin-rate-toolbar {
+.admin-rate-toolbar,
+.admin-rate-compact-row {
   display: grid;
 }
 
@@ -6489,6 +6645,53 @@ a.booking-page-link {
 
 .admin-availability-section {
   gap: 18px;
+}
+
+.admin-availability-room-list {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-availability-room-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-availability-room-card__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.admin-availability-room-card__header strong {
+  color: var(--brand);
+  font-size: 1.08rem;
+}
+
+.admin-availability-room-card__header p,
+.admin-availability-room-card__header small,
+.admin-availability-room-card__hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.admin-availability-room-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-availability-room-card__calendar {
+  display: grid;
+  gap: 12px;
 }
 
 .admin-rate-toolbar {
@@ -6518,6 +6721,43 @@ a.booking-page-link {
 
 .admin-rate-card {
   grid-template-columns: 1fr;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.admin-rate-compact-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-rate-compact-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.admin-rate-compact-main strong {
+  color: var(--brand);
+  line-height: 1.25;
+}
+
+.admin-rate-compact-main span {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.admin-rate-compact-badge {
+  min-height: 26px;
+  padding: 0 9px;
+  font-size: 0.68rem;
+}
+
+.admin-rate-open-button {
+  min-height: 36px;
+  padding: 0 14px;
 }
 
 .admin-availability-card {
@@ -6791,7 +7031,229 @@ a.booking-page-link {
   line-height: 1.55;
 }
 
+.room-availability-calendar {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.room-availability-calendar__header,
+.room-availability-calendar__nav,
+.room-availability-calendar__legend,
+.room-availability-calendar__quick-actions,
+.room-availability-calendar__footer {
+  display: flex;
+  align-items: center;
+}
+
+.room-availability-calendar__header {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.room-availability-calendar__header span,
+.room-availability-calendar__legend span,
+.room-availability-calendar__selection,
+.room-availability-calendar__footer span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.room-availability-calendar__header strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--brand);
+  font-size: 1.12rem;
+}
+
+.room-availability-calendar__nav {
+  gap: 10px;
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+
+.room-availability-calendar__nav button,
+.room-availability-calendar__quick-actions button {
+  min-height: 36px;
+  border: 1px solid rgba(6, 41, 79, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--brand);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.room-availability-calendar__nav button {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.room-availability-calendar__nav strong {
+  min-width: 160px;
+  margin: 0;
+  text-align: center;
+}
+
+.room-availability-calendar__quick-actions button {
+  padding: 0 16px;
+}
+
+.room-availability-calendar__quick-actions button.is-active,
+.room-availability-calendar__nav button:hover,
+.room-availability-calendar__quick-actions button:hover {
+  background: var(--brand);
+  color: var(--surface);
+}
+
+.room-availability-calendar__legend {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.room-availability-calendar__legend span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+}
+
+.room-availability-calendar__legend .is-empty {
+  background: rgba(30, 30, 30, 0.06);
+}
+
+.room-availability-calendar__legend .is-available {
+  background: rgba(16, 185, 129, 0.14);
+  color: #0f766e;
+}
+
+.room-availability-calendar__legend .is-occupied {
+  background: rgba(245, 158, 11, 0.16);
+  color: #92400e;
+}
+
+.room-availability-calendar__legend .is-closed {
+  background: rgba(185, 28, 28, 0.12);
+  color: #991b1b;
+}
+
+.room-availability-calendar__legend .is-selected {
+  background: rgba(6, 41, 79, 0.14);
+  color: var(--brand);
+}
+
+.room-availability-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.room-availability-calendar__weekday {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.room-availability-calendar__day,
+.room-availability-calendar__day-spacer {
+  display: grid;
+  gap: 5px;
+  min-height: 76px;
+  padding: 10px;
+}
+
+.room-availability-calendar__day {
+  border: 1px solid rgba(30, 30, 30, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--brand);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.room-availability-calendar__day-spacer {
+  border: 1px solid transparent;
+  border-radius: 14px;
+}
+
+.room-availability-calendar__day span {
+  font-weight: 900;
+}
+
+.room-availability-calendar__day small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.room-availability-calendar__day.is-outside-month {
+  opacity: 0.45;
+}
+
+.room-availability-calendar__day.is-today {
+  outline: 2px solid rgba(6, 41, 79, 0.26);
+  outline-offset: 1px;
+}
+
+.room-availability-calendar__day.is-available {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.room-availability-calendar__day.is-occupied {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.room-availability-calendar__day.is-closed {
+  background: rgba(30, 30, 30, 0.08);
+  border-color: rgba(185, 28, 28, 0.18);
+}
+
+.room-availability-calendar__day.is-selected {
+  background: rgba(6, 41, 79, 0.14);
+  border-color: rgba(6, 41, 79, 0.46);
+  box-shadow: inset 0 0 0 2px rgba(6, 41, 79, 0.18);
+}
+
+.room-availability-calendar__panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(6, 41, 79, 0.05);
+}
+
+.room-availability-calendar__quick-actions {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.room-availability-calendar__footer {
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .admin-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 48px;
   padding: 0 18px;
   border: 1px solid rgba(6, 41, 79, 0.14);
@@ -7926,7 +8388,10 @@ a.booking-page-link {
 
 .hotel-room-media {
   position: relative;
-  min-height: 220px;
+  align-self: start;
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  height: auto;
   border-radius: 22px;
   overflow: hidden;
   background: rgba(6, 41, 79, 0.05);
@@ -7936,6 +8401,7 @@ a.booking-page-link {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .hotel-room-body {
@@ -8617,6 +9083,20 @@ a.booking-page-link {
 }
 
 @media (max-width: 820px) {
+  .admin-rate-compact-row {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .admin-rate-compact-main {
+    gap: 4px;
+    flex-direction: column;
+  }
+
+  .admin-rate-open-button {
+    width: 100%;
+  }
+
   #journey,
   #destinations,
   #details,

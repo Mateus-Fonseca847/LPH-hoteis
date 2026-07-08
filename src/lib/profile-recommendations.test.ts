@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   getProfileExperienceMatches,
+  getProfileRecommendationHotelImage,
+  isUsableImageUrl,
   normalizeLocationState,
   normalizeLocationText,
+  resolveExperienceImageUrl,
 } from "@/lib/profile-recommendations";
 
 const experience = {
@@ -137,5 +140,141 @@ describe("profile experience recommendations", () => {
 
     expect(matches[0].hotel?.slug).toBe("boa-viagem");
     expect(matches[0].href).toBe("/hoteis/boa-viagem");
+  });
+
+  it("mantem imagem da experiencia no card mesmo com hotel recomendado", () => {
+    const hotel = {
+      slug: "pousada-casa-mare",
+      name: "Pousada Casa Maré",
+      city: "Recife",
+      state: "PE",
+      coverImageUrl: "https://cdn.example.test/casa-mare-cover.webp",
+      images: [{ url: "https://cdn.example.test/casa-mare-gallery.webp", position: 0 }],
+      rooms: [
+        {
+          imageUrl: "https://cdn.example.test/casa-mare-room-legacy.webp",
+          images: [{ url: "https://cdn.example.test/casa-mare-room.webp", position: 0 }],
+        },
+      ],
+    };
+
+    const matches = getProfileExperienceMatches({
+      recommendations: [experience],
+      hotels: [hotel],
+    });
+
+    expect(matches[0].experienceImage).toBe(experience.image);
+    expect(matches[0].recommendedHotelImage).toBe("https://cdn.example.test/casa-mare-cover.webp");
+    expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBe(
+      matches[0].recommendedHotelImage
+    );
+  });
+
+  it("mantem imagem da experiencia quando hotel usa galeria", () => {
+    const matches = getProfileExperienceMatches({
+      recommendations: [experience],
+      hotels: [
+        {
+          slug: "boa-viagem",
+          name: "Boa Viagem",
+          city: "Recife",
+          state: "PE",
+          coverImageUrl: " ",
+          images: [
+            { url: "https://cdn.example.test/gallery-2.webp", position: 2 },
+            { url: "https://cdn.example.test/gallery-1.webp", position: 1 },
+          ],
+        },
+      ],
+    });
+
+    expect(matches[0].experienceImage).toBe(experience.image);
+    expect(matches[0].recommendedHotelImage).toBe("https://cdn.example.test/gallery-1.webp");
+    expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBe(
+      matches[0].recommendedHotelImage
+    );
+  });
+
+  it("mantem imagem da experiencia quando hotel usa imagem de quarto", () => {
+    const matches = getProfileExperienceMatches({
+      recommendations: [experience],
+      hotels: [
+        {
+          slug: "boa-viagem",
+          name: "Boa Viagem",
+          city: "Recife",
+          state: "PE",
+          coverImageUrl: "",
+          images: [],
+          rooms: [
+            {
+              imageUrl: "https://cdn.example.test/room-legacy.webp",
+              images: [{ url: "https://cdn.example.test/room-gallery.webp", position: 0 }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(matches[0].experienceImage).toBe(experience.image);
+    expect(matches[0].recommendedHotelImage).toBe("https://cdn.example.test/room-gallery.webp");
+    expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBe(
+      matches[0].recommendedHotelImage
+    );
+  });
+
+  it("mantem fallback da experiencia quando o hotel realmente nao tem imagem", () => {
+    const matches = getProfileExperienceMatches({
+      recommendations: [experience],
+      hotels: [
+        {
+          slug: "boa-viagem",
+          name: "Boa Viagem",
+          city: "Recife",
+          state: "PE",
+          coverImageUrl: "",
+          images: [],
+          rooms: [],
+        },
+      ],
+    });
+
+    expect(matches[0].experienceImage).toBe(experience.image);
+    expect(matches[0].recommendedHotelImage).toBeNull();
+    expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBeNull();
+  });
+
+  it("ignora URLs invalidas do hotel e usa a imagem da experiencia", () => {
+    const matches = getProfileExperienceMatches({
+      recommendations: [experience],
+      hotels: [
+        {
+          slug: "boa-viagem",
+          name: "Boa Viagem",
+          city: "Recife",
+          state: "PE",
+          coverImageUrl: "not a url",
+          images: [{ url: "ftp://cdn.example.test/gallery.webp", position: 0 }],
+          rooms: [{ imageUrl: "//cdn.example.test/room.webp", images: [] }],
+        },
+      ],
+    });
+
+    expect(matches[0].experienceImage).toBe(experience.image);
+    expect(matches[0].recommendedHotelImage).toBeNull();
+    expect(getProfileRecommendationHotelImage(matches[0].hotels[0].hotel)).toBeNull();
+  });
+
+  it("valida URLs de imagem aceitas para recomendacoes", () => {
+    expect(isUsableImageUrl("https://example.com/image.webp")).toBe(true);
+    expect(isUsableImageUrl("/images/local.webp")).toBe(true);
+    expect(isUsableImageUrl("")).toBe(false);
+    expect(isUsableImageUrl("ftp://example.com/image.webp")).toBe(false);
+    expect(isUsableImageUrl("//example.com/image.webp")).toBe(false);
+  });
+
+  it("resolve somente imagem valida da experiencia para o card principal", () => {
+    expect(resolveExperienceImageUrl(experience.image)).toBe(experience.image);
+    expect(resolveExperienceImageUrl("not a url")).toBeNull();
   });
 });

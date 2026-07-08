@@ -61,6 +61,10 @@ export default async function AdminFinancePage({ searchParams }: FinancePageProp
   }
 
   const isSuperAdmin = user.globalRole === "super_admin";
+  if (!isSuperAdmin) {
+    return <AdminAccessDenied />;
+  }
+
   const hotels = isSuperAdmin
     ? await prisma.hotel.findMany({
         orderBy: {

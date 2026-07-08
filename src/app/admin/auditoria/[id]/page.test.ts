@@ -7,6 +7,8 @@ describe("AdminAuditDetailPage", () => {
 
     expect(source).toContain("HOTEL_RATE_AUDIT_ACTIONS");
     expect(source).toContain("in: [...HOTEL_RATE_AUDIT_ACTIONS]");
+    expect(source).toContain('user.globalRole !== "super_admin"');
+    expect(source).toContain("return <AdminAccessDenied />");
     expect(source).not.toContain("hotel.profile.updated");
     expect(source).not.toContain("hotel.room_availability.updated");
   });

@@ -1,4 +1,5 @@
 import { hotels as fallbackHotels } from "@/data/hotels";
+import { getPublicHotelWhere } from "@/lib/hotel-archive";
 import { normalizeText } from "@/lib/normalize-text";
 import { prisma } from "@/lib/prisma";
 
@@ -290,10 +291,10 @@ async function getRecommendationHotels() {
   try {
     const now = new Date();
 
+    const publicHotelWhere = await getPublicHotelWhere();
+
     const hotels = await prisma.hotel.findMany({
-      where: {
-        isPublished: true,
-      },
+      where: publicHotelWhere,
       include: {
         amenities: {
           orderBy: {

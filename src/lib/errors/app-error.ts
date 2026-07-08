@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { getFriendlyErrorMessage } from "@/lib/errorMessages";
+
 type AppErrorCode =
   | "VALIDATION_ERROR"
   | "AUTHENTICATION_ERROR"
@@ -40,7 +42,7 @@ export class AppError extends Error {
 }
 
 export class ValidationError extends AppError {
-  constructor(message = "Payload inválido.") {
+  constructor(message = "Dados inválidos.") {
     super(message, {
       statusCode: 400,
       code: "VALIDATION_ERROR",
@@ -109,11 +111,7 @@ export function getErrorMessage(error: unknown, fallbackMessage: string) {
     return getSafeErrorMessage(error, fallbackMessage);
   }
 
-  if (error instanceof Error) {
-    return process.env.NODE_ENV === "production" ? fallbackMessage : error.message;
-  }
-
-  return fallbackMessage;
+  return getFriendlyErrorMessage(error, fallbackMessage);
 }
 
 export function createApiSuccessResponse<T extends Record<string, unknown>>(data: T, status = 200) {
@@ -139,12 +137,7 @@ export function createApiErrorResponse(error: unknown, fallbackMessage: string) 
 
   const body: ApiErrorResponseBody = {
     ok: false,
-    error:
-      process.env.NODE_ENV === "production"
-        ? fallbackMessage
-        : error instanceof Error
-          ? error.message
-          : fallbackMessage,
+    error: getFriendlyErrorMessage(error, fallbackMessage),
     code: "INTERNAL_SERVER_ERROR",
   };
 

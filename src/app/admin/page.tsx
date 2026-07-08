@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { AdminAccessDenied } from "./AdminAccessDenied";
 
 function formatRole(role: string) {
-  return role === "super_admin" ? "Super admin" : "Admin de hotel";
+  return role === "super_admin" ? "Super administrador" : "Administrador do hotel";
 }
 
 const overviewCards = [
@@ -19,6 +19,7 @@ const overviewCards = [
   },
   {
     href: "/admin/auditoria",
+    superAdminOnly: true,
     label: "Auditoria",
     title: "Auditoria",
     description: "Consulte alterações feitas nas tarifas dos hotéis.",
@@ -26,6 +27,8 @@ const overviewCards = [
   },
   {
     href: "/admin/financeiro",
+    superAdminOnly: true,
+    heading: "Painel financeiro",
     label: "Financeiro",
     title: "Movimentações",
     description: "Acompanhe reservas pagas, receita da plataforma e repasses por hotel.",
@@ -84,6 +87,18 @@ export default async function AdminHomePage() {
   ]);
 
   const isSuperAdmin = user.globalRole === "super_admin";
+  const visibleOverviewCards = isSuperAdmin
+    ? [
+        ...overviewCards,
+        {
+          href: "/admin/solicitacoes-acesso",
+          label: "Acessos",
+          title: "Solicitações de acesso",
+          description: "Analise pedidos de donos de hotéis.",
+          action: "Ver solicitações",
+        },
+      ]
+    : overviewCards.filter((card) => !card.superAdminOnly);
   const scopedAdminHotelIds = scopedHotelIds ?? [];
   const activeAdmins = isSuperAdmin
     ? await prisma.user.count({
@@ -139,7 +154,7 @@ export default async function AdminHomePage() {
           <small>{formatRole(user.globalRole)}</small>
         </article>
 
-        {overviewCards.map((card) => (
+        {visibleOverviewCards.map((card) => (
           <Link
             key={card.href}
             href={card.href}
@@ -149,7 +164,7 @@ export default async function AdminHomePage() {
               <span>{card.label}</span>
             </div>
             <div className="admin-identity-card__body">
-              <strong>{card.title}</strong>
+              <strong>{card.heading ?? card.title}</strong>
               <p>{card.description}</p>
             </div>
             <small>{card.action}</small>

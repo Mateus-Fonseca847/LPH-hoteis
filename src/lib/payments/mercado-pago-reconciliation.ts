@@ -275,7 +275,7 @@ function validatePaymentReservationLink(payment: MercadoPagoPayment, context: Pa
     context.providerPaymentId &&
     context.providerPaymentId !== payment.id
   ) {
-    throw new ConflictError("Reserva ja vinculada a outro pagamento aprovado.");
+    throw new ConflictError("Reserva já vinculada a outro pagamento aprovado.");
   }
 
   validatePaymentWebhookIdentity({

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { getZodErrorMessage, getZodIssueMessage } from "@/lib/errorMessages";
+
 function sanitizeName(value: string) {
   return value
     .replace(/[\u0000-\u001F\u007F]+/g, " ")
@@ -47,10 +49,10 @@ export function parseSignupPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Dados de cadastro inválidos.",
+      error: getZodErrorMessage(result.error, "Dados de cadastro inválidos."),
       issues: result.error.issues.map((issue) => ({
         path: issue.path.join("."),
-        message: issue.message,
+        message: getZodIssueMessage(issue),
       })),
     };
   }

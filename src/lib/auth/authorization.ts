@@ -1,6 +1,7 @@
 import { HotelRole } from "@prisma/client";
 
 import { AuthorizationError } from "@/lib/errors/app-error";
+import { getActiveHotelWhere } from "@/lib/hotel-archive";
 import { prisma } from "@/lib/prisma";
 
 const editAllowedRoles: HotelRole[] = [HotelRole.owner, HotelRole.admin, HotelRole.editor];
@@ -15,6 +16,8 @@ async function getPermissionContext(
   userId: string,
   hotelId: string
 ): Promise<PermissionContext | null> {
+  const activeHotelWhere = await getActiveHotelWhere();
+
   const user = await prisma.user.findUnique({
     where: {
       id: userId,
@@ -25,6 +28,7 @@ async function getPermissionContext(
       hotelPermissions: {
         where: {
           hotelId,
+          ...(Object.keys(activeHotelWhere).length > 0 ? { hotel: activeHotelWhere } : {}),
         },
         select: {
           role: true,

@@ -5,7 +5,12 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 
 import { createHotelRoomAuditLog, type HotelRoomAuditSnapshot } from "@/lib/audit/hotel-room-audit";
-import { getErrorMessage, NotFoundError, ValidationError } from "@/lib/errors/app-error";
+import {
+  AuthorizationError,
+  getErrorMessage,
+  NotFoundError,
+  ValidationError,
+} from "@/lib/errors/app-error";
 import {
   getRequestIpAddress,
   parseHotelRouteParams,
@@ -14,6 +19,7 @@ import {
 } from "@/lib/hotel-write";
 import { prisma } from "@/lib/prisma";
 import { canonicalizeBedsValue, canonicalizeRoomAmenityLabels } from "@/lib/room-options";
+import { deleteStoredHotelImageFile } from "@/lib/uploads/hotel-images";
 import { parseCreateHotelRoomPayload, parseUpdateHotelRoomPayload } from "@/lib/validations/room";
 
 export type HotelRoomActionState = {
@@ -27,6 +33,13 @@ export type AuthorizedHotelRoom = {
   name: string;
   description: string;
   imageUrl: string;
+  images: Array<{
+    id?: string;
+    url: string;
+    alt: string;
+    position: number;
+  }>;
+  units: number;
   capacityAdults: number;
   capacityChildren: number;
   beds: string;
@@ -44,6 +57,7 @@ function mapRoomSnapshot(room: {
   name: string;
   description: string;
   imageUrl: string;
+  units: number;
   capacityAdults: number;
   capacityChildren: number;
   beds: string;
@@ -60,6 +74,7 @@ function mapRoomSnapshot(room: {
     name: room.name,
     description: room.description,
     imageUrl: room.imageUrl,
+    units: room.units,
     capacityAdults: room.capacityAdults,
     capacityChildren: room.capacityChildren,
     beds: room.beds,
@@ -78,6 +93,13 @@ function formatRoomForList(room: {
   name: string;
   description: string;
   imageUrl: string;
+  images?: Array<{
+    id?: string;
+    url: string;
+    alt: string;
+    position: number;
+  }>;
+  units: number;
   capacityAdults: number;
   capacityChildren: number;
   beds: string;
@@ -97,7 +119,20 @@ function formatRoomForList(room: {
     name: room.name,
     description: room.description,
     imageUrl: room.imageUrl,
+    images:
+      room.images && room.images.length > 0
+        ? room.images
+        : room.imageUrl.trim()
+          ? [
+              {
+                url: room.imageUrl,
+                alt: `Imagem do quarto ${room.name}`,
+                position: 0,
+              },
+            ]
+          : [],
     capacityAdults: room.capacityAdults,
+    units: room.units,
     capacityChildren: room.capacityChildren,
     beds: normalizedBeds.success ? normalizedBeds.value : room.beds,
     sizeM2: room.sizeM2,
@@ -121,6 +156,38 @@ function buildRoomDerivedData(payload: {
     size: `${payload.sizeM2} m²`,
     isAvailable: payload.isActive,
   };
+}
+
+function buildRoomImagesPayload(
+  roomName: string,
+  imageUrl: string,
+  images:
+    | Array<{
+        url: string;
+        alt: string;
+        position: number;
+      }>
+    | undefined
+) {
+  const sourceImages =
+    images ??
+    (imageUrl.trim()
+      ? [
+          {
+            url: imageUrl,
+            alt: `Imagem do quarto ${roomName}`,
+            position: 0,
+          },
+        ]
+      : []);
+
+  return sourceImages
+    .filter((image) => image.url.trim())
+    .map((image, index) => ({
+      url: image.url,
+      alt: image.alt || `Imagem do quarto ${roomName}`,
+      position: index,
+    }));
 }
 
 async function getAuthorizedHotelContext(hotelId: string) {
@@ -193,6 +260,19 @@ export async function listHotelRoomsAction(hotelId: string) {
         hotelId: parsedParams.data.hotelId,
       },
       orderBy: [{ createdAt: "asc" }, { name: "asc" }],
+      include: {
+        images: {
+          orderBy: {
+            position: "asc",
+          },
+          select: {
+            id: true,
+            url: true,
+            alt: true,
+            position: true,
+          },
+        },
+      },
     });
 
     return {
@@ -228,6 +308,12 @@ export async function createHotelRoomAction(
     }
 
     const roomPayload = parsedPayload.data;
+    const roomImages = buildRoomImagesPayload(
+      roomPayload.name,
+      roomPayload.imageUrl,
+      roomPayload.images
+    );
+    const primaryImageUrl = roomImages[0]?.url ?? roomPayload.imageUrl;
     const derived = buildRoomDerivedData(roomPayload);
     const ipAddress = await getAuditIpAddress();
 
@@ -237,7 +323,11 @@ export async function createHotelRoomAction(
           hotelId: hotel.id,
           name: roomPayload.name,
           description: roomPayload.description,
-          imageUrl: roomPayload.imageUrl,
+          imageUrl: primaryImageUrl,
+          images: {
+            create: roomImages,
+          },
+          units: roomPayload.units,
           capacityAdults: roomPayload.capacityAdults,
           capacityChildren: roomPayload.capacityChildren,
           beds: roomPayload.beds,
@@ -302,6 +392,15 @@ export async function updateHotelRoomAction(
     }
 
     const roomPayload = parsedPayload.data;
+    const nextImages = roomPayload.images
+      ? buildRoomImagesPayload(
+          roomPayload.name ?? room.name,
+          roomPayload.imageUrl ?? room.imageUrl,
+          roomPayload.images
+        )
+      : null;
+    const nextImageUrl = nextImages?.[0]?.url ?? roomPayload.imageUrl ?? room.imageUrl;
+    const nextUnits = roomPayload.units ?? room.units;
     const nextCapacityAdults = roomPayload.capacityAdults ?? room.capacityAdults;
     const nextCapacityChildren = roomPayload.capacityChildren ?? room.capacityChildren;
     const nextSizeM2 = roomPayload.sizeM2 ?? room.sizeM2 ?? 1;
@@ -323,7 +422,8 @@ export async function updateHotelRoomAction(
         data: {
           name: roomPayload.name ?? room.name,
           description: roomPayload.description ?? room.description,
-          imageUrl: roomPayload.imageUrl ?? room.imageUrl,
+          imageUrl: nextImageUrl,
+          units: nextUnits,
           capacityAdults: nextCapacityAdults,
           capacityChildren: nextCapacityChildren,
           beds: roomPayload.beds ?? room.beds,
@@ -335,6 +435,21 @@ export async function updateHotelRoomAction(
           isAvailable: derived.isAvailable,
         },
       });
+
+      if (nextImages) {
+        await tx.hotelRoomImage.deleteMany({
+          where: {
+            roomId: room.id,
+          },
+        });
+
+        await tx.hotelRoomImage.createMany({
+          data: nextImages.map((image) => ({
+            roomId: room.id,
+            ...image,
+          })),
+        });
+      }
 
       await createHotelRoomAuditLog({
         tx,
@@ -422,6 +537,126 @@ export async function toggleHotelRoomActiveAction(
     return {
       status: "error",
       message: getErrorMessage(error, "Não foi possível alterar o status do quarto."),
+    };
+  }
+}
+
+export async function removeHotelRoomImageAction(
+  hotelId: string,
+  roomId: string,
+  imageId: string
+): Promise<HotelRoomActionState> {
+  let removedImageUrl = "";
+
+  try {
+    const parsedParams = parseHotelRoomRouteParams({ hotelId, roomId });
+
+    if (!parsedParams.success) {
+      throw new ValidationError(parsedParams.error.issues[0]?.message || "Identificador inválido.");
+    }
+
+    if (!imageId.trim()) {
+      throw new ValidationError("Identificador da imagem inválido.");
+    }
+
+    const { user, hotel, room } = await getAuthorizedRoomContext(
+      parsedParams.data.hotelId,
+      parsedParams.data.roomId
+    );
+    const previousValue = mapRoomSnapshot(room);
+    const ipAddress = await getAuditIpAddress();
+
+    await prisma.$transaction(async (tx) => {
+      const images = await tx.hotelRoomImage.findMany({
+        where: {
+          roomId: room.id,
+        },
+        orderBy: {
+          position: "asc",
+        },
+      });
+      const imageToRemove = images.find((image) => image.id === imageId);
+
+      if (!imageToRemove) {
+        throw new NotFoundError("Imagem não encontrada.");
+      }
+
+      removedImageUrl = imageToRemove.url;
+
+      await tx.hotelRoomImage.delete({
+        where: {
+          id: imageToRemove.id,
+        },
+      });
+
+      const remainingImages = images
+        .filter((image) => image.id !== imageToRemove.id)
+        .map((image, index) => ({
+          ...image,
+          position: index,
+        }));
+      const nextPrimaryImage = remainingImages[0];
+
+      for (const image of remainingImages) {
+        await tx.hotelRoomImage.update({
+          where: {
+            id: image.id,
+          },
+          data: {
+            position: image.position,
+          },
+        });
+      }
+
+      const roomRecord = await tx.hotelRoom.update({
+        where: {
+          id: room.id,
+        },
+        data: {
+          imageUrl: nextPrimaryImage?.url ?? "",
+        },
+      });
+
+      await createHotelRoomAuditLog({
+        tx,
+        userId: user.id,
+        hotelId: hotel.id,
+        action: "hotel.room_image.removed",
+        previousValue,
+        newValue: mapRoomSnapshot(roomRecord),
+        ipAddress,
+      });
+    });
+
+    if (removedImageUrl) {
+      await deleteStoredHotelImageFile(removedImageUrl).catch((error) => {
+        console.warn("[admin/hoteis/rooms/images/remove] Storage cleanup failed.", {
+          hotelId: hotel.id,
+          roomId: room.id,
+          imageId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+
+    revalidateHotelRoomPaths(hotel.id, hotel.slug);
+
+    return {
+      status: "success",
+      message: "Imagem removida com sucesso.",
+      roomId: room.id,
+    };
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return {
+        status: "error",
+        message: "Você não tem permissão para remover esta imagem.",
+      };
+    }
+
+    return {
+      status: "error",
+      message: getErrorMessage(error, "Não foi possível remover a imagem."),
     };
   }
 }

@@ -13,6 +13,9 @@ export type HotelCompletenessInput = {
   rooms: {
     availability: { id: string }[];
     rates: { id: string }[];
+    units?: number | null;
+    totalUnits?: number | null;
+    unitCount?: number | null;
   }[];
   shortDescription: string | null;
   whatsapp: string | null;
@@ -25,6 +28,16 @@ export type HotelCompletenessResult = {
 
 function hasText(value: string | null | undefined) {
   return Boolean(value?.trim());
+}
+
+function getRoomDefaultUnits(room: {
+  units?: number | null;
+  totalUnits?: number | null;
+  unitCount?: number | null;
+}) {
+  const unitCount = room.units ?? room.totalUnits ?? room.unitCount ?? 1;
+
+  return Number.isInteger(unitCount) && unitCount > 0 ? unitCount : 0;
 }
 
 export function getHotelCompletenessSelect(referenceDate: Date) {
@@ -62,6 +75,7 @@ export function getHotelCompletenessSelect(referenceDate: Date) {
         isActive: true,
       },
       select: {
+        units: true,
         rates: {
           where: {
             isActive: true,
@@ -108,7 +122,7 @@ export function calculateHotelCompleteness(hotel: HotelCompletenessInput): Hotel
     { done: hotel.rooms.length > 0, label: "Quartos ativos" },
     { done: hotel.rooms.some((room) => room.rates.length > 0), label: "Tarifas ativas" },
     {
-      done: hotel.rooms.some((room) => room.availability.length > 0),
+      done: hotel.rooms.some((room) => getRoomDefaultUnits(room) > 0),
       label: "Disponibilidade futura",
     },
   ];

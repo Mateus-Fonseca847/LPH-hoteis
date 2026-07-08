@@ -100,6 +100,21 @@ describe("POST /api/auth/login", () => {
     expect(setPendingTwoFactorSessionCookie).not.toHaveBeenCalled();
   });
 
+  it("permite hotel_admin aprovado logar sem criar sessão parcial de 2FA quando flag está inativa", async () => {
+    mockUser("hotel_admin", false);
+
+    const response = await POST(createRequest());
+
+    expect(response.status).toBe(200);
+    expect(setAuthSessionCookie).toHaveBeenCalledWith(
+      expect.objectContaining({
+        globalRole: "hotel_admin",
+        twoFactorVerified: true,
+      })
+    );
+    expect(setPendingTwoFactorSessionCookie).not.toHaveBeenCalled();
+  });
+
   it("permite super_admin sem 2FA logar com e-mail e senha", async () => {
     mockUser("super_admin", false);
 

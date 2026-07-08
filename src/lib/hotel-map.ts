@@ -1,9 +1,10 @@
 import { unstable_cache } from "next/cache";
 
 import { hotels as fallbackHotels } from "@/data/hotels";
+import { getPublicHotelWhere } from "@/lib/hotel-archive";
 import { resolveHotelMapLocation } from "@/lib/hotel-location";
 import { prisma } from "@/lib/prisma";
-import { PUBLIC_HOTEL_WHERE } from "@/lib/public-hotel";
+import { dedupePublicHotels } from "@/lib/public-hotel-dedupe";
 
 export type PublicMapHotel = {
   id: string;
@@ -75,7 +76,7 @@ function shouldSkipDatabaseDuringBuild() {
 }
 
 export function mapHotelsForPublicMap(hotels: PublicMapHotelRow[]): PublicMapHotel[] {
-  return hotels.flatMap((hotel) => {
+  return dedupePublicHotels(hotels, "home/hotels").flatMap((hotel) => {
     const resolvedLocation = resolveHotelMapLocation({
       city: hotel.city,
       state: hotel.state,
@@ -109,7 +110,19 @@ function getFallbackPublishedMapHotels(): PublicMapHotel[] {
     return [];
   }
 
-  return fallbackHotels.flatMap((hotel) => {
+  return dedupePublicHotels(
+    fallbackHotels.map((hotel) => ({
+      id: `fallback-${hotel.slug}`,
+      slug: hotel.slug,
+      name: hotel.name,
+      shortDescription: hotel.shortDescription,
+      city: hotel.city,
+      state: hotel.state,
+      address: hotel.address,
+      coverImageUrl: hotel.image,
+    })),
+    "home/hotels"
+  ).flatMap((hotel) => {
     const resolvedLocation = resolveHotelMapLocation({
       city: hotel.city,
       state: hotel.state,
@@ -128,7 +141,7 @@ function getFallbackPublishedMapHotels(): PublicMapHotel[] {
         city: hotel.city,
         state: hotel.state,
         address: hotel.address,
-        coverImageUrl: hotel.image,
+        coverImageUrl: hotel.coverImageUrl,
         latitude: resolvedLocation.latitude,
         longitude: resolvedLocation.longitude,
       },
@@ -150,8 +163,10 @@ async function fetchPublishedMapHotels(): Promise<PublicMapHotel[]> {
   }
 
   try {
+    const publicHotelWhere = await getPublicHotelWhere();
+
     const hotels = await prisma.hotel.findMany({
-      where: PUBLIC_HOTEL_WHERE,
+      where: publicHotelWhere,
       select: {
         id: true,
         slug: true,

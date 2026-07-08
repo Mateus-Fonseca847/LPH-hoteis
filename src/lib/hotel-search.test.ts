@@ -62,6 +62,16 @@ describe("hotel search business rules", () => {
     );
   });
 
+  it("remove duplicatas retornadas pelo banco", async () => {
+    findHotels.mockResolvedValue([
+      hotels[0],
+      { ...hotels[0], name: "LPH Recife duplicado" },
+      { ...hotels[1], slug: hotels[0].slug },
+    ] as never);
+
+    await expect(searchPublishedHotels("Recife")).resolves.toEqual([hotels[0]]);
+  });
+
   it("ignora buscas muito curtas antes de consultar o banco", async () => {
     await expect(searchPublishedHotels(" r ")).resolves.toEqual([]);
     expect(findHotels).not.toHaveBeenCalled();

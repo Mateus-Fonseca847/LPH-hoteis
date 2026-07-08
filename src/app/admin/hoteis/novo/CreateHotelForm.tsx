@@ -2,15 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  useActionState,
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-  type InvalidEvent,
-} from "react";
+import { useActionState, useEffect, useMemo, useState, type FormEvent } from "react";
 
+import { AdminTextField } from "../AdminTextField";
 import { HotelAmenitiesSelector, type LegacyAmenityItem } from "../HotelAmenitiesSelector";
 import { HotelGalleryEditor } from "../HotelGalleryEditor";
 import { HotelPoliciesEditor, type PolicyErrors, type PolicyItem } from "../HotelPoliciesEditor";
@@ -54,6 +48,20 @@ function validatePolicies(policies: PolicyItem[]) {
   return errors;
 }
 
+function focusFirstInvalidField(form: HTMLFormElement) {
+  window.requestAnimationFrame(() => {
+    const field = form.querySelector<HTMLElement>(
+      "[aria-invalid='true'], .admin-form-error, :invalid"
+    );
+
+    field?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+      field.focus({ preventScroll: true });
+    }
+  });
+}
+
 export function CreateHotelForm() {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(createHotelAction, initialState);
@@ -90,18 +98,6 @@ export function CreateHotelForm() {
       }
     };
   }, [coverPreviewUrl]);
-
-  function handleContactEmailInvalid(event: InvalidEvent<HTMLInputElement>) {
-    event.currentTarget.setCustomValidity(
-      event.currentTarget.validity.valueMissing
-        ? "Informe o e-mail de contato do hotel."
-        : "Informe um e-mail de contato válido."
-    );
-  }
-
-  function clearContactEmailValidity(event: FormEvent<HTMLInputElement>) {
-    event.currentTarget.setCustomValidity("");
-  }
 
   function handleCoverImageChange(fileList: FileList | null) {
     const file = fileList?.[0];
@@ -182,6 +178,7 @@ export function CreateHotelForm() {
       setPolicyErrors(nextPolicyErrors);
       setPolicyFormError("Revise os campos destacados antes de salvar.");
       event.preventDefault();
+      focusFirstInvalidField(event.currentTarget);
       return;
     }
 
@@ -201,23 +198,15 @@ export function CreateHotelForm() {
           <h2>Dados principais</h2>
         </div>
         <div className="admin-form-grid admin-form-grid--two">
-          <label className="admin-form-field">
-            <span>Nome</span>
-            <input name="name" required minLength={3} maxLength={120} placeholder="LPH Centro" />
-          </label>
-
-          <label className="admin-form-field">
-            <span>Slug</span>
-            <input
-              name="slug"
-              required
-              minLength={3}
-              maxLength={80}
-              pattern="[a-z0-9]+(-[a-z0-9]+)*"
-              placeholder="lph-centro"
-            />
-            <small>Use letras minúsculas, números e hífens.</small>
-          </label>
+          <AdminTextField
+            name="name"
+            label="Nome"
+            required
+            minLength={3}
+            maxLength={120}
+            placeholder="LPH Centro"
+            requiredMessage="Informe o nome do hotel."
+          />
         </div>
       </section>
 
@@ -226,32 +215,44 @@ export function CreateHotelForm() {
           <h2>Localização</h2>
         </div>
         <div className="admin-form-grid admin-form-grid--three">
-          <label className="admin-form-field">
-            <span>Cidade</span>
-            <input name="city" required minLength={2} maxLength={80} placeholder="São Paulo" />
-          </label>
+          <AdminTextField
+            name="city"
+            label="Cidade"
+            required
+            minLength={2}
+            maxLength={80}
+            placeholder="São Paulo"
+            requiredMessage="Informe a cidade."
+          />
 
-          <label className="admin-form-field">
-            <span>Estado</span>
-            <input name="state" required minLength={2} maxLength={2} placeholder="SP" />
-          </label>
+          <AdminTextField
+            name="state"
+            label="Estado"
+            required
+            minLength={2}
+            maxLength={2}
+            placeholder="SP"
+            requiredMessage="Informe a UF."
+            invalidMessage="Informe uma UF válida."
+          />
 
-          <label className="admin-form-field admin-form-field--full">
-            <span>Endereço</span>
-            <input
+          <div className="admin-form-field--full">
+            <AdminTextField
               name="address"
+              label="Endereço"
               required
               minLength={8}
               maxLength={180}
               placeholder="Rua, número - Bairro, Cidade - UF"
+              requiredMessage="Informe o endereço."
             />
-          </label>
+          </div>
 
           <div className="admin-editor-banner admin-form-field--full">
             <strong>Localização no mapa</strong>
             <p>
               O sistema tenta posicionar o hotel pelo par cidade/estado. Depois do primeiro save, o
-              super_admin pode ajustar coordenadas internas na edição.
+              O super administrador pode ajustar coordenadas internas na edição.
             </p>
           </div>
         </div>
@@ -262,29 +263,40 @@ export function CreateHotelForm() {
           <h2>Contato</h2>
         </div>
         <div className="admin-form-grid admin-form-grid--three">
-          <label className="admin-form-field">
-            <span>Telefone</span>
-            <input name="phone" required maxLength={24} placeholder="(11) 3000-0000" />
-          </label>
+          <AdminTextField
+            name="phone"
+            label="Telefone"
+            required
+            maxLength={24}
+            inputMode="tel"
+            placeholder="(11) 3000-0000"
+            requiredMessage="Informe o telefone."
+            invalidMessage="Informe um telefone válido."
+          />
 
-          <label className="admin-form-field">
-            <span>E-mail de contato do hotel</span>
-            <input
-              name="email"
-              type="email"
-              required
-              maxLength={160}
-              placeholder="reservas@hotel.com"
-              onInvalid={handleContactEmailInvalid}
-              onInput={clearContactEmailValidity}
-            />
-            <small>Este e-mail receberá as solicitações de reserva enviadas pelo site.</small>
-          </label>
+          <AdminTextField
+            name="email"
+            label="E-mail de contato do hotel"
+            type="email"
+            required
+            maxLength={160}
+            placeholder="reservas@hotel.com"
+            helperText="Este e-mail receberá as solicitações de reserva enviadas pelo site."
+            autoComplete="email"
+            requiredMessage="Informe o e-mail de contato do hotel."
+            invalidMessage="Informe um e-mail de contato válido."
+          />
 
-          <label className="admin-form-field">
-            <span>WhatsApp</span>
-            <input name="whatsapp" required maxLength={24} placeholder="(11) 99999-0000" />
-          </label>
+          <AdminTextField
+            name="whatsapp"
+            label="WhatsApp"
+            required
+            maxLength={24}
+            inputMode="tel"
+            placeholder="(11) 99999-0000"
+            requiredMessage="Informe o WhatsApp."
+            invalidMessage="Informe um WhatsApp válido."
+          />
         </div>
       </section>
 
@@ -293,29 +305,29 @@ export function CreateHotelForm() {
           <h2>Descrições</h2>
         </div>
         <div className="admin-form-grid">
-          <label className="admin-form-field">
-            <span>Descrição curta</span>
-            <textarea
-              name="shortDescription"
-              required
-              minLength={10}
-              maxLength={220}
-              rows={3}
-              placeholder="Resumo comercial da unidade."
-            />
-          </label>
+          <AdminTextField
+            as="textarea"
+            name="shortDescription"
+            label="Descrição curta"
+            required
+            minLength={10}
+            maxLength={220}
+            rows={3}
+            placeholder="Resumo comercial da unidade."
+            requiredMessage="Informe a descrição curta."
+          />
 
-          <label className="admin-form-field">
-            <span>Descrição completa</span>
-            <textarea
-              name="fullDescription"
-              required
-              minLength={30}
-              maxLength={4000}
-              rows={6}
-              placeholder="Texto completo do perfil público do hotel."
-            />
-          </label>
+          <AdminTextField
+            as="textarea"
+            name="fullDescription"
+            label="Descrição completa"
+            required
+            minLength={30}
+            maxLength={4000}
+            rows={6}
+            placeholder="Texto completo do perfil público do hotel."
+            requiredMessage="Informe a descrição completa."
+          />
         </div>
       </section>
 

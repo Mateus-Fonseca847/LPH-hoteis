@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { getZodErrorMessage } from "@/lib/errorMessages";
 import { getGuestDocumentError, normalizeGuestDocument } from "@/lib/guest-document";
 
 function sanitizeText(value: string) {
@@ -23,7 +24,12 @@ const dateField = (label: string) =>
 const guestNameField = z
   .string()
   .transform(sanitizeText)
-  .pipe(z.string().min(3, "Nome deve ter pelo menos 3 caracteres.").max(120));
+  .pipe(
+    z
+      .string()
+      .min(3, "Nome deve ter pelo menos 3 caracteres.")
+      .max(120, "Nome deve ter no máximo 120 caracteres.")
+  );
 
 const guestEmailField = z
   .string()
@@ -35,15 +41,29 @@ const guestEmailField = z
 const guestPhoneField = z
   .string()
   .transform(sanitizeText)
-  .pipe(z.string().min(8, "Telefone deve ter pelo menos 8 caracteres.").max(30));
+  .pipe(
+    z
+      .string()
+      .min(8, "Telefone deve ter pelo menos 8 caracteres.")
+      .max(30, "Telefone deve ter no máximo 30 caracteres.")
+  );
 
 const guestsField = (label: string, min: number, max: number) =>
-  z.number().int(`${label} deve ser inteiro.`).min(min).max(max);
+  z
+    .number({ error: `${label} inválido.` })
+    .int(`${label} deve ser inteiro.`)
+    .min(min, `${label} deve ser no mínimo ${min}.`)
+    .max(max, `${label} deve ser no máximo ${max}.`);
 
 const guestDocumentField = z
   .string()
   .transform(sanitizeText)
-  .pipe(z.string().min(1, "Informe um CPF valido ou um passaporte valido.").max(40))
+  .pipe(
+    z
+      .string()
+      .min(1, "Informe um CPF válido ou um passaporte válido.")
+      .max(40, "Documento deve ter no máximo 40 caracteres.")
+  )
   .transform((value, context) => {
     const normalizedDocument = normalizeGuestDocument(value);
 
@@ -80,17 +100,17 @@ export const paymentCardBrandSchema = z.enum(paymentCardBrands, {
 const paymentCardNumberField = z
   .string()
   .transform(sanitizeText)
-  .pipe(z.string().regex(/^\d{4} \d{4} \d{4} \d{4}$/, "Numero do cartao invalido."));
+  .pipe(z.string().regex(/^\d{4} \d{4} \d{4} \d{4}$/, "Número do cartão inválido."));
 
 const paymentExpiryField = z
   .string()
   .transform(sanitizeText)
-  .pipe(z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Data de validade invalida."));
+  .pipe(z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Data de validade inválida."));
 
 const paymentCvvField = z
   .string()
   .transform(sanitizeText)
-  .pipe(z.string().regex(/^\d{3}$/, "CVV invalido."));
+  .pipe(z.string().regex(/^\d{3}$/, "CVV inválido."));
 
 export const createReservationPayloadSchema = z
   .object({
@@ -120,7 +140,7 @@ export function parseCreateReservationPayload(payload: unknown) {
   if (!result.success) {
     return {
       success: false as const,
-      error: result.error.issues[0]?.message || "Dados da reserva inválidos.",
+      error: getZodErrorMessage(result.error, "Dados da reserva inválidos."),
     };
   }
 

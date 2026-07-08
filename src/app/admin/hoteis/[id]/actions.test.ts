@@ -107,9 +107,7 @@ describe("submitHotelForApprovalAction", () => {
     );
 
     expect(result.status).toBe("error");
-    expect(result.message).toBe(
-      "Complete quartos, tarifas e disponibilidade antes de enviar para aprovação."
-    );
+    expect(result.message).toBe("Complete quartos e tarifas antes de enviar para aprovação.");
     expect(prisma.hotelAuditLog.create).not.toHaveBeenCalled();
   });
 
@@ -126,13 +124,11 @@ describe("submitHotelForApprovalAction", () => {
     );
 
     expect(result.status).toBe("error");
-    expect(result.message).toBe(
-      "Complete quartos, tarifas e disponibilidade antes de enviar para aprovação."
-    );
+    expect(result.message).toBe("Complete quartos e tarifas antes de enviar para aprovação.");
     expect(prisma.hotelAuditLog.create).not.toHaveBeenCalled();
   });
 
-  it("bloqueia envio sem disponibilidade futura", async () => {
+  it("permite envio sem disponibilidade futura", async () => {
     vi.mocked(prisma.hotel.findUnique).mockResolvedValue({
       ...completeHotel,
       rooms: [{ id: "room-1", rates: [{ id: "rate-1" }], availability: [] }],
@@ -144,14 +140,14 @@ describe("submitHotelForApprovalAction", () => {
       new FormData()
     );
 
-    expect(result.status).toBe("error");
-    expect(result.message).toBe(
-      "Complete quartos, tarifas e disponibilidade antes de enviar para aprovação."
-    );
-    expect(prisma.hotelAuditLog.create).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      status: "success",
+      message: "Hotel enviado para aprovação.",
+    });
+    expect(prisma.hotelAuditLog.create).toHaveBeenCalled();
   });
 
-  it("bloqueia envio sem localização suficiente no mapa", async () => {
+  it("permite envio sem localização suficiente no mapa", async () => {
     vi.mocked(prisma.hotel.findUnique).mockResolvedValue({
       ...completeHotel,
       city: "Cidade Sem Mapa",
@@ -166,9 +162,11 @@ describe("submitHotelForApprovalAction", () => {
       new FormData()
     );
 
-    expect(result.status).toBe("error");
-    expect(result.message).toContain("localização no mapa");
-    expect(prisma.hotelAuditLog.create).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      status: "success",
+      message: "Hotel enviado para aprovação.",
+    });
+    expect(prisma.hotelAuditLog.create).toHaveBeenCalled();
   });
 
   it("cria auditoria quando hotel está completo", async () => {
@@ -258,7 +256,7 @@ describe("approveHotelAction", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Apenas super_admin pode aprovar e publicar hotéis.",
+      message: "Apenas o super administrador pode aprovar e publicar hotéis.",
     });
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
@@ -296,6 +294,29 @@ describe("approveHotelAction", () => {
       message: "Cadastre pelo menos uma tarifa ativa antes de publicar.",
     });
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("publica mesmo sem disponibilidade futura e sem localização no mapa", async () => {
+    vi.mocked(prisma.hotel.findUnique).mockResolvedValue({
+      ...completeHotel,
+      city: "Cidade Sem Mapa",
+      state: "SP",
+      latitude: null,
+      longitude: null,
+      rooms: [{ id: "room-1", rates: [{ id: "rate-1" }], availability: [] }],
+    });
+
+    const result = await approveHotelAction(
+      "hotel-1",
+      { status: "idle", message: "" },
+      new FormData()
+    );
+
+    expect(result).toEqual({
+      status: "success",
+      message: "Hotel aprovado e publicado.",
+    });
+    expect(prisma.$transaction).toHaveBeenCalled();
   });
 
   it("super_admin aprova e publica hotel pendente", async () => {

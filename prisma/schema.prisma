@@ -25,6 +25,9 @@ model Hotel {
   latitude                  Decimal?                   @db.Decimal(10, 7)
   longitude                 Decimal?                   @db.Decimal(10, 7)
   isPublished               Boolean                    @default(true)
+  isArchived                Boolean                    @default(false)
+  archivedAt                DateTime?
+  archivedById              String?
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   images                    HotelImage[]
@@ -39,12 +42,15 @@ model Hotel {
   paymentReconciliationLogs PaymentReconciliationLog[]
   reservationOperationLogs  ReservationOperationLog[]
   paymentSettings           HotelPaymentSettings?
+  archivedBy                User?                      @relation("HotelArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
 
   @@index([slug])
   @@index([city])
   @@index([state])
   @@index([city, state])
   @@index([isPublished])
+  @@index([isArchived])
+  @@index([archivedById])
 }
 
 model HotelExperience {
@@ -76,6 +82,7 @@ model HotelRoom {
   name             String
   description      String             @db.Text
   imageUrl         String
+  units            Int                @default(1)
   capacity         Int
   capacityAdults   Int                @default(1)
   capacityChildren Int                @default(0)
@@ -89,6 +96,7 @@ model HotelRoom {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   hotel            Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  images           HotelRoomImage[]
   rates            RoomRate[]
   availability     RoomAvailability[]
   reservations     Reservation[]
@@ -96,6 +104,20 @@ model HotelRoom {
   @@index([hotelId])
   @@index([hotelId, isActive])
   @@index([hotelId, isAvailable])
+}
+
+model HotelRoomImage {
+  id        String    @id @default(cuid())
+  roomId    String
+  url       String
+  alt       String
+  position  Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  room      HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, url])
+  @@index([roomId, position])
 }
 
 model RoomRate {
@@ -197,6 +219,9 @@ model User {
   auditLogs                HotelAuditLog[]
   reservationOperationLogs ReservationOperationLog[]
   emailAuthCodes           EmailAuthCode[]
+  reviewedSignupRequests   HotelOwnerSignupRequest[] @relation("HotelOwnerSignupReviewedBy")
+  createdSignupRequests    HotelOwnerSignupRequest[] @relation("HotelOwnerSignupCreatedUser")
+  archivedHotels           Hotel[]                   @relation("HotelArchivedBy")
 
   @@index([globalRole])
   @@index([isActive])
@@ -234,6 +259,35 @@ model HotelPermission {
   @@index([userId])
   @@index([hotelId])
   @@index([hotelId, role])
+}
+
+model HotelOwnerSignupRequest {
+  id              String                 @id @default(cuid())
+  responsibleName String
+  email           String
+  phone           String
+  hotelName       String
+  hotelCity       String
+  hotelState      String
+  hotelDocument   String?
+  message         String?                @db.Text
+  passwordHash    String?
+  status          HotelOwnerSignupStatus @default(pending)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  reviewedAt      DateTime?
+  reviewedById    String?
+  reviewNote      String?                @db.Text
+  createdUserId   String?
+  reviewedBy      User?                  @relation("HotelOwnerSignupReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdUser     User?                  @relation("HotelOwnerSignupCreatedUser", fields: [createdUserId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@index([reviewedById])
+  @@index([createdUserId])
+  @@index([email, status])
 }
 
 model HotelAuditLog {
@@ -435,6 +489,12 @@ enum HotelRole {
   owner
   admin
   editor
+}
+
+enum HotelOwnerSignupStatus {
+  pending
+  approved
+  rejected
 }
 
 enum EmailAuthCodePurpose {

@@ -165,6 +165,10 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
     throw error;
   }
 
+  if (user.globalRole !== "super_admin") {
+    return <AdminAccessDenied />;
+  }
+
   const scopedHotelIds =
     user.globalRole === "super_admin"
       ? null

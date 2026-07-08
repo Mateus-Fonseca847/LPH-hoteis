@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 
+import { getClientErrorMessage } from "@/lib/client-error-messages";
 import type { AccessibleAdministrator, AdminUserActionState } from "../users/actions";
 import {
   addUserHotelPermissionAction,
@@ -41,14 +42,14 @@ type InviteForm = {
 
 function formatGlobalRole(role: AccessibleAdministrator["globalRole"]) {
   if (role === "super_admin") {
-    return "Super admin";
+    return "Super administrador";
   }
 
   if (role === "hotel_admin") {
-    return "Admin de hotel";
+    return "Administrador do hotel";
   }
 
-  return "Usuario";
+  return "Usuário";
 }
 
 function formatPermissionRole(role: HotelRole) {
@@ -179,7 +180,7 @@ export function AdminUsersClient({
     const result = await listAccessibleAdministratorsAction();
 
     if (result.status === "error") {
-      throw new Error(result.message || "Nao foi possivel atualizar a lista.");
+      throw new Error(result.message || "Não foi possível atualizar a lista.");
     }
 
     setAdministrators(result.administrators);
@@ -202,7 +203,7 @@ export function AdminUsersClient({
         const result = await task();
 
         if (result.status === "error") {
-          throw new Error(result.message || "Nao foi possivel concluir a operacao.");
+          throw new Error(result.message || "Não foi possível concluir a operação.");
         }
 
         await refreshAdministrators();
@@ -210,9 +211,7 @@ export function AdminUsersClient({
         setFeedback(result.message || successFallback);
       } catch (error) {
         setFeedbackType("error");
-        setFeedback(
-          error instanceof Error ? error.message : "Nao foi possivel concluir a operacao."
-        );
+        setFeedback(getClientErrorMessage(error, "Não foi possível concluir a operação."));
       } finally {
         setPendingKey(null);
       }
@@ -236,18 +235,16 @@ export function AdminUsersClient({
         const result = await createAdministratorAction(inviteForm.hotelId, inviteForm);
 
         if (result.status === "error") {
-          throw new Error(result.message || "Nao foi possivel criar o administrador.");
+          throw new Error(result.message || "Não foi possível criar o administrador.");
         }
 
         await refreshAdministrators();
         setInviteForm(getDefaultInviteForm(actorGlobalRole, manageableHotels));
         setFeedbackType("success");
-        setFeedback(result.message || "Hotel_admin criado com sucesso.");
+        setFeedback(result.message || "Administrador do hotel criado com sucesso.");
       } catch (error) {
         setFeedbackType("error");
-        setFeedback(
-          error instanceof Error ? error.message : "Nao foi possivel criar o administrador."
-        );
+        setFeedback(getClientErrorMessage(error, "Não foi possível criar o administrador."));
       } finally {
         setPendingKey(null);
       }
@@ -259,7 +256,8 @@ export function AdminUsersClient({
       <div className="section-heading admin-section-heading">
         <h1>Administradores</h1>
         <p className="admin-rooms-copy">
-          Defina quais hoteis cada hotel_admin pode gerenciar e revise os vinculos existentes.
+          Defina quais hotéis cada administrador do hotel pode gerenciar e revise os vínculos
+          existentes.
         </p>
       </div>
 
@@ -267,33 +265,33 @@ export function AdminUsersClient({
         <article className="hotel-content-card admin-overview-card">
           <span>Total de administradores</span>
           <strong>{administrators.length}</strong>
-          <p>Apenas hotel_admins disponiveis para gestao por super_admin.</p>
+          <p>Apenas administradores de hotel disponíveis para gestão pelo super administrador.</p>
         </article>
 
         <article className="hotel-content-card admin-overview-card">
-          <span>Vinculos por hotel</span>
+          <span>Vínculos por hotel</span>
           <strong>{totalPermissions}</strong>
-          <p>Cada vinculo libera acesso administrativo no hotel selecionado.</p>
+          <p>Cada vínculo libera acesso administrativo no hotel selecionado.</p>
         </article>
 
         <article className="hotel-content-card admin-overview-card">
           <span>Seu escopo</span>
           <strong>{isSuperAdmin ? "Global" : "Por hotel"}</strong>
-          <p>Somente super_admin pode conceder, alterar ou remover acessos de hotel.</p>
+          <p>Somente o super administrador pode conceder, alterar ou remover acessos de hotel.</p>
         </article>
       </div>
 
       <section className="admin-form-section admin-admin-invite-section">
         <div className="admin-subsection-heading">
-          <h2>Criar hotel_admin</h2>
+          <h2>Criar administrador do hotel</h2>
           <p className="admin-rooms-copy">
-            Esta acao cria o hotel_admin e ja adiciona o primeiro hotel autorizado.
+            Esta ação cria o administrador do hotel e já adiciona o primeiro hotel autorizado.
           </p>
         </div>
 
         {manageableHotels.length === 0 ? (
           <div className="hotel-empty-state admin-history-empty">
-            <strong>Nenhum hotel disponivel para vinculo.</strong>
+            <strong>Nenhum hotel disponível para vínculo.</strong>
             <p>Cadastre ao menos um hotel antes de liberar acesso administrativo.</p>
           </div>
         ) : (
@@ -325,7 +323,7 @@ export function AdminUsersClient({
 
             <div className="admin-form-field">
               <span>Papel global</span>
-              <input value="Admin de hotel" disabled />
+              <input value="Administrador do hotel" disabled />
             </div>
 
             <label className="admin-form-field">
@@ -387,7 +385,7 @@ export function AdminUsersClient({
                 disabled={isPending || manageableHotels.length === 0}
                 onClick={submitInvite}
               >
-                {pendingKey === "invite:create" ? "Criando..." : "Criar hotel_admin"}
+                {pendingKey === "invite:create" ? "Criando..." : "Criar administrador"}
               </button>
             </div>
           </div>
@@ -407,8 +405,8 @@ export function AdminUsersClient({
 
       {!hasAdministrators ? (
         <div className="hotel-empty-state admin-history-empty">
-          <strong>Nenhum hotel_admin disponivel.</strong>
-          <p>Quando houver hotel_admins cadastrados, eles aparecerao aqui.</p>
+          <strong>Nenhum administrador do hotel disponível.</strong>
+          <p>Quando houver administradores do hotel cadastrados, eles aparecerão aqui.</p>
         </div>
       ) : (
         <div className="admin-hotels-grid admin-admins-grid">
@@ -433,7 +431,7 @@ export function AdminUsersClient({
                 className="hotel-content-card admin-hotel-card admin-admin-card"
               >
                 <div className="admin-hotel-card-top">
-                  <span>Hotel_admin</span>
+                  <span>Administrador do hotel</span>
                   <strong>{administrator.name}</strong>
                   <p>{administrator.email}</p>
                 </div>
@@ -454,10 +452,10 @@ export function AdminUsersClient({
                 </div>
 
                 <div className="admin-admin-permissions">
-                  <span>Hoteis vinculados</span>
+                  <span>Hotéis vinculados</span>
                   {administrator.permissions.length === 0 ? (
                     <p className="admin-rooms-copy">
-                      Este hotel_admin ainda nao possui hoteis vinculados.
+                      Este administrador do hotel ainda não possui hotéis vinculados.
                     </p>
                   ) : (
                     <div className="admin-admin-permissions-list">
@@ -511,7 +509,7 @@ export function AdminUsersClient({
                                           }
                                         ),
                                       permissionKey,
-                                      "Permissao atualizada."
+                                      "Permissão atualizada."
                                     )
                                   }
                                 >
@@ -530,13 +528,13 @@ export function AdminUsersClient({
                                           permission.id
                                         ),
                                       `${permissionKey}:remove`,
-                                      "Vinculo removido."
+                                      "Vínculo removido."
                                     )
                                   }
                                 >
                                   {pendingKey === `${permissionKey}:remove`
                                     ? "Removendo..."
-                                    : "Remover vinculo"}
+                                    : "Remover vínculo"}
                                 </button>
                               </div>
                             </div>
@@ -551,7 +549,7 @@ export function AdminUsersClient({
                   <span>Adicionar hotel</span>
                   {availableHotels.length === 0 ? (
                     <p className="admin-rooms-copy">
-                      Todos os hoteis ja estao vinculados a este hotel_admin.
+                      Todos os hotéis já estão vinculados a este administrador do hotel.
                     </p>
                   ) : (
                     <div className="admin-admin-permission-card">

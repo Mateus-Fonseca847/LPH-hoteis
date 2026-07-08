@@ -74,7 +74,7 @@ describe("admin user access actions", () => {
     const result = await listAccessibleAdministratorsAction();
 
     expect(result.status).toBe("error");
-    expect(result.message).toContain("super_admin");
+    expect(result.message).toContain("super administrador");
     expect(prisma.user.findMany).not.toHaveBeenCalled();
   });
 

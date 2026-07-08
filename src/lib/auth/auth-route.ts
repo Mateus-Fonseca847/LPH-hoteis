@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { ValidationError, createApiErrorResponse } from "@/lib/errors/app-error";
+import { getZodIssueMessage } from "@/lib/errorMessages";
 
 const loginPayloadSchema = z
   .object({
@@ -30,7 +31,9 @@ export function createAuthApiErrorResponse(error: unknown, fallbackMessage: stri
 export function getFirstValidationErrorMessage(result: {
   error?: { issues?: Array<{ message?: string }> };
 }) {
-  return result.error?.issues?.[0]?.message || "Payload inválido.";
+  const issue = result.error?.issues?.[0];
+
+  return issue ? getZodIssueMessage(issue as never) : "Verifique os dados informados.";
 }
 
 export function createValidationErrorFromResult(result: {

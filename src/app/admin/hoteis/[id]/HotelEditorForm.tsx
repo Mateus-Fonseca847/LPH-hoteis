@@ -1,21 +1,16 @@
 "use client";
 
 import { ImageWithFallback } from "@/components/ImageWithFallback";
-import {
-  type FormEvent,
-  type InvalidEvent,
-  useActionState,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type FormEvent, useActionState, useEffect, useMemo, useState } from "react";
 
 import {
   HOTEL_EXPERIENCE_CATEGORIES,
   HOTEL_EXPERIENCE_PREFERENCES,
 } from "@/lib/hotel-experience-options";
+import { getClientErrorMessage } from "@/lib/client-error-messages";
 
 import { HotelFileUploadField } from "../HotelFileUploadField";
+import { AdminTextField } from "../AdminTextField";
 import {
   HotelAmenitiesSelector,
   getLegacyAmenities,
@@ -128,6 +123,20 @@ function createEmptyExperience(): ExperienceItem {
     distanceText: "",
     isActive: true,
   };
+}
+
+function focusFirstInvalidField(form: HTMLFormElement) {
+  window.requestAnimationFrame(() => {
+    const field = form.querySelector<HTMLElement>(
+      "[aria-invalid='true'], .admin-form-error, :invalid"
+    );
+
+    field?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+      field.focus({ preventScroll: true });
+    }
+  });
 }
 
 export function HotelEditorForm({
@@ -273,7 +282,7 @@ export function HotelEditorForm({
     } catch (error) {
       setUploadFeedbackType("error");
       setUploadFeedback(
-        error instanceof Error ? error.message : "Não foi possível concluir o upload da capa."
+        getClientErrorMessage(error, "Não foi possível concluir o upload da capa.")
       );
     } finally {
       setIsUploadingCover(false);
@@ -319,7 +328,7 @@ export function HotelEditorForm({
     } catch (error) {
       setUploadFeedbackType("error");
       setUploadFeedback(
-        error instanceof Error ? error.message : "Não foi possível concluir o upload da galeria."
+        getClientErrorMessage(error, "Não foi possível concluir o upload da galeria.")
       );
     } finally {
       setIsUploadingGallery(false);
@@ -362,9 +371,7 @@ export function HotelEditorForm({
       setUploadFeedback("Imagem removida com sucesso.");
     } catch (error) {
       setUploadFeedbackType("error");
-      setUploadFeedback(
-        error instanceof Error ? error.message : "Não foi possível remover a imagem."
-      );
+      setUploadFeedback(getClientErrorMessage(error, "Não foi possível remover a imagem."));
     } finally {
       setRemovingImageId(null);
     }
@@ -439,9 +446,7 @@ export function HotelEditorForm({
     } catch (error) {
       setUploadFeedbackType("error");
       setUploadFeedback(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível concluir o upload da experiência."
+        getClientErrorMessage(error, "Não foi possível concluir o upload da experiência.")
       );
     } finally {
       setUploadingExperienceId(null);
@@ -687,18 +692,6 @@ export function HotelEditorForm({
     return `${normalizedTitle} | ${normalizedDescription}`;
   }
 
-  function handleContactEmailInvalid(event: InvalidEvent<HTMLInputElement>) {
-    event.currentTarget.setCustomValidity(
-      event.currentTarget.validity.valueMissing
-        ? "Informe o e-mail de contato do hotel."
-        : "Informe um e-mail de contato valido."
-    );
-  }
-
-  function clearContactEmailValidity(event: FormEvent<HTMLInputElement>) {
-    event.currentTarget.setCustomValidity("");
-  }
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
     const hasAmenities = formData.getAll("amenities").length > 0;
@@ -709,6 +702,7 @@ export function HotelEditorForm({
 
     if (!hasAmenities || !hasValidPolicies || !hasValidExperiences) {
       event.preventDefault();
+      focusFirstInvalidField(event.currentTarget);
     }
   }
 
@@ -719,6 +713,8 @@ export function HotelEditorForm({
       {state.message ? (
         <p
           className={`admin-editor-feedback ${state.status === "success" ? "is-success" : "is-error"}`}
+          aria-live="polite"
+          role={state.status === "error" ? "alert" : undefined}
         >
           {state.message}
         </p>
@@ -727,6 +723,8 @@ export function HotelEditorForm({
       {uploadFeedback ? (
         <p
           className={`admin-editor-feedback ${uploadFeedbackType === "success" ? "is-success" : "is-error"}`}
+          aria-live="polite"
+          role={uploadFeedbackType === "error" ? "alert" : undefined}
         >
           {uploadFeedback}
         </p>
@@ -737,14 +735,26 @@ export function HotelEditorForm({
           <h2>Dados principais</h2>
         </div>
         <div className="admin-form-grid admin-form-grid--two">
-          <label className="admin-form-field">
-            <span>Nome</span>
-            <input name="name" defaultValue={hotel.name} required />
-          </label>
-          <label className="admin-form-field">
-            <span>Slug</span>
-            <input name="slug" defaultValue={hotel.slug} required />
-          </label>
+          <AdminTextField
+            name="name"
+            label="Nome"
+            defaultValue={hotel.name}
+            required
+            minLength={3}
+            maxLength={120}
+            requiredMessage="Informe o nome do hotel."
+          />
+          <AdminTextField
+            name="slug"
+            label="Slug"
+            defaultValue={hotel.slug}
+            required
+            minLength={3}
+            maxLength={80}
+            pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+            requiredMessage="Informe o slug."
+            invalidMessage="Use apenas letras minúsculas, números e hífens."
+          />
         </div>
       </section>
 
@@ -753,24 +763,45 @@ export function HotelEditorForm({
           <h2>Localização</h2>
         </div>
         {!hasResolvedMapLocation ? (
-          <div className="admin-editor-banner">
-            <strong>Este hotel ainda não possui localizacao no mapa.</strong>
-            <p>Revise cidade e estado ou defina coordenadas internas antes da aprovacao.</p>
+          <div className="admin-editor-banner admin-editor-banner--info">
+            <strong>Localização opcional</strong>
+            <p>
+              Você ainda não adicionou a localização do hotel. Ela poderá ser cadastrada
+              posteriormente.
+            </p>
           </div>
         ) : null}
         <div className="admin-form-grid admin-form-grid--three">
-          <label className="admin-form-field">
-            <span>Cidade</span>
-            <input name="city" defaultValue={hotel.city} required />
-          </label>
-          <label className="admin-form-field">
-            <span>Estado</span>
-            <input name="state" defaultValue={hotel.state} required maxLength={2} />
-          </label>
-          <label className="admin-form-field admin-form-field--full">
-            <span>Endereço</span>
-            <input name="address" defaultValue={hotel.address} required />
-          </label>
+          <AdminTextField
+            name="city"
+            label="Cidade"
+            defaultValue={hotel.city}
+            required
+            minLength={2}
+            maxLength={80}
+            requiredMessage="Informe a cidade."
+          />
+          <AdminTextField
+            name="state"
+            label="Estado"
+            defaultValue={hotel.state}
+            required
+            minLength={2}
+            maxLength={2}
+            requiredMessage="Informe a UF."
+            invalidMessage="Informe uma UF válida."
+          />
+          <div className="admin-form-field--full">
+            <AdminTextField
+              name="address"
+              label="Endereço"
+              defaultValue={hotel.address}
+              required
+              minLength={8}
+              maxLength={180}
+              requiredMessage="Informe o endereço."
+            />
+          </div>
           {canEditMapLocation ? (
             <>
               <label className="admin-form-field">
@@ -805,27 +836,39 @@ export function HotelEditorForm({
           <h2>Contato</h2>
         </div>
         <div className="admin-form-grid admin-form-grid--three">
-          <label className="admin-form-field">
-            <span>Telefone</span>
-            <input name="phone" defaultValue={hotel.phone} required />
-          </label>
-          <label className="admin-form-field">
-            <span>E-mail de contato do hotel</span>
-            <input
-              type="email"
-              name="email"
-              defaultValue={hotel.email}
-              required
-              placeholder="reservas@hotel.com"
-              onInvalid={handleContactEmailInvalid}
-              onInput={clearContactEmailValidity}
-            />
-            <small>As solicitações de reserva do site serão enviadas para este e-mail.</small>
-          </label>
-          <label className="admin-form-field">
-            <span>WhatsApp</span>
-            <input name="whatsapp" defaultValue={hotel.whatsapp} required />
-          </label>
+          <AdminTextField
+            name="phone"
+            label="Telefone"
+            defaultValue={hotel.phone}
+            required
+            maxLength={24}
+            inputMode="tel"
+            requiredMessage="Informe o telefone."
+            invalidMessage="Informe um telefone válido."
+          />
+          <AdminTextField
+            type="email"
+            name="email"
+            label="E-mail de contato do hotel"
+            defaultValue={hotel.email}
+            required
+            maxLength={160}
+            placeholder="reservas@hotel.com"
+            helperText="As solicitações de reserva do site serão enviadas para este e-mail."
+            autoComplete="email"
+            requiredMessage="Informe o e-mail de contato do hotel."
+            invalidMessage="Informe um e-mail de contato válido."
+          />
+          <AdminTextField
+            name="whatsapp"
+            label="WhatsApp"
+            defaultValue={hotel.whatsapp}
+            required
+            maxLength={24}
+            inputMode="tel"
+            requiredMessage="Informe o WhatsApp."
+            invalidMessage="Informe um WhatsApp válido."
+          />
         </div>
       </section>
 
@@ -834,24 +877,28 @@ export function HotelEditorForm({
           <h2>Descrições</h2>
         </div>
         <div className="admin-form-grid">
-          <label className="admin-form-field">
-            <span>Descrição curta</span>
-            <textarea
-              name="shortDescription"
-              defaultValue={hotel.shortDescription}
-              rows={3}
-              required
-            />
-          </label>
-          <label className="admin-form-field">
-            <span>Descrição completa</span>
-            <textarea
-              name="fullDescription"
-              defaultValue={hotel.fullDescription}
-              rows={6}
-              required
-            />
-          </label>
+          <AdminTextField
+            as="textarea"
+            name="shortDescription"
+            label="Descrição curta"
+            defaultValue={hotel.shortDescription}
+            rows={3}
+            required
+            minLength={10}
+            maxLength={220}
+            requiredMessage="Informe a descrição curta."
+          />
+          <AdminTextField
+            as="textarea"
+            name="fullDescription"
+            label="Descrição completa"
+            defaultValue={hotel.fullDescription}
+            rows={6}
+            required
+            minLength={30}
+            maxLength={4000}
+            requiredMessage="Informe a descrição completa."
+          />
         </div>
       </section>
 
