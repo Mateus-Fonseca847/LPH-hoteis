@@ -45,6 +45,7 @@ type HotelApprovalReviewProps = {
       isActive: boolean;
     }>;
     pending: string[];
+    recommended: string[];
     submittedForApproval: boolean;
     isPublished: boolean;
     hasMapLocation: boolean;
@@ -129,6 +130,21 @@ export function HotelApprovalReview({
         <div className="admin-editor-banner">
           <strong>Itens obrigatórios pendentes</strong>
           <p>{summary.pending.join(", ")}.</p>
+        </div>
+      ) : null}
+
+      {summary.recommended.length > 0 ? (
+        <div className="admin-editor-banner admin-editor-banner--info">
+          <strong>Informações recomendadas</strong>
+          <p>
+            Você ainda pode adicionar localização e disponibilidade personalizada posteriormente. O
+            hotel já pode ser publicado.
+          </p>
+          <ul>
+            {summary.recommended.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         </div>
       ) : null}
 

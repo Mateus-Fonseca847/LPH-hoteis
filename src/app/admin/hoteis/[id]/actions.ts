@@ -105,9 +105,6 @@ function hasText(value: string | null | undefined) {
 }
 
 async function getHotelApprovalReadiness(hotelId: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   const hotel = await prisma.hotel.findUnique({
     where: {
       id: hotelId,
@@ -164,21 +161,6 @@ async function getHotelApprovalReadiness(hotelId: string) {
             },
             take: 1,
           },
-          availability: {
-            where: {
-              date: {
-                gte: today,
-              },
-              closed: false,
-              availableUnits: {
-                gt: 0,
-              },
-            },
-            select: {
-              id: true,
-            },
-            take: 1,
-          },
         },
       },
     },
@@ -216,21 +198,6 @@ async function getHotelApprovalReadiness(hotelId: string) {
     missing.push("rates");
   }
 
-  if (!hotel.rooms.some((room) => room.availability.length > 0)) {
-    missing.push("availability");
-  }
-
-  if (
-    !resolveHotelMapLocation({
-      city: hotel.city,
-      state: hotel.state,
-      latitude: hotel.latitude,
-      longitude: hotel.longitude,
-    })
-  ) {
-    missing.push("mapLocation");
-  }
-
   return {
     hotel,
     missing,
@@ -255,16 +222,14 @@ function getApprovalErrorMessage(missing: string[]) {
     policies: "politicas",
     rooms: "quarto",
     rates: "tarifa",
-    availability: "disponibilidade futura",
-    mapLocation: "localização no mapa",
   };
 
   if (missing.includes("contactEmail")) {
     return "Este hotel precisa de um e-mail de contato valido antes de ser aprovado.";
   }
 
-  if (missing.some((item) => ["rooms", "rates", "availability"].includes(item))) {
-    return "Complete quartos, tarifas e disponibilidade antes de enviar para aprovação.";
+  if (missing.some((item) => ["rooms", "rates"].includes(item))) {
+    return "Complete quartos e tarifas antes de enviar para aprovação.";
   }
 
   return `Complete antes de enviar para aprovação: ${missing.map((item) => labels[item] ?? item).join(", ")}.`;
@@ -277,10 +242,6 @@ function getPublishErrorMessage(missing: string[]) {
 
   if (missing.includes("rates")) {
     return "Cadastre pelo menos uma tarifa ativa antes de publicar.";
-  }
-
-  if (missing.includes("availability")) {
-    return "Defina disponibilidade antes de publicar.";
   }
 
   return getApprovalErrorMessage(missing);

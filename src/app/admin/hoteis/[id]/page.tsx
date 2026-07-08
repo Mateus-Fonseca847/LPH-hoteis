@@ -380,17 +380,24 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
     hotel.policies.length > 0 ? null : "politicas",
     hotel.checkInTime.trim() ? null : "check-in",
     hotel.checkOutTime.trim() ? null : "check-out",
+    activeRoomsCount > 0 ? null : "quarto",
+    activeRatesCount > 0 ? null : "tarifa",
+  ].filter((item): item is string => Boolean(item));
+  const hasMapLocation = Boolean(
     resolveHotelMapLocation({
       city: hotel.city,
       state: hotel.state,
       latitude: hotel.latitude,
       longitude: hotel.longitude,
     })
+  );
+  const recommendedApprovalItems = [
+    hasMapLocation
       ? null
-      : "localização no mapa",
-    activeRoomsCount > 0 ? null : "quarto",
-    activeRatesCount > 0 ? null : "tarifa",
-    futureAvailabilityCount > 0 ? null : "disponibilidade futura",
+      : "Você ainda não adicionou a localização do hotel. Ela poderá ser cadastrada posteriormente.",
+    futureAvailabilityCount > 0
+      ? null
+      : "Você ainda pode adicionar disponibilidade personalizada posteriormente. Até lá, o hotel usa disponibilidade total como padrão.",
   ].filter((item): item is string => Boolean(item));
 
   const submittedForApproval = approvalSubmissionsCount > 0;
@@ -433,9 +440,12 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
     },
     {
       label: "Disponibilidade",
-      description: `${futureAvailabilityCount} período(s)`,
+      description:
+        futureAvailabilityCount > 0
+          ? `${futureAvailabilityCount} período(s)`
+          : "Disponibilidade total padrão",
       href: "#hotel-availability",
-      status: futureAvailabilityCount > 0 ? ("complete" as const) : ("pending" as const),
+      status: "complete" as const,
     },
     {
       label: "Revisão",
@@ -482,16 +492,10 @@ export default async function AdminHotelDetailPage({ params }: AdminHotelDetailP
               isActive: experience.isActive,
             })),
             pending: pendingApprovalItems,
+            recommended: recommendedApprovalItems,
             submittedForApproval,
             isPublished: hotel.isPublished,
-            hasMapLocation: Boolean(
-              resolveHotelMapLocation({
-                city: hotel.city,
-                state: hotel.state,
-                latitude: hotel.latitude,
-                longitude: hotel.longitude,
-              })
-            ),
+            hasMapLocation,
             steps: approvalSteps,
           }}
         />
