@@ -27,7 +27,7 @@ export function StayDetailsSection() {
         <article className="detail-card reveal dark-panel">
           <h3>Atendimento dedicado</h3>
           <p>
-            Da reserva à chegada, nossa equipe ajuda com traslados, horários e solicitações
+            Da reserva à chegada, nossa equipe ajuda com translados, horários e solicitações
             especiais.
           </p>
         </article>

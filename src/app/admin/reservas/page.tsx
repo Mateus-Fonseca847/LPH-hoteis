@@ -353,7 +353,7 @@ export default async function AdminReservationsPage({ searchParams }: AdminReser
           </label>
 
           <label className="admin-form-field">
-            <span>Check-in final</span>
+            <span>Check-out</span>
             <input name="checkInEnd" type="date" defaultValue={filters.checkInEnd} />
           </label>
 
