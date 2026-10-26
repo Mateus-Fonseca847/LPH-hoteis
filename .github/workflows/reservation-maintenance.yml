@@ -10,32 +10,78 @@ permissions:
 
 jobs:
   expire-and-reconcile:
-    name: Expire and reconcile reservations
+    name: Maintenance (${{ matrix.environment }})
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
+    environment: ${{ matrix.environment }}
+    concurrency:
+      group: reservation-maintenance-${{ matrix.environment }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [production, staging]
 
     steps:
-      - name: Call internal reservation maintenance
+      - name: Expire and reconcile reservations
         env:
           APP_INTERNAL_BASE_URL: ${{ secrets.APP_INTERNAL_BASE_URL }}
           INTERNAL_API_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
+          TARGET_ENVIRONMENT: ${{ matrix.environment }}
         run: |
-          test -n "$APP_INTERNAL_BASE_URL"
-          test -n "$INTERNAL_API_TOKEN"
+          if [ -z "$APP_INTERNAL_BASE_URL" ]; then
+            echo "::error::Secret APP_INTERNAL_BASE_URL vazio ou ausente no Environment $TARGET_ENVIRONMENT."
+            exit 1
+          fi
+          if [ -z "$INTERNAL_API_TOKEN" ]; then
+            echo "::error::Secret INTERNAL_API_TOKEN vazio ou ausente no Environment $TARGET_ENVIRONMENT."
+            exit 1
+          fi
 
+          base_url="$APP_INTERNAL_BASE_URL"
+          while [ "${base_url%/}" != "$base_url" ]; do base_url="${base_url%/}"; done
+
+          delay=20
           for attempt in 1 2 3; do
-            if curl --fail --show-error --silent \
+            status=$(curl --silent --connect-timeout 10 --max-time 60 \
               --request POST \
               --header "Authorization: Bearer $INTERNAL_API_TOKEN" \
-              "$APP_INTERNAL_BASE_URL/api/internal/reservas/expirar"; then
-              exit 0
-            fi
+              --output /dev/null --write-out "%{http_code}" \
+              "$base_url/api/internal/reservas/expirar") || status="000"
+
+            echo "Tentativa $attempt: HTTP $status"
+
+            case "$status" in
+              2??)
+                exit 0
+                ;;
+              5?? | 429 | 408 | 000)
+                ;;
+              *)
+                echo "::error::Falha sem nova tentativa em $TARGET_ENVIRONMENT: HTTP $status."
+                exit 1
+                ;;
+            esac
 
             if [ "$attempt" -lt 3 ]; then
-              echo "Tentativa $attempt falhou; repetindo em 20s."
-              sleep 20
+              echo "Falha temporária; repetindo em ${delay}s."
+              sleep "$delay"
+              delay=$((delay * 2))
             fi
           done
 
-          echo "Rotina de manutencao falhou apos 3 tentativas."
+          echo "::error::Manutenção falhou após 3 tentativas em $TARGET_ENVIRONMENT."
           exit 1
+
+      - name: Send heartbeat
+        if: success()
+        env:
+          HEARTBEAT_URL: ${{ secrets.HEARTBEAT_URL }}
+          TARGET_ENVIRONMENT: ${{ matrix.environment }}
+        run: |
+          if [ -z "$HEARTBEAT_URL" ]; then
+            echo "::warning::HEARTBEAT_URL não configurado em $TARGET_ENVIRONMENT; batimento ignorado."
+            exit 0
+          fi
+          curl --fail --silent --max-time 20 --retry 3 --output /dev/null "$HEARTBEAT_URL" \
+            || { echo "::error::Falha ao enviar batimento em $TARGET_ENVIRONMENT."; exit 1; }
